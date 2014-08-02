@@ -1,0 +1,20 @@
+<svg height="0" xmlns="http://www.w3.org/2000/svg">
+ <filter id="drop-shadow">
+    <feGaussianBlur in="SourceAlpha" stdDeviation="[radius]"/>
+    <feOffset dx="5" dy="5" result="offsetblur"/>
+    <feFlood flood-color="[color]"/>
+    <feComposite in2="offsetblur" operator="in"/>
+    <feMerge>
+      <feMergeNode/>
+      <feMergeNode in="SourceGraphic"/>
+    </feMerge>
+  </filter>
+  <filter id="invert">
+  	<feColorMatrix in="SourceGraphic" type="matrix" values="-1  0  0  0  1 
+  	                                                         0 -1  0  0  1 
+  	                                                         0  0 -1  0  1
+  	                                                         0  0  0  1  0"
+		/>
+
+	</filter>
+</svg>
