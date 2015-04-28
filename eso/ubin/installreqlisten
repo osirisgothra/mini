@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+
+[[ $- =~ i ]] && { "$BASH_SOURCE" "$@"; return $?; }
+
+unset IFS
+shopt -s interactive_comments
+shopt -s nullglob
+shopt -s extglob
+shopt -s globstar
+shopt -o -u histexpand
+
+if [[ "$1" == "__RFD" ]]; then
+	shift
+	echo "okay [new session started]"
+fi
+
+while true; do
+	echo 'waiting for install requests (type "x" or "q" to exit session)'
+	# important to note that the glob has to be nested or bash won't evaluate it in a [[ ]] block
+	# however it will evaluate it in an unquoted echo statement, the absence of quotes is vital!
+	while [[ -z `echo /tmp/*.installreq` ]] && [[ ! -r /tmp/restart.installreq ]]; do
+		TMOUT=5
+		unset REPLY
+		read -sn1
+		RES=$?
+		TMOUT=0
+		if [[ $RES != 142 ]]; then
+			if [[ ${REPLY^^} =~ [XQ] ]]; then
+				echo "console exit keypressed, exiting..."
+				exit 0
+			fi
+		fi			
+	done
+	if [[ -r /tmp/restart.installreq ]]; then
+		echo -ne "Program Script Reloading from Disk..."	
+		if rm -f /tmp/restart.installreq; then
+			exec "$BASH_SOURCE" "__RFD" "$@"
+		else
+			echo "failed (can't remove request, check permissions)"
+			echo "panic: aborting"
+			exit 12
+		fi
+	fi
+	for req in /tmp/*.installreq; do
+		echo "$(date): started request processing of $req ..."
+		echo "processing ..."
+		mapfile -t items < "$req"
+		for item in "${items[@]}"; do
+			echo "installing (w/o remove) unconditionally \"$item\" ..."
+			if sudo apt-get install --no-remove --yes "$item" ; then
+				echo "install OK, signing request item back into log ..."
+				newitems+=( "INSTALLED: $item" )
+			else
+				newitems+=( "FAILED($?): $item" )
+				echo "install FAILED, wrote response code in log ..."
+			fi
+		done
+		echo "writing response log ..."
+		for ritem in "${newitems[@]}"; do
+			echo "$ritem" >> /tmp/$(basename $req).rsp.log
+		done
+		echo "done processing $req, proceeding to next ..."
+	done
+	echo "requests processed, moving items into /tmp/processed"
+	[[ ! -d /tmp/processed ]] && mkdir -f /tmp/processed
+	[[ ! -z /tmp/*.installreq ]] && mv -f /tmp/*.installreq /tmp/processed -v | sed 's/^/transferred /g;s/$/.../g'
+	echo "done, entering monitoring state again ..."
+done

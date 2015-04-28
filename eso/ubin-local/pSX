@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+cd ~/.pSX
+/usr/bin/pSX &> /dev/null &
+disown %

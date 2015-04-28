@@ -1,5 +1,6 @@
 
-                                                        
+CC=colorgcc
+CXX=colorgcc                                                        
 
 estat: estat.cpp
 	g++ estat.cpp -o estat

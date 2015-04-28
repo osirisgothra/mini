@@ -1,0 +1,22 @@
+#!/bin/bash
+
+	while true; do
+
+(for i in 1 2 3; do echo $(rand -s $RANDOM -M 255 -n 16 -d ,); done ) > /etc/console-setup/vtrgb-rand
+setvtrgb /etc/console-setup/vtrgb-rand
+clear
+eval `resize`
+perl -e 'print "-" x ( '$COLUMNS' + 0 );'
+cat /gxbase/doc/colortable.data
+perl -e 'print "-" x ( '$COLUMNS' + 0 );'
+cat /etc/console-setup/vtrgb-rand
+perl -e 'print "-" x ( '$COLUMNS' + 0 );'
+
+	[[ $1 == cont ]] || break
+	echo "Press ENTER to cycle again, CTRL-C or Q to stop"
+	read -sn1
+	[[ $REPLY =~ [Qq] ]] && break
+
+done
+true
+

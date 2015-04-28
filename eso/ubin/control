@@ -1,0 +1,160 @@
+#!/bin/bash - 
+#===============================================================================
+#
+#          FILE: control (name taken, so put in ~/bin)
+# 
+#         USAGE: ./control 
+# 
+#   DESCRIPTION: starts kcmshell4 control panels (faster than using systemsettings!)
+# 
+#       OPTIONS: control | control [panel] - panel will be smartly spell corrected :)
+#  REQUIREMENTS: qt4 kde4 zenity kdialog grep xprop Xorg x11 xorg-server-* linux-* coreutils
+#          BUGS: will not run on /dev/ttyXX even if valid for security reasons!
+#         NOTES: control [panel] does not show the launcher, use plain 'control' for that!
+#                this is a SILENT program on the console (not output unless -x or -v in $-!)
+#        AUTHOR: Gabriel Sharp, osirisgothra@hotmail.com
+#  ORGANIZATION: Paradisim GIT (paradisim.github.com/mini)
+#       CREATED: 02/20/2015 17:51
+#      REVISION: A 2/20/2015 11:20 added sop
+#===============================================================================
+
+# KRunner users: why would you want this? that said...
+# 	this is meant for terminal users or if you are like me, users
+# 	of kde components but not kwin or (most of) plasma-desktop
+#   i reccomend my favorite: gxdwm1.61+xcompmgr or xfce(legacy) or oldschool gnome (the new gnome shell sucks)
+#   also: kde5 users, kde5 blows so far, so dont expect this to work (which is why i use "kcmshell4 <<-- note the '4')
+#   kde4 is to kde5 as perl5 is to perl6, they are not the same thing... (just like qt4 and qt5)
+#   this isnt windows..
+#		if you hate this script, email me at osirisgothra@hotmail.com
+
+NUM=`which -a $(basename $BASH_SOURCE)|grep '.*' -c`
+if [[ $NUM > 1 ]]; then echo "competition... there is more than one control! maybe rename me?"; fi
+
+unset SOUNDS IFS
+if [[ ! -r ~/.config/control-script ]]; then
+	if ! tty -s; then
+		if kdialog --yesno "You need to set up control in console first, do it now?"; then
+			xterm -e "$BASH_SOURCE" "$@"
+			return || exit
+		fi
+	fi
+	echo "creating first time config dir..."
+	mkdir --parents ~/.config/control-script
+	echo "do you want a sound played for when a typed panel is launched (in background)?"
+	echo "(it will play /usr/share/sounds/pop.wav, most people have this file)"
+	echo -n "choice [y/n]:"
+	# in case some jerk actually exported these...
+	unset REPLY
+	while ! [[ $REPLY =~ [yn] ]]; do read -sn1; done
+	if [[ $REPLY == y ]]; then
+		echo "ok..."
+	else
+		echo "DISABLING SOUND (for good) - edit the file to change this setting"
+	fi
+	echo "SOUNDS=$REPLY" >> ~/.config/control-script/config.sh
+	SOUNDS=$REPLY
+else
+	. ~/.config/control-script/config.sh 
+fi
+# failsafe
+[[ -z $SOUNDS ]] && SOUNDS=n	
+
+if [[ $- =~ i ]]; then
+	echo "export CONTROL_SCRIPT_COMPLETION_ADDED=1" >> ~/.config/control-script/config.sh 
+	export CONTROL_SCRIPT_COMPLETION_ADDED=1
+	echo "adding interactive mode completions.."
+	complete -W "about-distro audiocd autostart bell bluedeviladapters bluedevildevices bluedeviltransfer bookmarks cache clock colors componentchooser cookies cursortheme desktop desktoppath desktoptheme device_automounter devinfo display dma ebrowsing emoticons filetypes fontinst fonts icons interrupts ioports joystick k3bsetup kamera activities adobe_flash_player akonadi_resources attica baloofile colord cron driver_manager infosummary kdnssd keyboard kscreen ktp_accounts ktp_integration_module lightdm memory notificationhelper pci phonon printer_manager remotecontrol ssl touchpad useraccount wacomtablet whoopsie access cgi df dolphingeneral dolphinnavigation dolphinservices dolphinviewmodes history kded kttsd launch notify performance smserver trash usb view1394 kde-gtk-config keys kgamma khotkeys khtml_appearance khtml_behavior khtml_filter khtml_general khtml_java_js khtml_plugins kresources ksplashthememgr kwalletconfig kwincompositing kwindecoration kwinoptions kwinrules kwinscreenedges kwinscripts kwintabbox language libkcddb mouse netpref nic opengl powerdevilactivitiesconfig powerdevilglobalconfig powerdevilprofilesconfig proxy randr screensaver scsi smb smbstatus solid-actions spellchecking standard_actions style user_manager useragent workspaceoptions xserver" control
+	return 0
+fi
+
+if [[ $1 == --help ]]; then
+	echo "control [panel]"
+	echo "list of panels:"
+	control nothing
+	[[ $COLUMNS ]] || COLUMNS=80
+	cat /tmp/kcmshell4list.cache | grep -Po '^\S+' | tail -n+2 | column -c $COLUMNS
+	exit 0 
+fi
+if [[ ! -v CONTROL_SCRIPT_COMPLETION_ADDED ]]; then
+	echo "[1m** tired of typing? try using 'source $BASH_SOURCE' or better yet add it to your ~/.bashrc file, this will enable completions for the $BASH_SOURCE script!! **[0m"
+fi
+
+
+if [[ -z "$CONTROL_BG" ]]; then
+	ourtty=$(tty)
+	if [[ -z $DISPLAY ]] || !xprop -root &>/dev/null || [[ $ourtty =~ ^/dev/tt\d+$ ]]; then
+		echo "Please run control from a DISPLAY ENABLED, pseudoterminal!"	
+	fi
+	if ! [[ $- =~ [vx] ]]; then		
+		exec 2> /dev/null
+		exec 1> /dev/null
+	else
+		echo "debug mode -v or -x active, all output WILL be shown!"
+	fi
+	export CONTROL_BG=1	
+	control "$@" &
+	disown
+	exit
+fi
+if [[ ! -r /tmp/kcmshell4list.cache ]]; then
+	echo "generating list.."
+	if kcmshell4 --list > /tmp/kcmshell4list.cache && [[ -r /tmp/kcmshell4list.cache ]]; then
+		#debug
+		echo "list created ok"
+	else
+		kdialog --msgbox "kcmshell4list.cache could not be created in /tmp, please make sure you have sufficient user access on this computer or use systemsettings instead (aborting)"
+		exit 1
+	fi
+else
+	echo "list already available, using cache"
+fi	
+
+#exec 2> /dev/null
+# debug:
+#exec 2> "/tmp/${USER}_control_stderr_$(date).log"
+
+getitem()
+{
+	unset IFS
+	declare -g item=""
+	if item=`eval zenity --list --title=\"System Settings\" --width=800 --height=800 --ok-label=\"Open Control Panel\" --cancel-label=\"Exit System Settings\" --text=\"Select Module\" --column="Name" --column="Description" $(for i in $(cat /tmp/kcmshell4list.cache | tail -n+2 | sed -r 's/(^\S+)([     -]+)(.*)$/"\1" "\3"/g'); do echo $i; done)`; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+if [[ $# -eq 0 ]]; then
+	while getitem; do
+		/usr/bin/kcmshell4 "${item%%|*}"
+	done
+else
+	# faster in cache - so not too expensive...
+	# the last one is not a typo, $1s to pluralize 
+	# because some entry names (like 'colors') can be easily mistyped
+	# and some entries annoyingly start with 'k' or 'kcm' or 'kcm_'
+	# which is blatantly inconsistent!! That last one, _kcm is for one 
+	# item alone (thats right __ONE__!! if that's not inconsistent, i don't
+	# know what is!!
+	for ITEM in $1 kcm$1 k$1 kcm_$1 ${1}s ${1}_kcm; do
+		#debug
+		echo "trying $ITEM..."
+		if cat /tmp/kcmshell4list.cache | grep -qP "^$ITEM\s"; then
+				[[ $SOUNDS == y ]] && [[ -r /usr/share/sounds/pop.wav ]] && play -q --volume 0.5 /usr/share/sounds/pop.wav &
+				/usr/bin/kcmshell4 "$ITEM"
+			exit 0
+		else
+			# debug
+
+			echo "no match: $ITEM is not a valid control item"
+			false
+		fi
+	done
+	#debug
+	echo "done: no matches found, sorry ($1) ($?) (last=$ITEM) (lc=$_)"
+	[[ $SOUNDS == y ]] && [[ -r /usr/share/sounds/pop.wav ]] && play -q --volume 0.5 /usr/share/sounds/kapman/gameover.ogg &
+
+
+fi
+
+

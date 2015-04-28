@@ -1,0 +1,105 @@
+#!/bin/bash
+
+# setup variables
+
+INSTANCIA_REQUEST_CHECK_INTERVAL=2				# amount of time to wait between checks, IN SECONDS
+REQUEST_TIMEOUT_SECONDS=180						# max seconds to wait before giving up waiting for a request that is ahead of us**
+INSTANCIA_SESSION_NAME="_instancia-session_"	# name of instancia's session   (dont change this when its running or you will be locked out*)
+INSTANCIA_REQUEST_NAME="/tmp/instance-request"  # name of request data file	    (if you change this, you must restart the session!)
+
+# * = locked out means you will have to kill the old instance yourself, so make sure you remember it's name!
+# **= 180 seconds = 3 minutes
+
+
+if pgrep -f '.instancia.session.'; then
+
+	################ CLIENT ######################
+
+	echo "instancia running already, processing command request..."
+	case $# in
+	0)	# 0 - show usage arguments
+		echo "usage: instancia [stop|exec] [program-name] [program-arguments]"
+		exit 0;;	
+	*)	# 1+ - process commands
+		case $1 in
+			stop)	# kill server
+				echo -n "stopping instancia..."
+				if killall $INSTANCIA_SESSION_NAME --user $USER; then
+					echo "success!"						
+				else	
+					echo "FAILED (permissions or hung task)"
+					exit 1
+				fi
+				;;
+			exec)	# execute command
+				shift
+				if [[ $# -lt 1 ]]; then
+					echo "Not enough arguments (at least a program name is needed)!!"
+					exit 2
+				else
+					MAXTIME=$REQUEST_TIMEOUT_SECONDS
+					echo "requesting (expidited)"
+					while [[ -r $INSTANCIA_REQUEST_NAME ]]; do
+						echo "request already in progress, waiting for all-clear..."
+						if [[ $MAXTIME -eq 0 ]]; then
+							echo "FAILED: timeout after $TIMELIMIT seconds... giving up!"
+							exit 3
+						else
+							let MAXTIME--
+						fi
+						sleep 1
+					done
+					echo "got all-clear, sending request..."
+					echo "$@" > $INSTANCIA_REQUEST_NAME 
+					echo "done!"																			
+				fi
+				;;
+			*)
+				echo "FATAL: unknown command: $1"
+				exit 4
+				;;			
+		esac
+		;;
+	esac
+	# if we made it this far, it means there were no errors
+	exit 0
+else
+
+	################ SERVER #####################
+
+	echo "instancia not running, creating instance session.."
+	cat <<-EOF > /tmp/$INSTANCIA_SESSION_NAME
+	#!/bin/bash
+	while true; do
+		if [[ -r /tmp/instance-request ]]; then
+			if instancereq="\`cat $INSTANCIA_REQUEST_NAME\`"; then
+				if \$instancereq &> /tmp/\$instancereq.$RANDOM.$USER.log; then
+					if	rm $INSTANCIA_REQUEST_NAME; then
+						echo "inrq \"\$instancereq\" processed ok!"
+					else
+						echo "CRITICAL: cannot remove instance request file, stopping to avoid a damaging infinite-loop execution!"
+						exit 1
+					fi
+				else
+					echo "WARNING: \$instancereq - abnormal exit code, \$?"
+				fi
+			else
+				echo "CRITICAL: cannot acquire request data (permissions bad or file type mismatch), stopping to avoid a damaging infinite-loop execution!"
+			fi
+		else
+			if [[ $- =~ [vx] ]]; then
+				echo "TRACE: \$(date) - no requests to process..."
+			fi			
+		fi
+		sleep $INSTANCIA_REQUEST_CHECK_INTERVAL
+	done
+	EOF
+	chmod a+x /tmp/_instancia-session_
+	if /tmp/_instancia-session_ &> /dev/stderr & disown; then
+		echo "started process OK"
+		echo "$USAGE"
+	else
+		echo "cannot acquire locked process, code retrieved: $?"
+	fi
+fi
+		

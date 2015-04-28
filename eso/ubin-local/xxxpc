@@ -1,0 +1,8 @@
+#!/bin/bash
+
+if [[ $BASH_SOURCE =~ mobile ]]; then
+	cp ~/.xxxterm.conf-mobile ~/.xxxterm.conf
+else
+	cp ~/.xxxterm.conf-pc ~/.xxxterm.conf	
+fi
+exec /usr/bin/xxxterm "$@"

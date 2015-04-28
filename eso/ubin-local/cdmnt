@@ -1,0 +1,54 @@
+#!/bin/bash
+# vim:ft=sh:ts=4:tw=120:sw=4:showmode:wrap:nospell
+
+[[ -z $1 ]] && set -- in
+
+case $* in
+	change)			
+		echo "please change the disc"
+		$BASH_SOURCE out &> /dev/null
+		echo "thank you..."
+		$BASH_SOURCE in
+		;;
+	in)
+		if mount | grep cdrom; then
+			echo "already mounted (use off to unmount, change to change disc)"
+		else		
+			echo "closing tray..."
+			eject -t /dev/cdrom
+			echo "mounting..."
+			sudo mount /dev/cdrom /mnt/cdrom
+			if mount | grep cdrom; then
+				echo "succeeded"
+			else
+				echo "failed, check messages in syslog"
+			fi
+		fi
+		;;
+	out)
+		if mount | grep cdrom; then
+			echo "unmounting..."
+			if umount /dev/cdrom; then
+				echo "ejecting..."
+				if eject /dev/cdrom; then
+					echo "please remove disc - then press enter"
+					read
+					echo "closing tray..."
+					eject -t /dev/cdrom
+				else
+					echo "eject failed, you should manually remove the disc"
+				fi
+			else
+				echo "unmount failed"
+			fi
+		else
+			echo "not mounted"
+			eject /dev/cdrom
+			echo "remove disc and press enter"
+			read
+			eject -t /dev/cdrom	
+		fi
+		;;
+esac
+echo "done"
+

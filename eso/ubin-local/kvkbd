@@ -1,0 +1,66 @@
+#!/usr/bin/env perl 
+#===============================================================================
+#
+#         FILE: kvkbd
+#
+#        USAGE: ./kvkbd  
+#
+#  DESCRIPTION: 
+#
+#      OPTIONS: ---
+# REQUIREMENTS: ---
+#         BUGS: ---
+#        NOTES: ---
+#       AUTHOR: Gabriel Thomas Sharp (gts), osirisgothra@hotmail.com
+# ORGANIZATION: Paradisim Enterprises, LLC - http://paradisim.twilightparadox.com
+#      VERSION: 1.0
+#      CREATED: 11/04/2014 06:00:29 AM
+#     REVISION: ---
+#===============================================================================
+
+use strict;
+use warnings;
+use utf8;
+use v5.18;
+no warnings "experimental";
+
+# keyboard settings
+
+
+# constants used for dialog's sizes
+our $autosize = 0;
+our $minsize = -1;
+our $maxsize = defined($ENV{ROWS})? $ENV{ROWS} : 25;
+
+chomp (our $binary = `which dialog`);
+	die "you don't have dialog ($binary), install it first!" unless (-x $binary);
+
+our @settings = (
+	"--backtitle", 		"Keyboard Settings",
+	"--default-button", "Ok",
+	"--help-button",   	
+);
+our @menu = (
+	"Select From The Following", # text
+	$autosize, # height
+	$autosize, # width
+	$autosize,  # menu height	
+);
+our @menuitems = @ARGV // [ "None" ];
+
+system $binary,@settings,@menu,@menuitems;
+
+
+
+
+
+
+
+ 
+
+
+
+
+ 
+
+

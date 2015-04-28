@@ -1,0 +1,91 @@
+#!/bin/bash
+unset EXTRA_MESSAGE
+echo "Starting Script ($SECONDS)..."
+#set -x
+#set -v
+	
+if [[ $* =~ --? ]] || [[ $# -gt 2 ]]; then
+	if [[ $1 == -norm ]]; then
+		shift
+	fi
+	/usr/bin/vlc "$@"
+	[[ $- =~ i ]] && return || exit
+fi
+
+while true; do
+	unset RESPONSE
+	unset CANCELING
+	unset RESULT
+	unset NOT_OKAY
+	if [[ $* ]]; then
+		# imitate an unverified result, and, make sure if it does not succeed, that it gets cancelled
+		CANCELLING=1
+		RESPONSE=( "$1" "$2" )
+		RESULT=0
+		CMDLINE_MESSAGE=1
+		shift 2
+		VLC_ARGS=( "$@" )
+	else
+		RESPONSE=( `zenity --forms --add-entry="Start" --add-entry="Stop" --separator=" " --text="${EXTRA_MESSAGE}Select Start and End Times in [[..m]mm:ss] format! (Do NOT enter hours separately!)"` )
+		RESULT=$?
+		unset EXTRA_MESSAGE
+		CANCELLING=0
+	fi
+	if [[ $RESULT == 0 ]]; then
+		echo "Okay, checking result"
+		if [[ ${#RESPONSE[@]} == 2 ]]; then
+			echo "Result count okay, checking formats..."
+			START_TIME=${RESPONSE[0]}
+			STOP_TIME=${RESPONSE[1]}
+			for i in "$START_TIME" "$STOP_TIME"; do
+				if [[ $i =~ ^[[:digit:]]+:[[:digit:]]{2}$ ]]; then
+					NOT_OKAY=0			 				
+			   	else
+					NOT_OKAY=1
+					EXTRA_MESSAGE+="$i is not in the format of [[..m]m:ss]\n"
+				fi
+			done
+		fi
+	else		
+		NOT_OKAY=1
+		CANCELLING=1
+	fi
+	if [[ $NOT_OKAY == 1 && $CANCELLING == 0 ]]; then
+		echo "Input was not accepted!, please try again!"
+		EXTRA_MESSAGE+="Please Try Again!!\n"
+	elif [[ $NOT_OKAY == 0 || $CANCELLING = 1 ]]; then
+		break
+	fi
+done
+if [[ $CANCELLING == 1 ]]; then
+	if [[ $CMDLINE_MESSAGE == 1 ]]; then
+		echo "Input is not in the valid format, use $0 with not parameters to use interactive mode!"
+		echo "syntax: $0 [start_time] [end_time]"
+		echo "times must be in the format of minutes:seconds"
+		echo "seconds MUST be two digits, minutes can be 1 or more digits (but not zero digits!)"
+	else	
+		echo "Cancelled!"
+	fi
+	exit 1
+fi
+
+# --------------------- execute real vlc binary ---------------------------------
+if [[ ! -v VLC_ARGS ]]; then
+	echo "Last chance: Enter any movies to play (command line to add to vlc?): "
+	read -r VLC_ARGS
+fi
+
+echo "You win: results: start-time: $START_TIME  stop-time: $STOP_TIME"
+
+declare -i ST_MIN=${START_TIME%%:*}
+declare -i ST_SEC=${START_TIME##*:}
+declare -i ET_MIN=${STOP_TIME%%:*}
+declare -i ET_SEC=${STOP_TIME##*:}
+declare -i ST_TOT=$(( (ST_MIN*60) + ST_SEC ))
+declare -i ET_TOT=$(( (ET_MIN*60) + ET_SEC ))
+echo "Start time: Minutes: $ST_MIN  Seconds: $ST_SEC ($ST_TOT Seconds Total)"
+echo "  End time: Minutes: $ET_MIN  Seconds: $ET_SEC ($ET_TOT Seconds Total)"
+echo
+echo "Starting the binary..."
+/usr/bin/vlc --start-time=$ST_TOT --stop-time=$ET_TOT "${VLC_ARGS[@]}" &> /dev/null & disown
+echo "Start Completed ($?) ($SECONDS) Returning To Shell..."

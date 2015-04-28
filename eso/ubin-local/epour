@@ -1,0 +1,10 @@
+#!/usr/bin/python
+
+import logging
+
+from epour.Epour import Epour
+
+app = Epour()
+app.gui.run()
+app.quit()
+logging.shutdown()

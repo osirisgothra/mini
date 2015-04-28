@@ -1,0 +1,71 @@
+#!/bin/bash
+declare -A prefs=( [gweb]='http://www.google.com/search?q='
+		   [duck]='http://www.duckduckgo.com/?q=' )
+declare -A suffs=( [firefox]='/usr/bin/firefox' [surf]='/usr/bin/surf --style /home/gabriel/Documents/black.css'
+		   [links2]='/usr/bin/links2' [links2g]='/usr/bin/links2 -g' )
+declare -A cats=( [gwfeelucky]='&BtnI=l' [duckluck]='+!' [none]='' )
+
+unset x p s LUCK
+
+# Use notify-send to communicate messages to the user (if possible)
+if ! tty -s; then
+	function echo() { [[ -x /usr/bin/notify-send ]] && notify-send -- "$@"; }
+fi
+
+if [[ $1 == "-s" ]]; then
+	LUCK=1
+	shift
+fi
+
+# mode of operation set by script's actual name
+case "${0##*\/}" in
+	g*)	p=gweb; s=surf;;&
+	f*)	p=gweb; s=firefox;;&
+	t*)	p=gweb; s=links2;;&
+	T*)	p=gweb; s=links2g;;&
+	*-ddg)  p=duck;;&
+	*)	[[ -z $p ]] && { p=$p_default; echo "selecting default pref: $p"; }
+		[[ -z $s ]] && { s=$s_default; echo "selecting default suff: $s"; };;
+esac
+if [[ $LUCK == 1 ]]; then
+
+# Direct hit mode ('feeling lucky') differs on various search engines,
+# define those behaviors here for each entry you have in 'prefs'. It
+# does not have anything to do with 'suffs' so it is not checked.
+	case p in
+		gweb) x=gwfeelucky;;
+		duck) x=duckluck;;
+		*) x=none;;
+	esac
+else
+	x=none
+fi
+
+# Function+RegEx hybrid to find the params that are surrounded by spaces
+function getstr()
+{
+	for i in "$@"; do
+		if [[ $i =~ \  ]]; then
+			printf "\"$i\""+
+		else
+			if [[ "$i" == "${@: -1}" ]]; then
+				printf "$i"
+			else
+				printf "$i"+
+			fi
+		fi
+	done
+}; h=$(getstr "$@")
+
+# Process any special cases for your programs here (your 'suffs')
+# surf and firefox are loud, so we silence them on the tty
+case ${suffs[$s]} in
+	*surf|*firefox)	out=/dev/null;;
+	*) out=/dev/stdout;;
+esac
+
+# put it together and launch it (background)
+set -x
+eval "coproc ${suffs[$s]} \"\${prefs[\$p]}\$h\${cats[\$x]}\" &> $out"
+disown
+
