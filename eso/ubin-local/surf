@@ -1,2 +1,62 @@
 #!/bin/bash
-/usr/bin/surf "$@" -style /home/gabriel/Documents/black.css
+
+
+function errexit()
+{
+	kdialog --msgbox "cant find surf anywhere! $*"
+	echo "CANT FIND SURF!"
+	exit 1
+}
+
+if [[ -r ~/.config/surflocation ]]; then
+	SURFCACHE=~/.config/surflocation
+else
+	SURFCACHE="/tmp/surfloc.cached"
+fi
+
+if [[ ! -r "$SURFCACHE" ]]; then
+	kdialog --msgbox "I am going to look for surf for you, and save the location!"
+	echo "$SURFCACHE not found, looking for surf..."
+	# note: "nlocate" does NOT search for just files (stupid right?) so we have to check em ourselves
+	declare -a files=( `locate */surf` )
+	declare -i index=0
+	echo
+	echo "Heres the list: ${files[@]}"
+	echo
+	while true; do
+		nextfile=${files[index]}
+		echo "now checking: $nextfile - to see if it is a file/executable/nondirectory"
+		if [[ -f "$nextfile" ]] && [[ -x "$nextfile" ]] && [[ ! -d "$nextfile" ]]; then
+			echo "found: $nextfile fits the bill"
+			break
+		fi
+		let index++
+		echo "no go, going to the next one.. (number $index in the list)"
+		if [[ $index -gt "${#files[@]}" ]]; then
+			# /dev/null is guarenteed to NEVER be executable POSIX-HFS specifications
+			echo "FAILED, could NOT find one, so we have to use /dev/null to trip the checker"
+			nextfile=/dev/null
+			break
+		fi
+	done
+	SURFLOC="$nextfile"
+	if [[ ! -x "$SURFLOC" ]]; then
+		errexit
+	fi
+	kdialog --msgbox "we made it, it was found at $SURFLOC and will be stored in $SURFCACHE until the next system reboot clears the cache"
+	echo "found surf at $SURFLOC"
+	echo "recording cache to $SURFLOC"
+	echo "$SURFLOC" > "$SURFCACHE"
+else
+	SURFLOC=`cat $SURFCACHE`
+	if [[ ! -x "$SURFLOC"  || ! -f "$SURFLOC" || -d "$SURFLOC" ]]; then
+		rm -f "$SURFCACHE"
+		errexit "The cache file was found, but it pointed to somewhere that didnt execute, the cache file has been deleted, try running again to perform the initial search"
+	fi
+fi
+# at this point $SURFLOC will have a valid, executable location, no matter what
+# execution problems are now the problem of the binary, not us
+# our script is called 'surf' so we can safely 'exec' into it to keep
+# the expected PID when we were launched, this is required for startup
+# notification on some systems to work correctly (and monitoring apps)
+exec "$SURFLOC" "$@"
