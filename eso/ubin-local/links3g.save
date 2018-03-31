@@ -1,0 +1,13 @@
+#!/usr/bin/perl
+
+# script to start links2 in graphic mode or an alternative
+
+use warnings;
+use strict;
+use v5.18;
+my @order = qw! links3 links2 links surf !
+
+for (@order) {
+exec( '/usr/bin/links3','-g',@ARGV ) if -r -x '/usr/bin/links3';
+}
+exec( '/usr/bin/links2','-g',@ARGV ) if -r -x '/usr/bin/links2'

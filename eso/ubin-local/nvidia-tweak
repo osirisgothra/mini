@@ -1,0 +1,73 @@
+#!/bin/bash
+#
+#    nvidia-tweak
+#    loads optimal settings for nvidia display devices on low end
+#	 compatible with opengl v4.0+
+#
+#    original filename: nvidia-tweak (+rwxr-x--x)
+#
+#    Projects of Gabriel Thomas Sharp
+#    http://github.com/osirisgothra
+#    Copyright (C) 1995-2016 Gabriel T. Sharp
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#    author contact: <osirisgothra@hotmail.com>
+#
+#    revisions:
+#		1	Wed Jan  3 07:05:41 EST 2018 - file created
+#
+
+#  working with attributes:
+#
+#  Attribute 'OpenGLImageSettings' (nvidia-hostname:0.0): 1.
+#  Attribute 'DigitalVibrance' (nvidia-hostname:0.0; display device: CRT-0): 0.
+#  Attribute 'GPUPowerMizerMode' (nvidia-hostname:0[gpu:0]): 2.
+#  Attribute 'DigitalVibrance' (nvidia-hostname:0[gpu:0]; display device: CRT-0): 0.
+#  Attribute 'DigitalVibrance' (nvidia-hostname:0[dpy:0]): 0.
+#
+
+# CONSTANTS
+
+declare GPU_SAVE_POWER=0
+declare GPU_MAX_SPEED=1
+declare GPU_AUTO=2
+declare NORMAL_VIBRANCE=0
+declare STANDARD_VIBRANCE=128
+declare MAX_VIBRANCE=266
+declare ROBUST_VIBRANCE=640
+declare LIMIT_VIBRANCE=999
+declare IMAGE_HI_QUALITY=0
+declare IMAGE_MED_QUALITY=1
+declare IMAGE_BALANCED=2
+declare IMAGE_HI_SPEED=3
+declare -x NVSP="nvidia-settings"
+declare -a NVSC=( "$NVSP" "-a" )
+
+# FUNCTIONS
+
+assign_attribute()
+{
+	if "${NVSC[@]}" "${1}=${2}" &> /dev/null; then
+		echo "set $1 to $2"
+	else
+		echo "error: attribute $1 not accepted for value $2, locked out ($?)"
+	fi
+}
+
+# SCRIPTSTART
+
+assign_attribute OpenGLImageSettings $IMAGE_HI_SPEED
+assign_attribute DigitalVibrance $ROBUST_VIBRANCE
+assign_attribute GPUPowerMizerMode $GPU_MAX_SPEED

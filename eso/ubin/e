@@ -1,0 +1,255 @@
+#!/bin/bash
+#======================================================================================================================
+#
+#          FILE: g
+# 
+#         USAGE: ./g 
+# 
+#   DESCRIPTION: multi auto web search launcher (meta link launcher/reader) 
+# 
+#       OPTIONS: ---
+#  REQUIREMENTS: ---
+#          BUGS: ---
+#         NOTES: If you are editing the file named 'g' then DO NOT DELETE IT.
+#                The other file(s) [l,t,Tl,x,xl,gl,etc] can be deleted (they are links)
+#				 safely, you can also use 'g --regenerate' to install this script and create the
+#			     links for you!
+#        AUTHOR: Gabriel Thomas Sharp (gts), osirisgothra@hotmail.com
+#  ORGANIZATION: Paradisim Enterprises, LLC, PA, USA
+#       CREATED: 04/26/2015 01:58
+#      REVISION:  ---
+#  HELP CONTENT:
+#					usage: g <arguments>
+#					
+#					<arguments>		options you can pass to g
+#									
+#					This script (C) Copyright 2014-2015 Paradisim Enterprises, LLC, PA, USA, Licensed under GNU GPL v3
+#					You may get a copy of this LICENSE at the website: http://gpl.gnu.org
+#					For more info, contact the author Gabriel Thomas Sharp osirisgothra@hotmail.com
+#======================================================================================================================
+
+
+
+
+sleep="sleep 0.03125"
+# auto-debug watch all locals (non-array-hash-ref)
+_debugtrap()
+{
+	printf '[s[1;1H[0;1;44m'
+	for x in $(cat $BASH_SOURCE | grep \\b\\w*"(?==\\S)" -Po | sort | uniq | tr '\n' ' '); do VV=${!x};[[ -z $VV ]] && unset VV; echo "[2K $x = \"${VV-[$x not set!]}\""; done
+	printf '[0m[u'
+	$sleep
+}
+
+if [[ $1 == '--debug' ]]; then
+	echo "DEBUG MODE ACTIVATED!"
+	set -vx
+	trap _debugtrap DEBUG RETURN ERR SIGCHLD SIGTERM SIGHUP EXIT
+	trace() { echo "[1m$@" > /dev/stderr; }
+	shift
+else
+	trace() { return $?; }
+fi
+
+echo "scanning for necessary binaries..."
+# note: notify-send is NOT required (but is supported)
+REQPROGS=( which firefox surf links2 grep sed dirname basename rm mktemp )
+if ! which which || ! which firefox || ! which surf || ! which links2; then
+	echo -n "One of the programs above could not be found "
+	echo -n "``g'' WILL be unpredictable without them in "
+	echo -n "your path properly. Proceed by typing YES (in caps) and "
+	echo -n "pressing ENTER:\ntype here>> "
+	read
+	if [[ $REPLY != YES ]]; then
+		echo "aborted!"
+		echo "hint: you can symlink the above programs' names to your favorite alternative, in a private ~/bin directory (this usually is only desirable cloned look-alikes as the command arguments must be the same)"
+		echo "      try linking them to /etc/alternatives/x-default-web-browser, or something simmilar."
+		exit 1
+	fi
+fi
+
+
+
+declare -A prefs=( [gweb]='http://www.google.com/search?q='
+		   [duck]='http://www.duckduckgo.com/?q=' )
+# UPDATE(v0.1): changed absolute paths to include PATH items
+declare -A suffs=( [firefox]="$(which firefox)" [surf]="$(which surf) -style /home/gabriel/Documents/black.css"
+		   [links2]="$(which links2)" [links2g]="$(which links2) -g" [elinks]="$(which elinks)" )
+declare -A cats=( [gwfeelucky]='&btnI=l' [duckluck]='+!' [none]='' )
+
+unset x p s LUCK
+
+
+# Use notify-send to communicate messages to the user (if possible)
+if ! tty -s; then
+	function echo() { [[ -x /usr/bin/notify-send ]] && notify-send -- "$@"; }
+fi
+echo "0 = $0"
+if [[ $1 == "-s" || $0 =~ l$ ]]; then
+	LUCK=1
+	[[ $1 == "-s" ]] && shift
+fi
+
+case $1 in --regenerate)
+	if [[ $(basename $BASH_SOURCE) != g ]] || [[ -L $BASH_SOURCE ]]; then
+		echo "This is not 'g', or is a symbolic link!"
+		echo "either way, can't generate from the non-physical source"
+	   	echo "please use: /path/to/actual/g --regenerate"
+	  	echo "to regenerate the symbolic links!"
+		echo "stop."
+		exit 4
+	else
+		if cd $(dirname $BASH_SOURCE); then
+			if [[ -r g ]]; then
+				cmdln='ln -s'
+				cmdsudo='sudo'
+				cmduser='command'
+				src='g'
+				tgt='_to-be-set_'
+				run_err=5
+				sudo_timeout=2
+				if [[ ! -w . ]]; then
+					cmdpre=sudo
+					if ! sudo touch /; then
+						echo "Source is not writable by you, and sudo is disabled for your operation."
+						echo "There is no way to continue since no links can be written."
+						echo "stop."
+						exit $run_err
+					else
+						echo "Protected directory: using sudo to write links [proceeding in 2 seconds...]"
+						sleep $sudo_timeout
+					fi
+				else
+					cmdpre=command
+				fi
+				cmd="$cmdpre $cmdln"; unset cmdpre cmdln
+				echo "---regenerating links mode start---"
+					for pre in g f t T; do
+						for pst in l -ddg ""; do
+							tgt=$pre$pst
+							if [[ $tgt != $src ]]; then
+								# brief analysis of cmd being used for user view
+								set -v;	$cmd $src $tgt;	set +v
+							else
+								echo "(skipping $tgt, because source is $src!)"
+							fi
+						done
+					done
+				echo "---completed generating of links---"
+				echo "if there were any errors, please take note now! [2 seconds until exiting...]"
+				sleep $sudo_timeout
+			else
+				echo "cannot regenerate links: cant find source 'g'."
+				exit 6
+			fi
+		else
+			echo "fail: failure while trying to change to directory (bad permissions/access code)"
+		fi
+		exit 0
+	fi
+	;;
+esac
+
+# mode of operation set by script's actual name
+case "${0##*\/}" in
+    e*) p=gweb; s=elinks;;&
+	g*)	p=gweb; s=surf;;&
+	f*)	p=gweb; s=firefox;;&
+	t*)	p=gweb; s=links2;;&
+	T*)	p=gweb; s=links2g;;&
+	*-ddg)  p=duck;;&
+	*)	[[ -z $p ]] && { p=$p_default; echo "selecting default pref: $p"; }
+		[[ -z $s ]] && { s=$s_default; echo "selecting default suff: $s"; };;
+esac
+if [[ $LUCK == 1 ]]; then
+
+# Direct hit mode ('feeling lucky') differs on various search engines,
+# define those behaviors here for each entry you have in 'prefs'. It
+# does not have anything to do with 'suffs' so it is not checked.
+	case $p in
+		gweb) x=gwfeelucky;;
+		duck) x=duckluck;;
+		*) x=none;;
+	esac
+else
+	x=none
+fi
+
+# Function+RegEx hybrid to find the params that are surrounded by spaces
+function getstr()
+{
+	for i in "$@"; do
+		if [[ $i =~ \  ]]; then
+			printf "\"$i\""+
+		else
+			if [[ "$i" == "${@: -1}" ]]; then
+				printf "$i"
+			else
+				printf "$i"+
+			fi
+		fi
+	done
+}; h=$(getstr "$@")
+
+# Process any special cases for your programs here (your 'suffs')
+# surf and firefox are loud, so we silence them on the tty
+case ${suffs[$s]} in
+	*surf|*firefox)	out=/dev/null;;
+	*) out=/dev/stdout;;
+esac
+
+# put it together and launch it (background)
+# set -x # <- NOTE: removed this, see --debug options for g(1)
+
+
+if [[ -z $DISPLAY ]] || ! xprop -root &> /dev/null; then
+	echo "no X compatible display connected, try launching directly..."
+	FORE=1
+else
+	case $s in
+		links2|elinks)
+			echo "running links2 (text) must be run in foreground..."
+			FORE=1;;
+		*)
+			echo "running a graphics browser, running in background..."
+			FORE=0;;
+	esac
+fi
+if [[ $FORE -eq 0 ]]; then
+	SECODE="disowned"
+	if eval "coproc ${suffs[$s]} \"\${prefs[\$p]}\$h\${cats[\$x]}\" &> $out" && R1=$? && disown; then
+		RUNSTATUS="OK/RUNNING/DISOWNED"
+	else
+		if [[ $R1 -eq 0 ]]; then
+			RUNSTATUS="ERROR/RUNNING/ASJOB"
+		else
+			RUNSTATUS="ERROR/TERMINATED"
+		fi
+	fi
+else
+	# not FORE=0, so run in the foreground (assumes FORE=1)
+	ERROUT="$(mktemp)"
+	SECODE="stderr($ERROUT)output"
+	[[ -z $FORE ]] && echo "Warning: FORE was not set-check script"	
+	echo "Errors will be logged to $ERROUT"
+	$sleep
+	if eval "${suffs[$s]} \"\${prefs[\$p]}\$h\${cats[\$x]}\" 2> $ERROUT"; then
+		RUNSTATUS="FINISHED/OK/FG"
+		R1=0
+	else
+		R1=$?
+		RUNSTATUS="FAILED/ERROR/FG"
+	fi
+fi
+echo "Run status: $RUNSTATUS (${suffs[$s]} cats=$x,${cats[$x]} code=$R1, $SECODE=$?)."
+if [[ -r $ERROUT ]]; then
+	if [[ -s $ERROUT ]]; then
+		echo "retained $ERROUT as error log"
+	else
+		if rm -f $ERROUT; then
+			echo "removed empty error log, $ERROUT"
+		else
+			echo "failed to remove empty log, $ERROUT, do it yourself!"
+		fi
+	fi
+fi

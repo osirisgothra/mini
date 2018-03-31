@@ -1,0 +1,9 @@
+#!/bin/bash
+# transparent sudo passthru 
+#   user:
+#		 user level
+#	command:
+#        service
+exec sudo service "$@"
+
+

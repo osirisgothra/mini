@@ -1,0 +1,39 @@
+#!/bin/bash
+# stopservices
+#
+#    desc: stops less needed services
+# written: Thu Jul 13 07:58:37 EDT 2017
+#  author: osirisgothra@larnica
+#
+
+# f.attr.taintprotect.bydemecration
+service()
+{
+	echo -ne "[0;32;2mStopping service [0;32;1m${1}..."
+	## BEGIN:(TAINT-PROTECT)
+	if command time sudo -H /usr/sbin/service "$@"; then
+	## END:(TAINT-PROTECT)
+		echo "[1mOK[0m"
+	else
+		echo "[1;31mFAILED[0m"
+	fi
+}
+# f.attr.reset	
+
+service vsftp stop
+service urandom stop
+service cups stop
+service sshd stop
+service anacron stop
+service apport stop
+service apparmor stop
+service cron stop
+service gpm stop
+service inetutils-inetd stop
+service lm-sensors stop
+service ondemand stop
+service pyro-nsd stop
+service speech-dispatcher stop
+service irqbalance stop
+service ufw stop
+service cups-browsed stop

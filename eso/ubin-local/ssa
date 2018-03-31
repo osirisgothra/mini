@@ -1,0 +1,9 @@
+#!/bin/bash
+dialog --infobox "Starting Launcher..." 0 0
+rm -f ~/sa/logs/fml-client-latest.log
+#sa &> /dev/null & disown
+while ! [[ -r ~/sa/logs/fml-client-latest.log ]]; do
+	dialog --infobox "Waiting For Status Log..." 0 0
+	sleep 0.5
+done
+cat ~/sa/logs/fml-client-latest.log | grep -Pi '\[[^/ ]+/[^/ ]+\]' | grep -Po '(?<=: )[^:\t\d]+(?=: )' | grep '^\S+.*' -Po | while read; do dialog --keep-window --backtitle Space_Astronomy_Startup --help-status --title status --infobox "$REPLY" 5 65;sleep 0.05; done

@@ -1,0 +1,26 @@
+#!/bin/bash
+
+#syntax: relocate [dir] [newparent]
+#example: relocate documents /home/someguy 
+#will move 'documents' in curdir to /home/someguy/documents
+#and create a link 'documents' in curdir that points to it
+if [[ $1 == --help ]]; then
+	cat "$BASH_SOURCE" | grep '^#.*' | cat
+	exit 1
+fi
+
+if [[ -d "$1" ]] && [[ -d "$2" ]]; then
+	echo "moving $1 to $2..."
+	if mv --verbose "$1" "$2"; then
+		echo "leaving change of address link..."
+		if [[ -r "$2/$1" ]]; then
+			ln -s "$1" "$2/$1"
+		else
+			echo "fail: coa link not valid destination"
+			return 2
+		fi
+	else
+		echo "fail/halt: move operation may have failed--no more processing now exiting"
+		return 1
+	fi
+fi

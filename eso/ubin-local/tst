@@ -1,0 +1,4 @@
+#!/bin/bash
+if true; then
+    dialog --tailbox ~/rg/logs/fml-client-latest.log 120 120
+fi

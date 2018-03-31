@@ -1,0 +1,124 @@
+#!/bin/bash
+#
+# 	 i3lint
+#
+# 	 simplific linter for i3 config file
+#	 this works only for ~/.i3/config so dont expect much from nano
+#	 just puts it in the proper format so bash can interpret it properly
+#	 (outputs it in a g++ style format that nano can understand)
+#
+# 	 this is an OPTIONAL addition with autox extras
+#    
+#    autox extras
+#    core autox foundation project
+#
+#    Copyright (C) 2003-2016 Paradisim Enterprises, LLC
+#
+#    (Please see the end of this text for revision history)
+#
+#    Written by Gabriel T. Sharp <osirisgothra@hotmail.com>
+#    Latest versions of this and all other projects can be
+#    obtained by visiting <https://github.com/osirisgothra>
+#
+#    seasonal mirrors (subject to availability and uptime):
+#
+#    home-run servers:   <http://paradisim.twilightparadox.com>
+#    corporate hosted:   <http://paradisim.tk>
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    REVISION HISTORY
+#
+#    Tue Mar 27 07:54:27 EDT 2018
+#            osirisgothra@larnica initially created this file
+#            with the original name, i3lint
+#
+#	NOTES
+#   - please check ONLINE repositories before submitting bug reports or pull requests!!!!
+#	- you have to put this in /usr/bin if you expect nanorc/i3.nanorc to work without any changes to it
+#     (otherwise just modify i3.nanorc and put the correct path in)
+#   - the i3 system of checking configuration does not allow for checking specific files so multiple or offline
+#     checking of files other than ~/.i3/config is not possible (not currently)
+#   - possible workaround to that would be write a syntax checker, but, theres no need for it since most people
+#     (including myself) only write configs to use, not to stockpile (and why would you need to, i3 is not really
+#	  mainstream at this time, or possibly ever?).
+#   - reloading/restarting is done after each lint, if possible, see variables below for conditions and instructions
+#   - see I3LINT_ variables below on how to disable the above feature of reloading/restarting
+#
+
+# LD_LIBRARY_PATH - not needed
+# PATH - needs to have i3 and i3-msg in it!!
+
+# shell setup - options
+shopt -s interactive_comments
+shopt -u failglob
+
+# shell setup - file descriptors
+exec 9<>/dev/null
+# todo:(disable when not in use) possibly debug linter with: exec 10<>$(mktemp)
+
+# quick functions
+which() { command which "$@" 2>&9 1>&9; return $?; }
+
+# variables
+I3LINT_NO_RELOADING=0
+I3LINT_RESTART_RELOAD=0
+
+if which i3-msg && which i3; then
+
+	# one-liner to get the output, and thats it
+	# note the numbers below it, thats the corrosponding PIPESTATUS index (return codes for each item)
+	# NB! MUST copy out all of PIPESTATUS in one command, it is changed after EVERY command  NB!
+	# NB! must be after next line!!!! NB!
+
+	# 0                      1                           2                                                       3 (end)
+	i3 -C | grep "ERROR.*Line\s*[0-9]*:[^#]*$" | grep ':\s*$' -v | sed -r 's/^.*ERROR:.*CONFIG: Line\s*//g;s/([0-9]+):/\1:1:/g;s!^!'$HOME'/.i3/config:!g'
+
+	declare -a PIPESTAT=( "${PIPESTATUS[@]}" )
+	I3LINT_I3RET=${PIPESTAT[0]}
+	I3LINT_GREP_LINES_RET=${PIPESTAT[1]}
+	I3LINT_GREP_WORDS_RET=${PIPESTAT[2]}
+	I3LINT_SED_STREAM_RET=${PIPESTAT[3]}
+	# uncomment only for checking
+	# echo "i3=$I3LINT_I3RET grep1=$I3LINT_GREP_WORDS_RET sed=$I3LINT_SED_STREAM_RET"
+	# echo "${PIPESTAT[@]}"
+
+	# reload the configuration (unless configured not to)
+	if [[ $I3LINT_I3RET -ne 0 ]]; then
+		echo "errors encountered, no reloading taking place!"
+		exit 1
+	elif [[ $I3LINT_SED_STREAM_RET -ne 0 ]] || [[ $I3_GREP_LINES_RET -ne 0 ]] || [[ $I3_GREP_WORDS_RET -ne 0 ]]; then
+		echo "i3lint:1:1: fatal: i3 lint was ok, but, sed and/or grep has failed -- no lines to give to lint host (Stop)"
+		exit 1
+	elif [[ $I3LINT_NO_RELOADING -eq 1 ]]; then
+		# silent 'ok' exit
+		exit 0
+	else
+		# reload or restart
+		if [[ $I3LINT_RESTART_RELOAD -eq 1 ]]; then
+			i3-msg restart 2>&9 1>&9
+		else	
+			i3-msg reload  2>&9 1>&9
+		fi
+		# regular 'ok' exit
+		exit 0
+	fi
+else
+	# this will go back to the linter's caller and should show up as an error in the list
+	# this is why we must conform using standard error output, puts you at line 1 of the file so it isnt mistaken
+	# for a file error
+	echo "i3lint:1:1: i3, and/or i3-msg not executable with this PATH, make sure it is in a binary executable place!"
+	exit 1
+fi

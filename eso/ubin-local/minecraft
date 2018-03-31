@@ -1,0 +1,73 @@
+#!/usr/bin/perl
+
+# minecraft (executable, perl script/program)
+
+# this is a program to launch a minimal java to a preinstalled launcher
+# by default the launcher is assumed to be in USERHOME/.minecraft/launchers
+# and the default launcher name is 'minecraft.jar'
+# you may change this on the command line if you wish
+
+
+use warnings;
+use v5.20;
+use strict;
+use Pod::Perldoc;
+use Pod::Usage;
+use Getopt::Long;
+use POSIX;			# note: this program is NOT for non-posix compliant environments (ie, windows command line)
+
+my ($launcher,$verbose,$mcdir,$usrdir, $java, $javacli, $helprequested,
+	$manrequested) 
+	= qw! . 1 . . java -jar 0  0 !;
+$usrdir = $ENV{HOME} // glob('~');
+$mcdir = $usrdir . '/' . '.minecraft';
+$launcher = '/launchers/minecraft.jar';
+$java = '/usr/bin/java';
+$javacli = "-XX:+UseG1GC -Xms128M -Xmx128M -jar "; # dont waste memory on launcher!
+
+Getopt::Long::Configure("bundling");
+
+Getopt::Long::GetOptions(
+	#"numeric=i" => \$numeric,
+	"launcher=s" => \$launcher,
+	"verbose" => \$verbose,
+	"mcdir=s" => \$mcdir,
+	"usrdir=s" => \$usrdir,
+	"javaloc=s" => \$java,
+	"javacmd=s" => \$javacli,
+	"help" => \$helprequested,
+	"man" => \$manrequested,
+	) or pod2usage(
+	 -msg => "incorrect arguments!",
+	 -exitval => 2,
+	 -verbose => 2, -noperldoc => 1);
+
+if ($helprequested)	
+{
+	pod2usage(	 
+	 -exitval => 127,
+	 -verbose => 2, -noperldoc => 1);
+	exit(0);
+}
+
+# still here, execute minecraft launcher
+my @javacli = ( split(' ',$javacli) );
+print("homing in: $usrdir\n");
+print("java: $java  cli: $javacli");
+print("mcdir is: $mcdir\n");
+print("launcher: $launcher\n");
+my $jarfile = $mcdir . $launcher; # no need for $usrdir; already injected to mcdir!!
+print(" = jarfile => $jarfile\n");
+my @execlist = ( $java, @javacli, $jarfile);
+print ("\ngathering done, the resulting command call is shown below. First the command, then the arguments, one argument per line:\n\n");
+say for @execlist;
+# do it
+unless (exec (@execlist)) {
+# now we are gone, thread has been given to new app and we are not in memory
+# but if we ARE in memory something really bad happened (no process was found to launch, etc..)
+print ("ERROR: fatal error, could not start the program, the exit code will be relayed");
+exit($!);
+}
+else {
+	print("WEIRD: this should not happen contact the author NOW!");	
+}

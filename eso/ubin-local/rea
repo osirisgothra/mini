@@ -1,0 +1,29 @@
+#!/bin/bash
+function n()
+{
+	case $# in
+		2)
+			echo -e "\e[33;1msingle-shot for: \e[34;1m$1 \e[0mwith priority of\e[34;1m $2 \e[0m"
+			~/bin/ionice "$@"
+			;;
+		*)
+			echo "multi-shot not supported: org: $@"
+			exit 122
+			;;
+	esac
+}
+for i in {1..7}; do
+	for j in R B; do
+		#echo "generating function ${j}${i} ..."
+		eval 'function '${j}${i}'() {	for x; do echo -e "\e[33;1mmulti-shot for: \e[34;1m$x \e[0mwith priority of \e[34;1m${FUNCNAME}\e[0m"; ~/bin/ionice "$x" '${j}${i}';	done; }'
+
+	done
+done
+#declare -pf
+
+n java R1
+n X R0
+#n pulseaudio R3
+#n mocp R3
+R3 pulseaudio mocp
+

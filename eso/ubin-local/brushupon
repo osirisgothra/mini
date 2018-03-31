@@ -1,0 +1,117 @@
+#!/bin/bash
+# 
+# brushupon
+#
+# get the learn x in y seconds document on whatever you shall wish
+#
+#HELPTEXTBEGIN
+# syntax: brushupon [-raw] [-n] [l]anguage
+#         brushupon [-raw] [-n] [l]anguage [s]uffix
+#
+# just [l] needed:
+#  where [l]anguage is any programming language you can think of that is accepted globally by
+#  the programming community in it's most common suffix, which is also usually it's main file
+#  for these examples: brushupon cpp          brushupon c
+#                      brushupon lua          brushupon html
+#
+# [l] and [s] both needed:
+#  in the event that the [s]uffix and [l]anguage might be different, you may need to include it
+#  sepearately, for example: brushupon python py 
+#
+# OPTIONS:
+#   -raw    disable 'colorme' support if the 'colorme' executable
+#           is present on the system. colorme is included with the
+#           autox library of extra utilities.
+#   -n		disable the 'get the code' page, this implies only using the first item (language) as there are no
+#           double depth pages out there. This forces the interpreter to NOT download the code, but instead to
+#           download the original webpage, and translate it, as best it can, into a code page. This is required
+#           for certain pages when their links to the code page is broken. *At the time of this writing, the link
+#           on the 'html' page was broken (funny huh?) so I wrote this workaround to allow to be able to see it
+#           by using this flag. This flag will work for any language and may be easier for some especially new to
+#           the suffixes used by the languages as the second form can be confusing. Again at this time, this file
+#			is considered 'private' but is only released on pastebin semi-anonymously!
+#
+# examples(that work*): 
+#
+#	brushupon lua
+#	brushupon cpp
+#   brushupon c
+#   brushupon python py
+#   brushupon -n html
+#   brushupon -n brainfuck
+#
+# please read the source script for more information
+#HELPTEXTEND
+# ....which you are reading right now (otherwise you wouldnt see this line!)
+#
+# when using -n, any language listed on their 'main' page should work as an argument
+# unless they aggressively rearrange their website's layout. This script makes no promise
+# that it will continue working after such a thing may happen -- since they do all the time! 
+#
+# if the content is not there, check with learnxiny.com not with me, thank you
+# only defer questions about this script to me, **if** i choose to make this public -which not at this time will i do so
+#
+#
+# addons supported:
+#    	colorme (autox)
+#
+# see my git page for updates related to my stuff: https://osirisgothra.github.io
+#
+# this file is from: http://paste.ubuntu.com/26233733/
+
+RAWMODE=0
+if [[ $* =~ --help ]]; then
+	printf "\n"
+	cat "$BASH_SOURCE" | perl -wne 's/^#//g;if (/HELPTEXTBEGIN/ .. /HELPTEXTEND/) { print("$_") unless (/(HELPTEXTBEGIN|HELPTEXTEND)/); } '
+	printf "\n"
+	case $- in *i*) return 127;; *) exit 127;; esac
+elif [[ $1 == -raw ]]; then
+	echo "disabling colorme support (if it was available)" > /dev/stderr
+	RAWMODE=1
+	shift
+fi
+
+case $# in
+1)
+	set $1 $1
+	;;
+0)
+	echo "Error: must supply at least one item as the language!"
+	exit 127
+	;;
+esac
+echo -ne "checking for addons..."
+if [[ $RAWMODE != 1 ]]; then
+	[[ -x `which colorme` ]] 	|| (NO_COLORME=1; let NMISS++)
+fi
+
+[[ -x `which html2text` ]] 	|| (NO_HTML2TXT=1;MISSING+="html2text";let MISS++)
+[[ -x `which less` ]] 		|| (NO_LESS=1; let NMISS++)
+[[ -x `which GET` ]] 		|| (NO_GET=1;MISSING+="${MISSING:+,}GET";let MISS++)
+
+if [[ $MISS -gt 0 ]]; then
+	echo "$MISS missing addon(s) required: ${MISSING}"
+	echo "program cannot run without these. Stop."
+	exit 126
+elif [[ $NMISS -gt 0 ]]; then
+	echo "warning: some addons not available, support may be limited (but still functional)"
+fi
+
+
+if [[ $1 == -n ]]; then
+	shift
+	PFX="https://learnxinyminutes.com/docs/$1"
+	DOT=""
+	XLAT=html2text
+	set ""
+else
+	PFX="https://learnxinyminutes.com/docs/files/learn"
+	DOT="."
+	XLAT=cat
+fi
+
+if [[ $RAWMODE == 0 ]] && which colorme; then
+	GET "$PFX$1$DOT$2" | $XLAT | colorme | less -raw
+else
+	GET "$PFX$1$DOT$2" | $XLAT | less -raw
+fi

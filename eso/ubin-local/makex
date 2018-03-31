@@ -1,0 +1,47 @@
+#!/bin/bash
+
+#
+# makex
+# make executable files executable in specified location, using a few 
+# different methods.
+#
+
+if [[ $1 == "-u" ]]; then
+        echo -- "-u was specified, removing sudo from command line"
+        sudo()
+        {
+                eval "$@"
+        }
+        shift
+elif [[ $1 =~ ^-([h?]|-help)$ ]]; then
+	echo "syntax: makex [options] [filespec]"
+	echo ""
+	echo "options"
+	echo " -u    disables the use of sudo on the command line"
+	echo " -h    this help message (also any common help specifiers works)"
+	echo ""
+	echo "distributed with autox from http://osirisgothra.github.io/autox"
+	echo ""
+	exit 127
+fi
+
+case $# in
+        0) for x in *; do
+                if file "$x" | grep -q executable; then
+                        sudo chmod a+x "$x"
+                        echo "changed $x because it was executable filetype"
+                else
+                        echo "skipping $x, cant determine if it should be executable"
+                fi
+            done
+            ;;
+        *) for x in "$@"; do
+                if [[ -r $x ]]; then
+                        sudo chmod a+x "$x"
+                        echo "changed $x (user explicitly specified it on the command line)"
+                else
+                        echo "unrecognized option, file, or command: $x"
+                fi
+           done
+           ;;
+esac

@@ -1,0 +1,4 @@
+#!/bin/bash 
+# vim:filetype=sh
+
+(( GET learnxinyminutes.com/docs/"$*" | html2text | perl -wne 'print unless /Further Reading:/ .. /Dhankhar/' ) 2>/dev/null)

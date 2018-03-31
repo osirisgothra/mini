@@ -1,0 +1,9 @@
+#!/usr/bin/perl
+
+# script to start links2 in graphic mode
+
+use warnings;
+use strict;
+use v5.18;
+
+exec '/usr/bin/links2','-g',@ARGV;

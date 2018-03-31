@@ -1,0 +1,9 @@
+#!/bin/bash
+#
+# xset (usrhome/bin/xset)
+# shim for /usr/bin/xset
+#
+[[ -v DISPLAY ]] && exec /usr/bin/xset "$@"
+exec false
+
+    

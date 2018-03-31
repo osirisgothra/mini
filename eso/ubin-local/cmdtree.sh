@@ -1,0 +1,3 @@
+#!/bin/bash
+set -- "";unset CNT;[[ "$1" -le 0 ]] || [[ "$1" -gt 255
+]] && CNT="1," || CNT=$1;shift;case $# in 0) while true; do echo -ne "\e[32mcommand line\e[1m>\e[0m "; read; [[ $REPLY == q ]] && return 127; set -- $REPLY; which "$1" && break || echo "command MUST be executable in some way! try again!"; done; true;; esac; echo "CNT=$CNT CMD=$@ ($# items)"; ( tree `"$@"` -f -L 2 --nolinks --noreport -C -i --dirsfirst | grep -Pv -- '-\>.*' | grep -P '^(/([^/]+)){'${2-1,}'}$' ) | ( while read; do basename $REPLY; done ) | column

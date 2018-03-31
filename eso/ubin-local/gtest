@@ -1,0 +1,19 @@
+#!/bin/bash
+printf "[A[K[A[K\n"
+SKIP=N
+for ((i=5;i>0;i--)); do
+    printf "[K[s[0;32m100%% ... done (press [33;1m[x][0;32m in [0;1;5m${i}[0;32m second(s) to skip log view) ... [u"
+    TMOUT=1
+    read -sn1
+    TMOUT=0
+    if [[ $REPLY == x ]]; then
+        SKIP=Y
+        break
+    fi
+done
+if [[ "$SKIP" == "Y" ]]; then
+    printf "[K[s[0;32m100%% ... done ([33;1mskipping log view[0;32m) ... [u"
+else
+    printf "[K[s[0;32m100%% ... done ([34;1mopening log view[0;32m) ... [u"
+fi
+sleep 2

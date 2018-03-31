@@ -1,0 +1,19 @@
+#!/bin/bash
+if [[ $# -eq 0 ]]; then
+	while true; do
+		clear
+		echo "keep pressing enter until you see a gamma you like and"
+		echo "then press [Y]..."
+		MAJOR=$[ ${RANDOM:1:1} / 3 ]
+		MINOR=$[ ${RANDOM:1:2} ]	
+		CMDLINE=( /usr/bin/xgamma -gamma "${MAJOR}.${MINOR}" )
+		echo "Command: ${CMDLINE[@]}"
+		eval "${CMDLINE[@]}"
+		read -sn1
+		if [[ $REPLY == Y ]]; then
+			exit 0
+		fi
+		done
+else
+	xgamma -gamma $*
+fi

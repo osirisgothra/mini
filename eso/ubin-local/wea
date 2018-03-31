@@ -1,0 +1,4 @@
+#!/bin/bash
+GET www.wtae.com/weather/closings | grep "Greater Latrobe" -A12 | perl -wne 'print if /(Greater Latrobe School|Delay|Closed)/' | tr -s '	' | tr -s ' ' | tr -s '\n' | sed 's/<div[^>]*>//g;s!</div>!!g;s/^\s*//g' | tr -d '\n' | tr '	' ':' | sed 's/ :/ : /g'
+echo
+

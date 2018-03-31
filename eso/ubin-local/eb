@@ -1,4 +1,30 @@
-#!/bin/zsh
-#
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+use v5.20;
+use Getopt::Long::Descriptive;
+my $program_name = 'eb';
+
+my ($opt, $usage) = describe_options(
+						'$program_name %o <file>',
+						[ 'check-path-first|p', "check PATH, and ~/bin last" ],
+						[ 'write-check|w', "check for write permissions and elevate" ],
+						[ 'make-executable|x',"make file executable if not already" ],
+						[ 'create-only|c',"do not make new files executable, create only" ],
+						[ 'user|u=s',"set owner to different user" ],
+						[ 'group|g=s', "set group owner to different group" ],
+						[ 'no-home-bin|n',"do not check ~/bin for file" ],
+						[ 'no-home|h',"do not check home directory if it is not in the PATH" ],
+						[ 'no-curdir|r', "do not check current directory if it is not in the PATH" ],
+						[ 'backup-count|b=i', "keep a number of (defaults to 1) backups", { default => 1 } ],
+						[],
+						[ 'verbose|v',  "print information about each step during runtime" ],
+						[ 'help',       "print this usage message and exit" ],
+						[ 'long-help',  "print the perl pod documentation for this program" ],
+					);
+
+print($usage->text), exit if $opt->help;
+say("you need to specify at least a file (use --help for more information") exit if (scalar(@ARGV) < 1);
 
 

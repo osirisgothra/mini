@@ -1,0 +1,114 @@
+#!/usr/bin/perl
+# warning: this program uses sudo itself, not usually cosher 
+# set 'my $NONCOSHER=0' to make it standardized, however it wont
+# work without sudo anymore (yuk)
+use warnings;
+use strict;
+use v5.20;
+use Getopt::Long::Descriptive;
+
+my $NONCOSHER = 1; # read above!
+
+my $complex_help = "
+	complex command reference
+	----------------------------------------------
+	command			effect
+	----------------------------------------------
+	1 2 or 3        write number to dropcache file
+	s               run sync(1)
+	q               switch off verbose mode
+	b               beep
+	----------------------------------------------
+	";
+#	(TODO: more compatibility features coming soon)
+
+my ($opt, $usage) = describe_options(
+   'drop %o <level>',
+   [ 'interval|i=i', "times to run drop", { default => 1 } ],
+   [ 'level|l=i',   "drop level to use [1-3]",   { default  => 3 } ],
+   [],   
+   [ 'sync|s=s',   "hidden" ,  { default => 'both' },
+   { one_of => [
+               [ "before|B"  => "synchronize before drop(s)" ],
+               [ "after|A"  => "synchronize after drop(s)" ],
+               [ "omni|O" => "synchronize before and after (default)" ],
+               [ "none|N" => "never synchronize memory to disk" ],
+                                                             ] } ],
+   [ 'complex|c=s', "complex command string (see --help-complex)", { default => 'none' } ],
+   [ 'verbose|v',  "do not be quiet (outputs status messages)"  ],
+   [ 'help',  "print usage message and exit" ],
+   [ 'complexhelp', "print complex command reference" ],
+);
+sub verbose 
+{ 
+	say @_ if $opt->verbose;
+};
+
+sub drop
+{
+	my $target = "/proc/sys/vm/drop_caches";
+	my $level = shift;
+	verbose "i'll drop at this level: $level";
+	`echo $level > $target` if -w $target;
+	if ( $NONCOSHER == 1 ) 
+	{	
+		verbose "i will try to drop at higher priv mode" unless -w $target;	# NONCOSHER
+		`echo $level | sudo tee $target` unless -w $target;					# NONCOSHER
+	
+	}
+	else
+	{
+		# comment message out if you dont want this reminder
+		# i didnt add a variable for this because i didnt want
+		# people accidently disabling it and getting confused
+		# we dont erase yellow lines from the road!
+		say "you have turned off $NONCOSHER, no attempts to use sudo will be made" unless -w $target;
+	}
+	
+		
+}
+sub complex_mode 
+{
+	my $modestr = shift;
+	verbose "mode string: $modestr";
+	
+	my $len = length($modestr);
+	verbose "mode string length: $len";
+	my $cur = 0;
+	
+	while ($cur < $len)
+	{
+		$_ = substr($modestr,$cur,1);	
+		if ( m/[s123b]/ )
+		{
+			verbose "processing valid complex command: $_";
+			`sync` if m/s/;
+			drop(int($_)) if m/[123]/;
+			`beep` if m/b/;
+			$opt->verbose = 1 if m/q/;
+		}
+		else
+		{
+			verbose "ignoring unknown complex command: $_";
+		}
+		$cur++;
+	}
+	return 0;
+
+};
+
+print($usage->text), exit if $opt->help;
+print($complex_help), exit if $opt->complexhelp;
+
+verbose "dropping " . $opt->interval . " times at level " . $opt->level;
+verbose "sync mode is set to: " . $opt->sync;
+my $complexmode = 0;
+$complexmode = 1 if $opt->complex ne "none";
+verbose "entering complex mode string" if $complexmode == 1;
+complex_mode $opt->complex if $complexmode == 1;
+foreach my $x (@ARGV)
+{
+	$_ = $x;
+	drop(int($x)) if (m/^[1-3]$/);
+	complex_mode($x) if length($x) > 1;		# process longs as complex commands
+}

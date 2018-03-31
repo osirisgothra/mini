@@ -1,0 +1,21 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+use v5.20;
+         use Getopt::Long::Descriptive;
+
+         my ($opt, $usage) = describe_options(
+           'my-program %o <some-arg>',
+           [ 'server|s=s', "the server to connect to", { required => 1  } ],
+           [ 'port|p=i',   "the port to connect to",   { default  => 79 } ],
+           [],
+           [ 'verbose|v',  "print extra stuff"            ],
+           [ 'help',       "print usage message and exit" ],
+         );
+
+         print($usage->text), exit if $opt->help;
+
+         Client->connect( $opt->server, $opt->port );
+
+         print "Connected!\n" if $opt->verbose;

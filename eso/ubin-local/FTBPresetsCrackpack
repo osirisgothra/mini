@@ -1,0 +1,31 @@
+#!/bin/bash
+# sT (from template autox_sT)
+#
+# start ftb launcher and modpack automatically
+#
+# author: gabriel sharp <osirisgothra@hotmail.com>
+# date: Mon Oct  9 11:45:59 EDT 2017
+# vers: 1
+# rev: no
+#
+# You can find the latest version of this and
+# all my other projects at http://github.io/osirisgothra
+#
+# Subject to the license agreement written in the
+# included LICENSE file in the same directory.
+# (LICENSE for this file is set to: GNU GPL3) 
+#
+# set your J to point at your ftblauncher if you put it elsewhere than the recommended ~/.ftblauncher folder!
+
+echo "killing all java...PRESS KEY TO DO SO OR ABORT WITH CTRL_C!"
+TMOUT=5
+read -sn1
+TMOUT=0
+[[ ! -v J ]] && J=~/.ftblauncher/ftb.jar
+[[ ! -r $J ]] && J=~/ftb.jar
+if [[ -r "$J" ]]; then
+	echo "starting java at $J with $(basename $0) as the pack..."
+	java -jar ~/.ftblauncher/ftb.jar -a $( basename $0 ) &> /dev/null & disown
+else
+	echo "no ftb.jar found, cant start pack"
+fi

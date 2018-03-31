@@ -1,0 +1,50 @@
+#!/bin/bash
+exec /usr/bin/mocp "$@"
+
+# NB: must use themes that end in _theme? _theme is autodetected so dont worry about the tail end
+
+MOCP_LOC='/usr/bin/mocp'
+USED_THEME='green'
+
+# NB: change nothing below this line!!
+
+# fixed variables (dont change them or this will no longer work!)
+
+OURPID=$BASHPID
+PIDS=( `pidof mocp` )
+if [[ -r /usr/share/doc/mocp/$USED_THEME ]]; then
+	echo "theme $USED_THEME exists, proceeding..."
+else
+	USED_THEME="${USED_THEME}_theme"
+	if [[ -r /usr/share/doc/mocp/${USED_THEME} ]]; then
+		echo "notice: theme name corrected to $USED_THEME"
+	else
+		echo "warning: $USED_THEME does not exist, you WILL get an error during startup..."
+	fi
+fi
+
+echo "starting: our PID is $BASHPID, mocp target configured at $MOCP_LOC ..."
+
+echo "processing: ${#PIDS[@]} process(es)..."
+for PID in "${PIDS[@]}"; do
+	if [[ $PID -eq $OURPID ]]; then
+		echo "ignoring: our own PID, $PID"
+		FOUND=0
+	else
+		echo "processing: found $PID which is not our own (hit)"
+		FOUND=$PID
+		break
+	fi
+done
+if [[ $FOUND -gt 0 ]]; then
+	echo "other process detected, starting not needed (skipping server init)"
+	echo "read info during startup..."
+	eval "$MOCP_LOC --info"
+	sleep 0.${RANDOM: 0:1}
+else
+	echo "starting server (not running!)..."
+	eval "$MOCP_LOC -S"
+	[[ $? -ne 0 ]] && echo "warning: server may not have started due to errors listed above!"
+fi
+echo "attempting to start CLCI (terminal+color interface)..."
+eval "$MOCP_LOC --theme $USED_THEME \"$@\""

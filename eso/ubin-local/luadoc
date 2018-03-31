@@ -1,0 +1,2 @@
+#!/usr/bin/lua
+os.execute("links2 -g /usr/share/doc/lua5.1-doc/doc/index.html")

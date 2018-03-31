@@ -1,0 +1,27 @@
+#!/bin/bash
+
+if [[ $1 =~ -[tkbgm] ]]; then
+	if [[ $1 == '-t' ]]; then
+		FLAG='--tera'
+	else
+		FLAG=$1
+	fi
+	shift
+fi
+[[ $# -ge 1 ]] && LIN=$1 || { [[ -v LIN ]] || LIN=2; }
+[[ $# -ge 2 ]] && COL=$2 || { [[ -v COL ]] || COL=2; }
+#
+#   x,y (x=type y=quantity-kind)
+#	2,0	 memory(2)  ,total
+#	2,1			    ,used
+#	2,2			    ,free
+#	2,[3,4,5]       [,shared,buffers,cached]
+#	3,0 bufcache(3) ,used
+#	3,1 			,free
+#	4,0 swap(4),	,total
+#	4,1             ,used
+#	4,2             ,free
+
+[[ ! -v FLAG ]] && FLAG='-b'
+
+free $FLAG | sed -nr "${LIN}s/([^[:digit:]]+([[:digit:]]+\s+){${COL}})([[:digit:]]+)(.*)/\3/gp"

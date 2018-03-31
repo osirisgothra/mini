@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# GLOBALS
+
+WORDLIST="print|printf|echo|read|write|seek|peek|poke|elseif|elif|else|set|unset|shopt|readonly|shell|command|builtin|export|function|func|repeat|rep|return|ret|iret|sub|if|then|else|class|local|global|for|end|endif|endclass|fi|while|wend|until|done|do|select|case|esac|use|unless|declare|define|include|end"
+
+# ARGUMENTS
+
+for x; do
+	case $x in
+		-s|--strip)	stripmode=1;;
+		-h|-?|--help) helpmode=1;;
+		*) echo "unknown argument: $x"; unknownmode=1;;
+	esac
+done
+
+# ACT ON ARGUMENTS IF NEEDED
+
+if ((helpmode)); then
+	echo "syntax: colorme [option]"
+	echo ""
+	echo "options"
+	echo "  -s  --strip   replace escape characters with ESC markers"
+	echo "  -h  --help    this help message (-? also works)"
+	echo ""
+	exit 127
+elif ((unknownmode)); then
+	echo "please use --help or -h to list possible parameters"
+	exit 128
+fi
+
+# MAIN PROGRAM
+
+if ((stripmode)); then
+	sed -r 's//ESC/g;s/(\W[-0-9[:punct:]]\W)/[32;1m\1[0m/g;s/\b('$WORDLIST')\b/[38;5;254m\1[0m/g;s/\b[-.,]\b/[32m\0[0m/g;s/[\(]/[36;1m\0[0;36m/g;s/[\)]/[36;1m\0[0m/g'
+else
+	sed -r 's/(\W[-0-9[:punct:]]\W)/[32;1m\1[0m/g;s/\b('$WORDLIST')\b/[38;5;254m\1[0m/g;s/\b[-.,]\b/[32m\0[0m/g;s/[\(]/[36;1m\0[0;36m/g;s/[\)]/[36;1m\0[0m/g'
+fi

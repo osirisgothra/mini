@@ -1,0 +1,4 @@
+#!/bin/bash
+TARGETNAME=$0
+# disables compton when mplayer starts then re-enables it upon exit
+[[ -x /usr/bin/$TARGETNAME ]] && /usr/bin/$(basename $TARGETNAME) || echo "/usr/bin/$(basename $TARGETNAME) does not exist!"

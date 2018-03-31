@@ -1,0 +1,7 @@
+#!/bin/bash
+
+LEVEL=ROOT
+MANPROMPT='$LEVEL $USER $HOSTNAME # '
+while true; do
+	eval echo -ne $MANPROMPT
+	read -a MPCMD

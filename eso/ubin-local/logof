@@ -1,0 +1,11 @@
+#!/usr/bin/perl
+
+use warnings;
+use v5.18;
+use strict;
+
+print ("need argument (one only)\n") if $#ARGV;
+exit unless $#ARGV;
+
+
+

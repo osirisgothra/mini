@@ -1,0 +1,46 @@
+#!/bin/bash
+
+LICFILE="/dev/null"
+FNAME="$@"
+AUTHOR=$(cat /etc/passwd | awk -F ":" '{ if ($1 == "'$(whoami)'") { print $5; }; }' | awk -F "," ' { print $1; }')
+DATE=`date +%x +%X`
+CONTACT=`whoami`@`hostname`
+DESC=`brief description`
+LIC=`cat $LICFILE`
+
+#cat <<FOE
+# 
+# $FNAME
+#
+# $DESC
+#
+#  written by: $AUTHOR <$CONTACT>
+# last update: $DATE
+#
+# $LIC
+declare -A LICTBL=( ["GPL3"]="http://www.gnu.org/licenses/gpl-3.0.html"
+    ["LGPL3"]="http://www.gnu.org/licenses/lgpl-3.0.html"
+    ["AGPL3"]="http://www.gnu.org/licenses/agpl-3.0.html"
+    ["FDL13"]="http://www.gnu.org/licenses/fdl-1.3.html"
+    ["GPL2"]="http:/www.gnu.org/licenses/old-licenses/gpl-2.0.html"
+    ["GPL1"]="http://www.gnu.org/licenses/old-licenses/gpl-1.0.html"
+    ["LGPL21"]="http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html"
+    ["LGPL2"]="http://www.gnu.org/licenses/old-licenses/lgpl-2.0.html"
+    ["FDL12"]="http://www.gnu.org/licenses/old-licenses/fdl-1.2.html"
+    ["FDL11"]="http://www.gnu.org/licenses/old-licenses/fdl-1.1.html" )
+
+#for x in ((x=0;x<${#LICTBL[@]};x++))
+for x in ${!LICTBL[@]}; do
+    clear
+    echo "key: $x"
+    url="${LICTBL[$x]/html/txt}"
+    echo "url: $url"
+    echo "dumping file:"
+    if [[ $LICFILE == $x ]]; then
+        LICDATA=`GET -a $url`
+    else
+        echo dump:            
+        GET -a $url
+        read -sn1
+    fi
+done

@@ -38,17 +38,25 @@ chomp (our $binary = `which dialog`);
 our @settings = (
 	"--backtitle", 		"Keyboard Settings",
 	"--default-button", "Ok",
-	"--help-button",   	
+	"--help-button",  
 );
 our @menu = (
-	"Select From The Following", # text
-	$autosize, # height
-	$autosize, # width
-	$autosize,  # menu height	
+	"--menu", 
+	"Select From",
+	$autosize, 	
+	$autosize,
+	$autosize,
+	"Select from the following", #text
+	$autosize  # menu height	
 );
 our @menuitems = @ARGV // [ "None" ];
 
-system $binary,@settings,@menu,@menuitems;
+system $binary, @settings, @menu, @menuitems;
+
+# format goes: dialog --menu text 0 0 0 text1 text2
+#for my $x ( $binary,@settings,@menu,@menuitems ) {
+#print $x . "\n";
+#}
 
 
 

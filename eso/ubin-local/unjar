@@ -1,0 +1,64 @@
+#!/bin/bash
+#
+# unjar
+#
+# unjar(1) is a program to unpack a  jarfile in-place leaving a directory
+# with  the  same  name where it was,  containing all it's files instead.
+# This is done  to  maintain usability by the java program(s) using it as
+# a resource. Useful for developers or power users that wish to edit some
+# of  the  jar's  contents  without having  to  go  through  the cycle of
+# unpacking, modifying, repacking*, and  replacing/reloading the file(s).
+#
+# *Note: for  repacking,  see   unjar(1)'s   sister    program  rejar(1).
+#
+# author: gabriel sharp <osirisgothra@hotmail.com>
+# modified: may 22, 2017
+# version: 1.0
+# revision: none
+#
+# SOFTWARE LICENSE AGREEMENT
+#
+# This program is Public Domain.
+#
+#
+case $# in
+	0)
+		echo "syntax: unjar [file1] [{file2 ...}]"
+		(exit 127);;
+	*)	echo "processing $# file(s)..."
+		sleep 1.25
+		;;
+esac
+
+for i in "$@"; do
+	x=`readlink -m "$i"`
+	if [[ -r $x ]] &&  ! [[ -d $x ]]; then
+		REPLY=""
+		if [[ $# -ge 1 ]]; then
+			echo -e "[2K\n[2K\n[2K[3Amultiple files selected: press any key to work on next file ($x)\n[s[2K[u"
+			declare -i LEFT=5
+			while [[ $(read -t1 -n1) == "" ]]; do
+				echo -e "[u<<auto-proceeding in $LEFT second(s)>> "
+				[[ $LEFT -eq 0 ]] && break
+				let LEFT--
+			done
+		fi
+		if [[ $REPLY != "" ]]; then
+			echo "user abort. stopping"
+			exit 127
+		fi
+		###
+		arc=`mktemp`
+		mv "$x" "$arc"
+		mkdir "$x"
+		unzip "$arc" -d "$x"
+		echo "done, next file if any..."
+		sleep 1.25
+	else
+		echo "warn: skipping $i ($x), directory exists or file not found!"
+		sleep 1.25
+	fi
+done
+
+
+

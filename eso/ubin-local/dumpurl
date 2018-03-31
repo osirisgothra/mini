@@ -1,0 +1,97 @@
+#!/usr/bin/perl
+#
+#    %root%/bin/dumpurl
+#    $DESCRIPTION
+#    $PROJECT_NAME
+#    $PROJECT_DESCRIPTION
+#
+#    Copyright (C) 2003-2018 Paradisim Enterprises, LLC
+#
+#    (Please see the end of this text for revision history)
+#
+#    Written by Gabriel T. Sharp <osirisgothra@hotmail.com>
+#    Latest versions of this and all other projects can be
+#    obtained by visiting <https://github.com/osirisgothra>
+#
+#    seasonal mirrors (subject to availability and uptime):
+#
+#    home-run servers:   <http://paradisim.twilightparadox.com>
+#    corporate hosted:   <http://paradisim.tk>
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    REVISION HISTORY
+#
+#    08:08:30 AM 02/13/2018
+#            osirisgothra on larnica.whyfi.net initially created this file
+#            with the original name, %root%bin/dumpurl
+#
+#	NOTES
+#
+#	1.	when installing, the file's latest name in REVISION HISTORY should be
+#		used, the %root% is usually /usr/, but refer to your system's specific
+#		file heirarchy for details. If you are installing manually, make sure
+#		you use /usr/local/ instead as it will not interfere with automatic
+#		installs (usually -- again, see your system's documentation).
+#
+#	2.  HISTORY: this was originally a command in firecode for windows, written in
+#		1992, which was a graphical command interpreter user interface (GCUI)
+#		and is being rewritten from scratch. The only thing that is the same is
+#		the author.
+#
+
+use warnings;
+use strict;
+use v5.20;
+use POSIX;
+
+my $debugging = 1;
+my $http_header = " User-Agent: Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.9.1.5) Gecko/20091102 Firefox/3.5.5 (.NET CLR 3.5.30729)";
+my $http_header_extras = 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+ Accept-Language: en-us,en;q=0.5
+ Accept-Encoding: gzip,deflate
+ Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+ Keep-Alive: 300
+ Connection: keep-alive
+ Cookie: PHPSESSID=r2t5uvjq435r4q7ib3vtdjq120
+ Pragma: no-cache
+ Cache-Control: no-cache';
+
+my $url = $ARGV[0];
+my $perlexpr = $ARGV[1];
+my $piper = "html2text";
+my $testing = 0;
+my $prog = 0;
+   $prog = "ptest" if ($testing);
+   $prog = "GET" unless ($testing);;
+
+print("dumping url: $url") if $debugging;
+
+my @results = `$prog -H "$http_header" "$url"`;
+
+
+for my $x, (@results)
+{
+	print($x);
+}
+
+
+
+
+
+
+
+POSIX::exit(0);
+
