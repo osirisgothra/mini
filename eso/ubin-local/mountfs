@@ -37,7 +37,24 @@
 #
 
 case $- in i) chmod a+x $BASH_SOURCE;
-			  echo "please restart as standalone executable (permissions now set)"
+			  echo "saving current path.."
+			  pushd .
+			  cd "$(dirname $BASH_SOURCE)"
+			  if [[ -r unmountfs ]] && [[ -L unmountfs ]] && [[ -x unmountfs ]]; then
+			  	echo "unmountfs: already a readable executable link"
+			  elif [[ -r unmountfs ]] && [[ -L unmountfs ]]; then
+			  	echo "unmount is a readable link but not executable, setting execute permissions"
+			  	chmod a+x unmountfs
+			  elif [[ -r unmountfs ]]; then
+			  	echo "unmountfs exists in this directory, but it is not a link, you will have to take care of that manually!"
+			  	echo "(delete it and try again if you didnt need that file/program, or move it if you want to keep it offline)"
+			  else
+			  	echo "unmountfs not here--making the link"
+			  	ln -s "$BASH_SOURCE" unmountfs
+			  fi
+			  echo "returning to your original path"
+			  popd
+			  echo "please restart as standalone executable (permissions now set)"			  
 			  return $?
 			  ;;
 		   r) echo "restricted shell - cannot continue"
@@ -50,7 +67,6 @@ if [[ $1 == media ]]; then
 	echo "stopped further processing. (dont feel bad this is a common mistake, in fact I am the reason for this feature!)"
 	exit 121
 fi
-	
 if [[ -b $1 ]]; then
 	echo "already a block device, using it..."
 	DEVICE=$1

@@ -1,0 +1,180 @@
+aaa: 
+acsw: 
+aixt: 
+altecho: 
+bashtest: 
+bisect: 
+brushupon: 
+ccemu: 
+cdmnt: 
+cliaudio: 
+cmdpool.sh: 
+cmdtree.sh: 
+colorme: 
+constgamma: 
+crackpack: 
+dingrun: 
+dis: 
+docrates: 
+doisgo: 
+doiswarp: 
+dojump: 
+dolastcmd: 
+doshop: 
+drop: 
+drop.pl: 
+dumpurl: 
+duplicates-report.txt: 
+eb: 
+eb.save: 
+eb.save.1: 
+ei3: 
+fhtm.sh: 
+firefox: 
+freemem: 
+FTBPresetsCrackpack: 
+ +-- Regrowth
+ +-- SpaceAstronomy
+ +-- sT
+gamm: 
+gamma: 
+gamma_monitor: 
+goo: 
+gtest: 
+ho: 
+hsetrootz: 
+htop: 
+i3lint: 
+i3statusx: 
+inf: 
+ionice: 
+kaffeine: 
+krestart: 
+kvkbd: 
+launchmc: 
+lfs: 
+links3g: 
+links3g.save: 
+lockvolume-daemon: 
+logof: 
+lookfor: 
+lost+found_U: 
+luadoc: 
+makex: 
+manext: 
+mansh: 
+mcgo: 
+mcload: 
+mcskinedit: 
+mfs: 
+minecraft: 
+mix: 
+mkrandvt: 
+mocp: 
+mocp-command: 
+modoff: 
+ +-- modon
+ +-- offmod
+ +-- onmod
+modon: 
+ +-- modoff
+ +-- offmod
+ +-- onmod
+mountfs: 
+no-comp.sh: 
+nvidia-tweak: 
+o: 
+offmod: 
+ +-- modoff
+ +-- modon
+ +-- onmod
+onmod: 
+ +-- modoff
+ +-- modon
+ +-- offmod
+osirisgothra.minecraftstart.sh: 
+ +-- runlastmc
+pastebin: 
+perl.pl: 
+pick-wallpaper: 
+pick-wallpaper-dialog: 
+ppause: 
+pplay: 
+ppp: 
+pSX: 
+ptest: 
+ptog: 
+pwp: 
+qjoypad: 
+rea: 
+reactor: 
+reactor.jar: 
+reduce: 
+Regrowth: 
+ +-- FTBPresetsCrackpack
+ +-- SpaceAstronomy
+ +-- sT
+rejar: 
+relocate: 
+removeme: 
+rkb: 
+rnd: 
+runeth: 
+runlastmc: 
+ +-- osirisgothra.minecraftstart.sh
+scl: 
+service: 
+soloxterm: 
+SpaceAstronomy: 
+ +-- FTBPresetsCrackpack
+ +-- Regrowth
+ +-- sT
+srg: 
+ssa: 
+sT: 
+ +-- FTBPresetsCrackpack
+ +-- Regrowth
+ +-- SpaceAstronomy
+start: 
+stopservices: 
+stps: 
+surekill: 
+surf: 
+ +-- surf-finder
+surf-finder: 
+ +-- surf
+systemsettings: 
+t: 
+ +-- tsa
+testcl: 
+test.raw: 
+testscript: 
+thresh: 
+treeterm: 
+ts: 
+tsa: 
+ +-- t
+tst: 
+tvlc: 
+uchar: 
+ufs: 
+Ug: 
+unjar: 
+unmountfs: 
+watchnbg: 
+wea: 
+windchillcalc: 
+xano: 
+xset: 
+xtew: 
+xxx: 
+ +-- xxxmobile
+ +-- xxxpc
+xxxmobile: 
+ +-- xxx
+ +-- xxxpc
+xxxpc: 
+ +-- xxx
+ +-- xxxmobile
+xy: 
+zsnesw: 

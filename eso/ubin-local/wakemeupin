@@ -1,0 +1,54 @@
+#!/usr/bin/perl
+use warnings;
+use strict;
+use v5.19;
+use Term::ReadLine;
+
+no warnings "experimental";
+
+use Getopt::Long::Descriptive;
+my $myprogram = "wakemeupin";
+
+my ($opt, $usage) = describe_options(
+
+	'$myprogram %o <some-arg>',
+	[ 
+		'time|t=s',
+		"the time to wake up in passing to sleep",
+		{ default  => "5s" } 
+	],
+[],
+	[ 
+		'verbose|v',
+		"print extra stuff"
+	],
+	[ 
+		'help',
+		"print usage message and exit"
+	],
+);
+
+print($usage->text), exit if $opt->help;
+
+die("too many bad arguments(" . scalar(@ARGV) . "), use --help for proper use information\n $? $!")
+	if (scalar(@ARGV) > 0);
+
+print("passing wakeup data to system and waiting...\n");
+system( "sleep", $opt->time );
+system( qw( sudo -H modprobe pcspkr ) );
+my $forkid = fork();
+unless($forkid) {
+	while(1) {
+		sleep(0.5);
+		system("beep");
+	}
+}
+my $term = Term::ReadLine->new('waitingforbeeptostop');
+$term->readline("press ENTER key to stop it");
+kill($forkid);
+waitpid($forkid,2500);
+
+system( qw( sudo -H modprobe -r pcspkr ) );
+
+
+

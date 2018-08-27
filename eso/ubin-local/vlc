@@ -1,0 +1,38 @@
+#!/usr/bin/perl
+
+use v5.20;
+use warnings;
+use strict;
+use Path::Tiny('path','rootdir');
+use IPC::Run('run');
+
+
+
+my $WSNAME = $ENV{PBX_VLC_I3_CURRENT_WORKSPACE} // "1 TERMINAL";
+my $WSDEST = $ENV{PBX_VLC_I3_VLC_WORKSPACE} // "3 AUDIO";
+print("workspaces to be assigned for i3: \n\tcurrent or return-to desktop: $WSNAME \n\twhere to place vlc window: $WSDEST \n(you can set these, see --help for more!)\n") unless defined($ENV{PBX_VLC_I3_VLC_WORKSPACE});
+
+
+my $vlcpath = rootdir()->child('/usr')->child('bin')->child('vlc');
+say $vlcpath;
+
+# @array of ref[array]
+my @preruns = ( ["i3","workspace","3 audio"], 
+				[ "clear" ],
+				[ "i3", "border", "1pixel" ],
+				);
+
+for my $prerun (@preruns) 
+{
+	my @prerun = @$prerun;
+	say @prerun;
+	#============+++ CURRENT PROGRESS +++===================
+
+}
+
+# TEMP: TODO: finish this to be dynamic not hardcoded
+`i3 workspace 3 audio`;
+system("/usr/bin/env","XDG_CURRENT_DESKTOP=KDE","/usr/bin/vlc",@ARGV);
+`i3 workspace $WSNAME`;
+
+	

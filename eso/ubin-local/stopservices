@@ -9,14 +9,7 @@
 # f.attr.taintprotect.bydemecration
 service()
 {
-	echo -ne "[0;32;2mStopping service [0;32;1m${1}..."
-	## BEGIN:(TAINT-PROTECT)
-	if command time sudo -H /usr/sbin/service "$@"; then
-	## END:(TAINT-PROTECT)
-		echo "[1mOK[0m"
-	else
-		echo "[1;31mFAILED[0m"
-	fi
+	sudo command service "$@" && echo "ok" || echo "fail"
 }
 # f.attr.reset	
 
@@ -37,3 +30,5 @@ service speech-dispatcher stop
 service irqbalance stop
 service ufw stop
 service cups-browsed stop
+sudo killall -KILL apache2
+sudo killall -KILL gnome-settings-daemon

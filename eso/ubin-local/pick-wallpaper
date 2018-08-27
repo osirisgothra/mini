@@ -58,7 +58,11 @@ if [[ $PICK_WALLPAPER_NODEPS == 0 ]]; then
 	{
 		local WP="$1"; shift
 		PICK_WALLPAPER_IMAGE_CMD=( -cover "$WP" "$@" )
-		( identify.im6 "$WP" && echo "Command Line: hsetroot ${PICK_WALLPAPER_IMAGE_CMD[@]}" && hsetroot "${PICK_WALLPAPER_IMAGE_CMD[@]}" && return 1 ) || return 0
+		( identify.im6 "$WP" &&
+		  echo "Command Line: <program> ${PICK_WALLPAPER_IMAGE_CMD[@]}" &&
+		  hsetroot "${PICK_WALLPAPER_IMAGE_CMD[@]}" &&
+		  return 1
+		) || return 0
 	}
 	if [[ $* =~ '-help' ]]; then
 		# combine help text together
@@ -91,7 +95,7 @@ if [[ $PICK_WALLPAPER_NODEPS == 0 ]]; then
 	[[ -r $PICK_WALLPAPER_FAILSAFE_EFFECT ]]	||	PICK_WALLPAPER_FAILSAFE_EFFECT=( "-add" "#808080" "-add" "#404040" "-gradient" "45" )
 	[[ -r $PICK_WALLPAPER_FAILSAFE_IMAGE ]]		||	PICK_WALLPAPER_FAILSAFE_IMAGE="/opt/tilebg.jpg"
 	[[ -x $PICK_WALLPAPER_BINARY ]] 			||	PICK_WALLPAPER_BINARY=hsetroot
-	[[ -n $PICK_WALLPAPER_DEFAULT_FLAGS ]] 		||	PICK_WALLPAPER_DEFAULT_FLAGS=( "-cover" )
+	[[ -n $PICK_WALLPAPER_DEFAULT_FLAGS ]] 		||	PICK_WALLPAPER_DEFAULT_FLAGS=( "-tint" "#$(perl -e 'printf("%06x", int(rand(16777215)))')" "-cover" )
 	[[ -n $PICK_WALLPAPER_WALLPAPER_IMAGES ]]	||	PICK_WALLPAPER_WALLPAPER_IMAGES=( /usr/share/wallpapers/**/*.{png,gif,jpg,jpeg,bmp,xpm} )
 	[[ -n $PICK_WALLPAPER_FLAGS ]]              ||  PICK_WALLPAPER_FLAGS=( "${PICK_WALLPAPER_DEFAULT_FLAGS[@]}" )
 	[[ -n $PICK_WALLPAPER_WALLPAPER_COUNT ]]    ||  PICK_WALLPAPER_WALLPAPER_COUNT=${#PICK_WALLPAPER_WALLPAPER_IMAGES[@]}

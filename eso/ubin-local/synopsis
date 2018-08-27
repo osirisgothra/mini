@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# this never executes (normally) but does get grabbed by powerbash when it starts up
+# and finds this file in the user's ~/bin directory (NOTE! does not scan /usr/bin and the like!!)
+if [[ -z powerbash_loader ]]; then
+	LOADER_VERBOSE_INFO="executing loader script for: synopsis"
+	complete -F _perldoc synopsis
+fi
+
+perldoc -u "$@" |  perl -wne 'if (/^=head1 SYNOPSIS/ ... /^=head1/) { s/^=head1.*//g; print;}'

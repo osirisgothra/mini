@@ -1,4 +1,41 @@
 #!/bin/bash
-TARGETNAME=$0
-# disables compton when mplayer starts then re-enables it upon exit
-[[ -x /usr/bin/$TARGETNAME ]] && /usr/bin/$(basename $TARGETNAME) || echo "/usr/bin/$(basename $TARGETNAME) does not exist!"
+shopt -s interactive_comments
+
+if [[ $- =~ i ]]
+then
+	echo "fail: must not be run interactive!"
+	return 127
+	exit 127	# safeguard for corrupt scripts
+fi
+
+TARGET="$0"
+
+if [[ $TARGET =~ / ]]
+then
+	echo "trimming $TARGETNAME because it contained a path character...[s"
+	TARGETNAME="$(basename $TARGET)"
+	echo "[u$TARGETNAME"
+else
+	TARGETNAME="$TARGET"
+fi
+echo "target comm: $TARGET"
+echo "target name: $TARGETNAME"
+IFS=":"
+for _dir in $PATH
+do
+	[[ ${_dir: -1:1} != '/' ]] && _dir+='/'		# add a '/' if it doesnt end in on (useful for '/', '..', and '.')
+	dest="${_dir}$TARGETNAME"
+	echo "looking in $_dir for ${TARGETNAME}...[s"
+	if [[ -x "$dest" ]]
+	then
+		if diff "$dest" "$BASH_SOURCE"; then
+			echo "[uskip (is THIS script!!)"
+		else
+			echo "found $dest -- executing it with args=${@-<no arguments given>}"
+			[[ $# -gt 0 ]] && exec "$dest" "$@" || exec "$dest"		# prevents an empty argument from being sent
+		fi
+	else
+		echo "[ufailed\n"
+	fi
+done
+unset IFS

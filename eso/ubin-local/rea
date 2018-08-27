@@ -1,29 +1,134 @@
 #!/bin/bash
-function n()
-{
-	case $# in
-		2)
-			echo -e "\e[33;1msingle-shot for: \e[34;1m$1 \e[0mwith priority of\e[34;1m $2 \e[0m"
-			~/bin/ionice "$@"
-			;;
-		*)
-			echo "multi-shot not supported: org: $@"
-			exit 122
-			;;
-	esac
-}
-for i in {1..7}; do
-	for j in R B; do
-		#echo "generating function ${j}${i} ..."
-		eval 'function '${j}${i}'() {	for x; do echo -e "\e[33;1mmulti-shot for: \e[34;1m$x \e[0mwith priority of \e[34;1m${FUNCNAME}\e[0m"; ~/bin/ionice "$x" '${j}${i}';	done; }'
+#
+#    rea
+#    try (to) [r]enice [e]xtra [a]synchronous threads 
+#    eso project
+#    eso-bin on github/osirisgothra
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    NOTE FROM THE AUTHOR
+#
+#    If the world ends and apes and monkeys start dating rattlesnakes, 
+#    I might consider bringing local servers back on. However, it is quite
+#    unlikely to have access to them, beyond having them hosted out of IRC
+#    or some doesnt-exist-without-paying-for-it domain name. See my network
+#    status page at larnica.whyfi.??? (??? is subject to change) for
+#    information, if it is available, when it is available.
+#
+#    LICENSE
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#    File's history is listed top-down as newest-oldest
+#
+#    Sun Aug 12 22:08:14 EDT 2018
+#		this header was created using the template generator 
+#		by Gabriel T. Sharp <osirisgothra@hotmail.com>.
+#		added support to include threads
+#
+#    Wed Apr 12 10:05:13 EST 2018
+#		osirisgothra@larnica initially created this file
+#		with the original name, rea
+#
+#
+#	 FUN FACT
+#
+#	  This program's name could have been 'treat' but since
+#     it already existed, the author was forced to go with the name
+#	  'rea' which was actually the former name of the merged program
+#     that USED to be ran in place of this program. The old 'rea' program
+#     was called that because it set all applicable processes to 'realtime'
+#     priority and used ionice exclusively. This program does not use
+#     ionice nor set realtime priorities, just nice values. However, the
+#     name was repurposed to fit the new, more system-friendly version of
+#     the eso project.
+#
 
+# these are written in this form:
+#    [process]="nice"
+# where:
+#    process	the BASENAME of the process, excluding it's full path (see EXAMPLES)
+#    nice		a numeric integer value between -19 and 19, values greater than 19 will be set to 19, less than -19 will be set to -19
+# EXAMPLES
+#
+#    [zsh]="-4"		sets all processes with the name 'zsh' (including all threads) to the nice value of -4
+#    [bash]="-1"	sets all bash shells running right now to a -1 nice value
+#
+# LANGUAGE NOTES
+#
+#    * the bash language requires [] in the process names in the list below for the hash values, they must be included
+#    * these values must remain on one line unless $IFS is set to $'\n', then the lines could be broken (use at own risk!)
+
+
+
+declare -A PROC_NAMES=( [java]="-17" [X]="-15" [perl]="-4" [i3bar]="5" [play]="-16" [Xorg]="-10" [dbus-daemon]="-12" [xinit]="-10" [startx]="5" [bash]="-5" [sh]="-2" [ssh]="12" [gvsd-fuse]="-17" [gvsd]="-12" [init]="-17" [htop]="-5" [nano]="4" )
+
+for x in "${!PROC_NAMES[@]}"; do
+	PROC_PRI="${PROC_NAMES[$x]}"
+	echo "threads for: $x (new priority: ${PROC_PRI})..."
+	echo "[s"
+	for y in `ps -L -C "$x" -o tid=`; do
+		echo -ne "[u$$: ${x}:${y} setting (to $PROC_PRI).. ("
+		sudo -H renice  -n "$PROC_PRI" -p "$y" | tr -d '\n'
+		#	echo "[32;1mok[0m"
+		#else
+		#	echo "[31;1mfailed(return=$?)[0m"
+		#fi
+		echo ")"
 	done
 done
-#declare -pf
+echo "renice-ing extra asynchronous processes completed"
 
-n java R1
-n X R0
-#n pulseaudio R3
-#n mocp R3
-R3 pulseaudio mocp
+
+#function n()
+#{
+#	case $# in
+#3		2)
+#3			echo -e "\e[33;1msingle-shot for: \e[34;1m$1 \e[0mwith priority of\e[34;1m $2 \e[0m"
+#			~/bin/ionice "$@"
+#			;;
+#		*)
+#			echo "multi-shot not supported: org: $@"
+#			exit 122
+#			;;
+#	esac
+#}
+#for i in {1..7}; do
+#	for j in R B; do
+#		#echo "generating function ${j}${i} ..."
+#		eval 'function '${j}${i}'() {	for x; do echo -e "\e[33;1mmulti-shot for: \e[34;1m$x \e[0mwith priority of \e[34;1m${FUNCNAME}\e[0m"; ~/bin/ionice "$x" '${j}${i}';	done; }'
+#
+#	done
+#done
+##declare -pf
+
+#n java B4
+#n X B4
+#n pulseaudio B4
+#n mocp B4
 

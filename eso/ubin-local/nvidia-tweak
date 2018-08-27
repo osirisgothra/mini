@@ -38,6 +38,15 @@
 #  Attribute 'DigitalVibrance' (nvidia-hostname:0[dpy:0]): 0.
 #
 
+# module config
+#use warnings
+#use strict
+#use v5.20
+#use File::Slurp
+#use Path::Tiny
+#use IPC::Run
+
+
 # CONSTANTS
 
 declare GPU_SAVE_POWER=0

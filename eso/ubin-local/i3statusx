@@ -3,12 +3,42 @@
 use warnings;
 use strict;
 use v5.20;
-use Time::HiRes qw! nanosleep usleep !;
+use Time::HiRes qw! nanosleep !;
 
-sub sleepms { nanosleep( int(shift) * 1000000 ) };
+my @ELEMENTS
 
-while (1)
+sub sleepms
+{ 
+	nanosleep( int(shift()) * 1000000 );
+}
+
+my $header = "{ \"version 1\" } [\n[\n";
+
+sub print_item
 {
-	print("more stuff\n");	
-	sleepms(1000);
+	my $name = shift;
+	my $color = shift;
+	my $full_text = shift;
+	print "{\"name\":\"$name\",\"color\":\"$color\",\"full_text\":\"$full_text\"}"
+}
+sub print_anon_item
+{
+	my $color = shift;
+	my $full_text = shift;
+	chomp($full_text);
+	print_item("item",$color,$full_text);		
+}
+
+print($header);
+for my $item (@ARGV)
+{
+	say("item: $item");
+	#my @dirs = split(':',$ENV{'PATH'});
+	#print for @dirs;
+	while (1) {
+		for my $element (@ELEMENTS) {
+			print_item($name, $colorstr, $txt);
+			sleep(1);
+		}
+	}
 }

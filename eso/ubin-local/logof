@@ -3,9 +3,47 @@
 use warnings;
 use v5.18;
 use strict;
+use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
 
-print ("need argument (one only)\n") if $#ARGV;
-exit unless $#ARGV;
+my ($opt, $usage) = describe_options(
+        $0 . ' %o <file>',
+        [ 'no-dialog|p', "use plain-text mode, dont use dialog to show log", ],
+        [ 'no-follow|n',   "do not follow the log, just show it", ],
+        [],
+        [ 'verbose|v',  "print extra stuff"            ],
+        [ 'help',       "print usage message and exit" ],
+      );
 
 
+print($usage->text), exit if $opt->help;
 
+sub logof
+{
+	my $file = shift;
+	my @args = ( $file );
+	
+	if ( -r $file )
+	{
+		print("found $file\n");
+		if ($opt->no_dialog)
+		{
+			system("tail",$file, 
+			$opt->no_follow ? () : ( "-f","-n","100" ) 
+				
+			);
+		}		
+		else
+		{
+
+			system("dialog", 
+			"--" . ($opt->no_follow ? "textbox" : "tailbox"), 
+			$file, "0","0" );
+			
+		}
+		
+		
+	}
+	
+}
+
+logof($_) for @ARGV;

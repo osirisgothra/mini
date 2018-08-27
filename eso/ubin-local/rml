@@ -1,0 +1,250 @@
+#!/bin/bash
+#
+#   FILENAME	rml									(rml)
+#   FILEDESC	random-media-list-generator			(rml)
+#   PROJNAME	esoteric executable collection 		(eec)
+#   PROJDESC	powerbash scripts for powerusers 	(pb)
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#	 NOTES
+#
+#      VARIABLES
+#
+#        STEPS
+#            Number of jobs to split the signature into evenly across the transfer.
+#            this is how many chunks will be collected from the input at a time each
+#            chunk's size is determined by RANDOM_INPUT_LEN / STEPS, not actual byte
+#            counts (read on below). RANDOM_INPUT_LEN is how many "scanlines" to
+#            recieve in total, a "scanline" is a pseudonym that basically means
+#            either 1) a string of bytes equal to $COLUMNS, or 2) a string of bytes
+#            up to but not past a newline (\n) byte which on linux systems is
+#            equivalent to character code 10 (LF). The STEPS variable also affects
+#            update to the user interface. More steps means lower CUI latency,
+#            but may take longer to gather data less steps may increase performance
+#            on slower systems or over networks. If larger RANDOM_INPUT_LENGTHs than
+#            512 are used, STEPS should be increased to help improve performance.
+#        RANDOM_HEADER
+# 	 	     NB!!: file header removed for now, we arent keeping it or needing this file anywhere else
+#            when that time comes, the program will need to extract the data from the sigfile (sort will
+#            generate the first so many entries EXACTLY the same each time if it is not skipped).
+#            I am keeping this and not removing it entirely because I plan on making a feature to save
+#            certain favorite lists in the form of a signature instead of a playlist, inside a master
+#            archive, which would mean an extremely small playlist format (less than 1kb!). This is on
+#			 the TODO list, informally.
+#        RANDOM_LIST_OUTPUT 
+#        RANDOM_LIST_SECSIG
+#            (default: "$(mktemp -- "$0-$USERNAME.$HOSTNAME.$$.rmlpls")")
+#            (default: "$(mktemp -- "$0-XXXXXXXX-$USERNAME-$HOSTNAME-$$-XXXXXXXX.rmlpls")")
+#            (both entries, respectively)
+#            filenames of the temporary list and signature files
+#            replace username/hostname with "X" for unsecure systems
+#        RANDOM_INPUT_DEVICE 
+#            change to the input device that will be used to generate random seed
+#            (default: "/dev/input/event3")
+#        RANDOM_DEVICE_TYPE 
+#            (default: "mouse")
+#            informal name for RANDOM_INPUT_DEVICE ("mouse", "keyboard", "toaster", etc)
+#        RANDOM_INPUT_LEN 
+#            (default: 0[*])
+#            number of scanlines to read total
+#            [* when set to a nonzero in the sourcecode below, the user-entry is skipped at the start ]
+#            [  when set to zero (0) it is changed later during runtime ]
+#        RANDOM_HEADER 
+#            (default: "_RANDOM_RML_HEADERv1.0gen")
+#            reserved for future use (see also: NOTES, reserved header)
+#            
+#    HISTORY
+#
+#	 Mon Aug 12 23:09:22 EDT 2018
+#	         created prototype of the program unofficially
+#	 Mon Aug 13 13:06:21 EDT 2018
+#            osirisgothra@larnica initially created this file
+#            with the original name, rml
+#
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+#
+#
+
+# --- script begins here ---------------------------------------------------------------
+
+# priority cleanups (done under any condition)
+function cleanup_exit()
+{
+	unset -f cleanup_exit
+	cleanup "$@"
+	exit $?
+}
+function cleanup()
+{
+	# defaults to 127
+	local -i R=${1-127}
+	[[ $# -gt 0 ]] && shift
+	unset -f cleanup
+	[[ -v RANDOM_SH ]] && [[ $RANDOM_SH =~ i ]] && shopt -u interactive_comments
+	[[ -v RANDOM_SH ]] && [[ $RANDOM_SH =~ x ]] && shopt -u xpg_echo
+	[[ -v RANDOM_LIST_OUTPUT ]] && rm -f "$RANDOM_LIST_OUTPUT"
+	[[ -v RANDOM_LIST_SECSIG ]] && rm -f "$RANDOM_LIST_SECSIG"
+	[[ -v RANDOM_LIST_PRECHECK ]] && unset RANDOM_PRECHECK
+	[[ -v RANDOM_LIST_OUTPUT ]] && unset RANDOM_LIST_OUTPUT
+	[[ -v RANDOM_LIST_SECSIG ]] && unset RANDOM_LIST_SECSIG
+	[[ -v RANDOM_INPUT_DEVICE ]] && unset RANDOM_INPUT_DEVICE
+	[[ -v RANDOM_DEVICE_TYPE ]] && unset RANDOM_DEVICE_TYPE
+	[[ -v RANDOM_NOSANE ]] || stty sane
+	[[ -v RANDOM_NOTINIT ]] || setterm --init
+#	# supress clear when error, so user is able
+#	# to read the message and see what output caused it to happen
+	[[ $R -eq 0 ]] && { [[ -v RANDOM_NOSECURE ]] || clear; }
+	[[ $# ]] && { echo -e "$@\n\e[1m(status code: $R)\e[0m"; }
+	return ${R}
+}
+
+# first pre-run checks (must be done second)
+# #1 tmp dir access writable/readable/destructable
+RANDOM_PRECHECK="$(mktemp)"
+if [[ -w "$RANDOM_PRECHECK" ]] && rm -f "$RANDOM_PRECHECK" && ! [[ -r "$RANDOM_PRECHECK" ]]; then
+	# program successfully created, tested writability to, removed, and verified gone, a tempfile
+	echo "access to $(dirname $RANDOM_PRECHECK) verified"
+else
+	echo "fatal: cannot write temp directory, please set up your own temp directory (see mktemp(1) for help)"
+	[[ $- =~ i ]] && { cleanup; return; }
+	cleanup_exit 124
+fi
+# #2 flag variables were not initialized with a value of "0"
+for chk in "$RANDOM_NOSECURE" "$RANDOM_NOTINIT" "$RANDOM_NOSANE"; do
+	if [[ "$chk" == "0" ]]; then
+		cleanup_exit 126 "fatal: RANDOM_NOxxxx flag variables MUST NOT BE ZERO, they are flags to indicate truth. If not true, they must be undefined"
+	fi
+done
+# #3 required executables are available (their location must be included in the PATH variable!)
+RANDOM_CLEANUP_REQUIRED=0
+echo "[s"
+for bins in echo which stty setterm clear rm mktemp echo head tail find uniq sort play sha256sum calc perl dirname realpath readlink
+do
+	if r=$(which "$bins")
+	then
+		
+		stat "$r" > /dev/null
+		builtin echo -ne "[2K[u$r found ok!"
+	else
+		RANDOM_CLEANUP_REQUIRED=1
+		builtin echo "[31;1mfatal: $bins not found, and is required!!![0m"
+	fi
+done
+echo -ne "[u\n[s[0m"
+if [[ $RANDOM_CLEANUP_REQUIRED -eq 1 ]]; then
+	unset RANDOM_CLEANUP_REQUIRED
+	echo "[0;31mfatal: too many errors and/or missing executables![0m"
+	cleanup_exit 125
+fi
+
+# --- end pre-run checks / init -------------------------------------------------------------------------
+
+
+
+# --- begin main program --------------------------------------------------------------------------------
+
+# pragmas
+
+# save shell options
+shopt xpg_echo &> /dev/null || RANDOM_SH+=x
+shopt interactive_comments &> /dev/null || RANDOM_SH+=i
+
+# set local shell options
+
+shopt -s xpg_echo
+shopt -s interactive_comments
+
+# data
+
+declare RANDOM_LIST_OUTPUT="$(mktemp -- "$0-XXXXXXXX-$USERNAME.$HOSTNAME.$$-XXXXXXXX.rmlpls")"
+declare RANDOM_LIST_SECSIG="$(mktemp -- "$0-XXXXXXXX-$USERNAME-$HOSTNAME-$$-XXXXXXXX.rmlsig")"
+declare RANDOM_INPUT_DEVICE="/dev/input/event3"
+declare RANDOM_DEVICE_TYPE="mouse"
+declare -i RANDOM_INPUT_LEN=0
+declare RANDOM_HEADER="_RANDOM_RML_HEADERv1.0gen"
+declare STEPS=4
+
+# code
+
+#RANDOM_HEADER=$(perl -we 'printf("%c",${#RANDOM_HEADER})')"$RANDOM_HEADER"
+if [[ -r $RANDOM_LIST_OUTPUT ]] || [[ -r $RANDOM_LIST_SECSIG ]]; then
+	echo -ne "not shut down properly, removing old files.."
+	rm -f "$RANDOM_LIST_OUTPUT"
+	rm -f "$RANDOM_LIST_SECSIG"
+	echo "done"
+fi
+while [[ $RANDOM_INPUT_LEN -lt 1 ]]; do
+	echo "enter a NONZERO number for signature unique-ness \n(larger numbers takes more $RANDOM_DEVICE_TYPE inputs to generate)\n[number?]: "
+	read RANDOM_INPUT_LEN
+done
+echo "randomly and elaborately operate the $RANDOM_DEVICE_TYPE to generate a random number matrix..."
+P=$(( RANDOM_INPUT_LEN / STEPS ))
+echo '[s'
+# ***  echo "$RANDOM_HEADER" > $RANDOM_LIST_SECSIG *** DO NOT MOVE *** KEEP DISABLED ***
+for ((x=0;x<STEPS;x++)); do
+	echo -ne "[u$(( ( x * 25 )+(x<1) ))% complete..."
+	head -n${P} $RANDOM_INPUT_DEVICE >> $RANDOM_LIST_SECSIG
+done
+echo -e "[u100% complete!         "
+ss=$(sha256sum $RANDOM_LIST_SECSIG)
+echo "matrix ok, signature: $ss"
+echo -ne "generating list..."
+find -iname '*.mp3' | sort | uniq | sort --random-source="$RANDOM_LIST_SECSIG" -R > $RANDOM_LIST_OUTPUT
+echo "done"
+sleep 0.65
+clear
+cat $RANDOM_LIST_OUTPUT | head -n5
+echo "."
+echo ".  $(cat $RANDOM_LIST_OUTPUT | wc -l) files (all not shown)"
+echo "."
+cat $RANDOM_LIST_OUTPUT | tail -n5
+echo "--- end of list --"
+echo "press ENTER to use playlist, or [x] to abort process"
+read -sn1
+if [[ $REPLY =~ [xX] ]]; then
+	cleanup_exit 2 "user pressed X, aborting...bye!"
+else
+
+	echo "user pressed ENTER starting playlist..."
+
+	while read r; do
+		clear
+		setterm --init
+		play "$r"
+	done < "$RANDOM_LIST_OUTPUT"
+	cleanup_exit 0
+fi
+
+
+# --- end: main program -----------------------------------------------------
+# --- script ends here ------------------------------------------------------
+
+
+

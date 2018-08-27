@@ -1,0 +1,5 @@
+removeme
+*.save
+*.bak
+*.swp
+*.save.*

@@ -1,0 +1,98 @@
+#!/bin/bash
+#
+# 
+#  mods - adjust mods
+# 
+#  Author:
+#       Gabriel Sharp <osirisgothra@hotmail.com>
+# 
+#  Copyright (c) 2018 Gabriel Sharp
+# 
+#  Created on ???, Last Major Update on (none yet)
+#   [--create-rc "file"]
+# 
+#  Author:
+#      	Gabriel Thomas Sharp <osirisgothra@hotmail.com>
+# 
+#  Copyright (c) Gabriel Thomas Sharp (Intellectual)
+# 
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+# 
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU Lesser General Public License for more details.
+# 
+#  You should have received a copy of the GNU Lesser General Public License
+#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
+#  For more support, visit our homepage: http://github.com/osirisgothra
+#  Report any bugs to author's main e-mail or visit our FAQ on our website.
+# 
+#
+
+shopt -s interactive_comments
+shopt -s globstar
+shopt -s nullglob
+set +x
+declare targetdir="$PWD/mods"
+declare unloaded="$PWD/mods_disabled"
+declare TMOUT=0
+declare -a SRC=( "${BASH_SOURCE[@]}" )
+
+# start off as okay
+declare -i OKAY=1
+ 
+# check we are valid
+if [[ -d $PWD/mods ]] && [[ -r $PWD/options.txt ]] && [[ -d $PWD/logs ]]; then
+ 	# also make sure we have a place for disabling
+	if ! mkdir -p mods_disabled; then
+		echo "fatal: modpack location correct but cannot make and/or access ./mods_disabled!!"
+		echo "check your permissions!!"
+		OKAY=0
+	fi
+fi
+if [[ $OKAY -eq 0 ]]; then
+ 	echo "FATAL: run from a minecraft modpack directory (usually [modpacks base dir]/[modpack name+version]/minecraft/. )"
+ 	exit 127
+fi
+# echo "modpack minecraft directory: check/setup ok!"
+
+# get items from user
+# declare ITEMS=( $(eval dialog --output-fd 1 --buildlist '"Change Mods"' 0 0 25 `find $PWD/mods -type f -maxdepth 1 -printf '"%p" "%f" ON\n'; find /home/osirisgothra/gs/mods_disabled -type f -maxdepth 1 -printf '"%p" "%f" OFF\n'`) )
+ITEMS=( $(eval dialog --output-fd 1 --buildlist '"Change Mods"' 0 0 25 `find $PWD/mods -type f -maxdepth 1 -printf '"%p" "%f" ON\n'; find /home/osirisgothra/gs/mods_disabled -type f -maxdepth 1 -printf '"%p" "%f" OFF\n'`) )
+
+# parse through list and enable as needed
+echo "enabling mods, if any..."
+for x in "${ITEMS[@]}"; do
+	if [[ -r "$x" ]]; then
+		echo -ne "found $x --"
+		if [[ $x =~ mods_disabled ]]; then
+			echo " and moving to $target ..."
+			echo "mv $x $targetdir"
+		else
+			echo "(already there, skipped)"
+		fi
+	else
+		echo "warning: $x did not exist or cannot be read from disk (skipping)"
+	fi
+done
+
+# parse through target and if any are NOT in the item list, disable it
+echo "disabling mods, if any..."
+for x in ${targetdir}/*; do
+	if [[ "${ITEMS[@]}" =~ "$x" ]]; then
+		# x twas in the list
+		echo "validated active: $x (skipped)"
+	else
+		# x twas NOT in list
+		echo "found active mod to disable: $x"
+		echo " and moving to $unloaded ..."
+		echo mv "$x" "$unloaded"
+	fi
+done
+
+	

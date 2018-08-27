@@ -1,30 +1,286 @@
 #!/usr/bin/perl
+#    eb
+#    extensive batches of files autonomous select-edit program
+#    firecode		1992-98
+#	 gxbase			1999-2010
+#	 autox			2011-2017
+#	 mini-eso-ubin	2018
+#	
+#    Selects, presents, edits, and possibly updates external
+#    programs if needed when done. New features are documented
+#    in history. Please see note 2 below for information concearning
+#	 the evolution of this program!!
+#
+#    Copyright (C) 2003-2016 Paradisim Enterprises, LLC
+#
+#    (Please see the end of this text for revision history)
+#
+#    Written by Gabriel T. Sharp <osirisgothra@hotmail.com>
+#    Latest versions of this and all other projects can be
+#    obtained by visiting <https://github.com/osirisgothra>
+#
+#    seasonal mirrors (subject to availability and uptime):
+#
+#    home-run servers:   <http://paradisim.twilightparadox.com>
+#    corporate hosted:   <http://paradisim.tk>
+#
+#  	 notice: seasonal mirrors left for historical reasons but are rarely online
+#	         please use the public repository instead:
+#
+#	 'git clone https://github.com/osirisgothra/mini.git'
+#
+#    or visit 'https://github.com/osirisgothra/mini'	 
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    REVISION HISTORY
+#
+#	Fri Apr  6 17:54:14 EDT 2018
+#		Created on Linux larnica 4.2.0-22-generic #27-Ubuntu SMP Thu Dec 17 22:57:08 UTC 2015 x86_64 x86_64 x86_64 GNU/Linux
+#       with the name 'HOME/bin/eb' destined to link 'MASTER:[devel|release]/mini/eso/ubin-local' by osirisgothra@larnica
+#
 
+# notes
+# 1 - this is the superceded version of eb, originally a MS-DOS batch
+#     file in 1992, then a windows batch file (1996-98), then a powershell
+#     batch file (until 2008), crossed over into linux in 2010 as first a
+#     posix-compliant sh, and then bash script (2010-18). It has now become
+#     a Perl 5 (5.020.000) script (*maybe* compatible with at least 5.013.000)
+#     with a loose (disappearing) dependence on the system's shell. It is planned
+#     to be cross platform at some time during it's new presence in perl.
+# 2 - this script is no longer part of gxbase or autox, instead it is part of the
+#     very decentralized 'mini' project with esoteric subprojects. since many of 
+#     these project do not relate to one another, and tend to be small, they are
+#     combined into a general, single project called 'mini'. This file belongs to
+#	  the 'eso/ubin-local' subculture. It can always be downloaded from github.
+# 3 - many distributions of linux (and cygwin), and some macos extensions, supply
+#     a link in /usr/bin/editor or /etc/alternatives/editor -- these are checked
+#     last, before this the nonstandard HOME/bin/editor link is checked, and then
+#     firstly, the EDITOR environment variable is checked. If there is a $editorpath
+#     specified inside this script, and it is found first, it is used above all others
+#     if you dont like this, make $editorpath=Path::Tiny->rootdir.
+#
+
+
+# directives - standard v5.20.x brew
 use warnings;
 use strict;
 use v5.20;
+# imported packages for argument searching, file and directory i/o
 use Getopt::Long::Descriptive;
-my $program_name = 'eb';
+use Cwd qw! cwd !;
+use Path::Tiny qw! path !; 
+use File::Temp;
 
+# hardwired options for developer use
+use subs 'sleep';
+
+
+my $debuggingmode = 0;
+
+# program's variables (could be edited for other regions or languages)
+
+my $prefix = Path::Tiny->rootdir;					# usually /, but could be /usr or /usr/local if needed
+my $defbin = $prefix->child("bin");					# fallback binary location
+my $defbin_name = "nano";							# fallback binary name
+my $temp = ( -r -w -x -d "/tmp" ? "/tmp" : cwd() ); # default to current dir if no temp found
+my $path = $ENV{"PATH"} // $defbin;					# failsafe for possibly read-only environments
+my $home = path($ENV{"HOME"} // $temp);   				# set this way so exploits dont happen in curdir
+my $editorpath = $ENV{"EDITOR"} // detect_editor($prefix) // $defbin->child($defbin_name);
+my $shmtgt = "$home/.cache/powerbash/mon";	
+my $reloadflag = "$temp/.pb.reload.flag";
+my $signalflag = "$home/.config/powerbash/flags/no_signal";
+my $program_lang = 'en_US';				# locale_we_are_using (todo:implement it when needed)
+my $program_name = 'eb';				# name of executable file (this file)
+my $edit_this = $0;
+my $initdir = cwd();					# track where we are
+my @files = @ARGV;					# GetOpt::Long::D..e took care of all but the filenames
+my $elevation_preferred = 0; 		# set to 1 when a file can't be written to (but readable)
+my $execution_preferred = 0;		# set to 1 when one of the files is not yet executable
+$path =~ s/~/$home/g;				# replace shell's "~" with an actual directory so we dont rely on it [this can save you/me headache bugs down the road!]
+my @paths = split(":",$path);		# split path into a list so its easier to deal with
+my @editfiles = qw! !;
+my @createfiles = qw! !;
+my $wants_link_msg = 0;
+
+print "this file: $0\n";
+sleep 2;
 my ($opt, $usage) = describe_options(
 						'$program_name %o <file>',
 						[ 'check-path-first|p', "check PATH, and ~/bin last" ],
-						[ 'write-check|w', "check for write permissions and elevate" ],
-						[ 'make-executable|x',"make file executable if not already" ],
-						[ 'create-only|c',"do not make new files executable, create only" ],
+						[ 'no-execute-new|e', "do not make new files executable" ],
+						[ 'no-write-check|w', "do not check for write permissions and elevate" ],
+						[ 'no-exec-check|x',"do not make file executable if not already" ],
+						[ 'no-create|C',"do not create any files, edit only" ],
+						[ 'no-edit|E',"do not edit any files, create only" ],
 						[ 'user|u=s',"set owner to different user" ],
 						[ 'group|g=s', "set group owner to different group" ],
 						[ 'no-home-bin|n',"do not check ~/bin for file" ],
-						[ 'no-home|h',"do not check home directory if it is not in the PATH" ],
+						[ 'no-home|H',"do not check home directory if it is not in the PATH" ],
 						[ 'no-curdir|r', "do not check current directory if it is not in the PATH" ],
-						[ 'backup-count|b=i', "keep a number of (defaults to 1) backups", { default => 1 } ],
+						[ 'backup-count|b=i', "keep a number of (defaults to 1) backups in /tmp/eb/idx/*", { default => 1 } ],
+						[ 'edit-self|s', "this file (perl script) immidiately (overrides command line)" ],
 						[],
 						[ 'verbose|v',  "print information about each step during runtime" ],
 						[ 'help',       "print this usage message and exit" ],
 						[ 'long-help',  "print the perl pod documentation for this program" ],
-					);
+						[ 'dryrun|d',   "perform scanning and report only, no program execution" ],
+					); 				   # self-creating help and command line option system
+# helper subs
+sub sleep
+{
+	CORE::sleep($@) if $debuggingmode;
+};
+sub detect_editor {
+	my $start = shift;
+	return undef unless $start->exists;
+	# see note 3
+	my $altpath = $start->child("etc")->child("alternatives")->child("editor");
+	my $edpatha = $start->child("usr")->child("bin")->child("editor");
+	my $edpathu = $home->child("bin")->child("editor");	
+	return $altpath if ( -r-x $altpath );
+	return $edpathu if ( -r-x $edpathu );
+	return $edpatha if ( -r-x $edpatha );
+	return undef;
+};
+sub longhelp
+{	
+	# say("type perldoc $program_name for long help (for now)");
+	`perldoc -m $edit_this` or die($!);
+	
+};
+sub dodefault
+{
+	my @shells = split(' ',`pidof bash`);	
+		
+	say "no filename(s) given, edit/signaling ~/.bashrc";
+	system($editorpath,path($home)->child('.bashrc'));	
+	
+	# active message signalling (if powerbash is running with it enabled)
+	# you can turn it off by writing a flag file 'no_signal' into powerbashs'
+	# flags directory
+	print("passive signal queued for pid ","$_ \n") for @shells;	
+	unless ( -r $signalflag )
+	{
+		for my $sh (@shells) 
+		{
+			my $shfile = path($shmtgt)->child($sh);
+			if ( -r-w $shfile )
+			{			
+				qx! reload_bashrc >> $shfile !;								
+			}
+			else { say("bash shell PID=$sh is not listening for update messages, skipping"); }
+		}
+	} 
+	else
+	{
+		say "passive signal queue dumped because signalling is disabled by user with $signalflag";
+	}
+	# passive signal for change, create the 'powerbashreload' file in tmp
+	`touch $reloadflag 2>&1 1>/dev/null`;
+};
 
+# pre-start check arguments for help or long help requests
+
+# program pre-condition checks that must be passed (and fail first two) to proceed
 print($usage->text), exit if $opt->help;
-say("you need to specify at least a file (use --help for more information") exit if (scalar(@ARGV) < 1);
+longhelp(), exit if $opt->long_help;
+
+# PROGRAM START POINT
+
+# check for required items first
+
+die("there is no editor present that can be found, please set your EDITOR environment variable, or, make a link to your favorite editor with $prefix/editor or $home/bin/editor!")
+	unless -r-x $editorpath;
+	
+
+# do default action if no arguments are present
+dodefault(), exit if (scalar(@ARGV) < 1);
+
+# resolve file location(s)
+FILELOOP: for my $file (@files)
+{
+	say "searching for detail on $file ..." if $wants_link_msg;
+	print("~");
+	$_ = $file;
+	my $foundfile = 0;
+	unless ($opt->no_edit)
+	{		
+		PATHLOOP: for my $dir (@paths)
+		{
+			my $loc = path($dir)->child($file);		
+			
+			if ( -d-r-x $dir && chdir($dir) )
+			{				
+				if ( -f-r-x $file && ! -l $file && ! -d $file )
+				{				
+					push(@editfiles,$loc);
+					print ".";
+					print("+") if ( -w $file );
+					$elevation_preferred = 1 unless -w $file;
+					$execution_preferred = 1 unless -x $file;
+					$foundfile = 1;				
+					last PATHLOOP;
+				}
+				elsif ( -l $file )
+				{
+					print "skipping $file symlink\n" unless $wants_link_msg;					
+				}
+				else
+				{
+					if ( -f $file )
+					{
+						print("error: $file was found but ignored because we cannot access it\n") if $wants_link_msg;
+						print("!");
+						$foundfile = 1;
+					}
+					# else file not found so do nothing		
+				}			
+			}
+			else
+			{
+				say("warning: couldnt check $dir (from your PATH) because its not readable!");
+			}			
+		} # "for my dir (paths)
+	} # "unless $opt->no_edit"
+							
+	unless ($foundfile)
+	{
+		unless ($opt->no_create) {
+			print("*");
+			my $targetdir = path($home)->child("bin");
+			my $targetfile = $targetdir->child($file);
+			say( "warning: no user binary folder (~/bin) i will use $initdir instead" ),
+				  , $targetfile = $initdir->child("bin") unless $targetdir->exists();					
+			push(@createfiles,$targetfile);
+			$execution_preferred = 1 unless $opt->no_execute_new;			
+		}
+	}
+	
+}
+
+say "editing: " unless $opt->no_edit;
+say "\t$_" for @editfiles;
+say "\t(some unwritable)" if $elevation_preferred;
+say "\t(some unexecutable)" if $execution_preferred;
+say "\t<none found/specified>" unless @editfiles;
+say "creating";
+say "\t$_" for @createfiles;
+say "\t<none>" unless @createfiles;
+say scalar(scalar(@editfiles) + scalar(@createfiles)) . " file(s)";
+sleep(2), system($editorpath,@editfiles,@createfiles) unless $opt->dryrun;
+
 
 

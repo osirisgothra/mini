@@ -1,5 +1,20 @@
 #!/bin/bash
 
+TTY="$(tty)"
+
+function kdialog()
+{
+	# only use kdialog IF we dont have a tty (like running from an X based launcher)
+	if [[ $TTY =~ (pts|tty) ]]; then
+		case $1 in
+			--msgbox)	shift; printf "[1m[ $* ]\n";;
+			*) printf "kdlg: $*\n";;
+		esac
+	else
+		command kdialog "$@"
+	fi
+}
+
 
 function errexit()
 {
@@ -27,8 +42,16 @@ if [[ ! -r "$SURFCACHE" ]]; then
 		nextfile=${files[index]}
 		echo "now checking: $nextfile - to see if it is a file/executable/nondirectory"
 		if [[ -f "$nextfile" ]] && [[ -x "$nextfile" ]] && [[ ! -d "$nextfile" ]]; then
-			echo "found: $nextfile fits the bill"
-			break
+			if diff "$nextfile" "$BASH_SOURCE"; then
+				echo "$nextfile is THIS script, obviously not what we are looking for"
+			else
+				if file "$nextfile" | grep ELF; then
+					echo "$nextfile verified as an ELF binary"
+					break
+				else
+					echo "$nextfile is a script (possibly a different/modified version of THIS script)"
+				fi
+			fi
 		fi
 		let index++
 		echo "no go, going to the next one.. (number $index in the list)"
@@ -52,6 +75,15 @@ else
 	if [[ ! -x "$SURFLOC"  || ! -f "$SURFLOC" || -d "$SURFLOC" ]]; then
 		rm -f "$SURFCACHE"
 		errexit "The cache file was found, but it pointed to somewhere that didnt execute, the cache file has been deleted, try running again to perform the initial search"
+	elif diff "$SURFLOC" "$BASH_SOURCE"; then
+		rm -f "$SURFCACHE"
+		errexit "The cache file points to this script, not okay (removing script file -- please try again)"
+	elif file "$SURFLOC" | grep ELF; then
+		echo "cached file $SURFLOC is an executable, binary file. Using it as the target file (and keeping in cache)"
+	else
+		echo "file $SURFLOC is not a binary executable, removing it (please try again!)"
+		rm -f "$SURFCACHE"
+		errexit "failed to execute any valid cache file, please start this program again to rescan!"
 	fi
 fi
 # at this point $SURFLOC will have a valid, executable location, no matter what

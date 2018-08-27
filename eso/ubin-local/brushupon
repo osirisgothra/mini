@@ -30,6 +30,11 @@
 #           by using this flag. This flag will work for any language and may be easier for some especially new to
 #           the suffixes used by the languages as the second form can be confusing. Again at this time, this file
 #			is considered 'private' but is only released on pastebin semi-anonymously!
+# --nocache disable locally saved off-line versions of the webpages - has no effect when page is never been cached
+#			this does NOT prevent the file from being cached (to allow a up-to-date offline mode without needing to
+#			go back and forth with this switch.
+# --list	show all cached items one per line
+#
 #
 # examples(that work*): 
 #
@@ -58,6 +63,15 @@
 # see my git page for updates related to my stuff: https://osirisgothra.github.io
 #
 # this file is from: http://paste.ubuntu.com/26233733/
+[[ $1 == --nocache ]] && { cache=no; shift; } || cache=yes
+#shopt -o -s extdebug
+shopt -s xpg_echo
+shopt -s expand_aliases
+shopt -s globstar
+shopt -s interactive_comments
+fcache="$HOME/.cache/brushupon/"
+fitem="$1"
+mkdir --parents "$fcache" || echo "warning: cache could not be created on device under $HOME" --verbose
 
 RAWMODE=0
 if [[ $* =~ --help ]]; then
@@ -69,6 +83,25 @@ elif [[ $1 == -raw ]]; then
 	echo "disabling colorme support (if it was available)" > /dev/stderr
 	RAWMODE=1
 	shift
+	# (see *??)
+	echo ""
+elif [[ $1 =~ --list ]]; then
+	printf "filename\t\tfull path\n\n"
+	r=0
+	for x in ~/.cache/brushupon/*; do
+		if [[ -s "$x" ]]; then
+			echo "$(basename $x)\t\t\t$x"
+		else
+			echo "\twarning: found zero-length file, removing it..."
+			echo "\t$x - empty"
+			rm "$x" -f --verbose
+		fi
+		let r++
+	done
+	echo ""
+	echo "total $r"
+	echo ""
+	exit 122
 fi
 
 case $# in
@@ -97,7 +130,6 @@ elif [[ $NMISS -gt 0 ]]; then
 	echo "warning: some addons not available, support may be limited (but still functional)"
 fi
 
-
 if [[ $1 == -n ]]; then
 	shift
 	PFX="https://learnxinyminutes.com/docs/$1"
@@ -109,9 +141,45 @@ else
 	DOT="."
 	XLAT=cat
 fi
+alias unless="if !"
+alias sselnu="fi"
+alias elunless="elif"
+tgt="${fcache}${fitem}"
 
-if [[ $RAWMODE == 0 ]] && which colorme; then
-	GET "$PFX$1$DOT$2" | $XLAT | colorme | less -raw
+unless [[ -r "$tgt" && -f "$tgt" ]]; then
+	tgt="$(mktemp)"
+	cache=no
+sselnu
+if [[ $cache == no ]]; then
+	if [[ $RAWMODE == 0 ]] && which colorme; then
+		GET "$PFX$1$DOT$2" | $XLAT | colorme > "$tgt"
+	else
+		GET "$PFX$1$DOT$2" | $XLAT > "$tgt"
+	fi
 else
-	GET "$PFX$1$DOT$2" | $XLAT | less -raw
+	echo "using cache in $tgt"
 fi
+
+if [[ $(cat "$tgt") =~ "404 Not Found" ]]; then
+	echo "Error, page seems to be missing! (404: Page Not Found)"
+	exit 404
+elif [[ $(cat "$tgt" | wc -l) -lt 1 ]]; then
+	echo "Error, page retrieved was empty (possibly domain not found or unable to connect)"
+	exit 400
+else
+	less -raw "$tgt"
+	if [[ $cache == yes ]]; then
+		echo "skipping save to cache and tempfile"
+	else
+		if mv --force "$tgt" "${fcache}${fitem}"; then
+			R=$?
+			echo "saved to cache in ${fcache}${fitem}."
+		else
+			R=$?
+			echo "warn: cannot save to cache ($?)!"
+		fi
+	fi
+fi
+[[ -v R ]] || R=$?
+echo "script actions all finished ($R)"
+exit $R

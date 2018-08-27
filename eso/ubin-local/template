@@ -1,0 +1,109 @@
+#!/bin/bash
+#
+#    template
+#    template generator
+#    template generator project
+#    a project for generating templates
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sun Apr 22 12:22:01 EDT 2018
+#            osirisgothra@larnica initially added a template to this file
+#            with the original name, template*
+#
+#  * this file has existed well before this date (2-3 years at least), but is 
+#    now documented as being truly created at this date and time
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+# DATE_TIME: not sure why you need to change this really but if you forgot or something, or are on 
+#            a deadline or have a specific release date it could be useful.
+#
+# TODOs (ordered in MOST-IMPORTANT To least-important)
+#	#1 --- VERY ---> implement X integration to take values for $1 thru $6 since most
+#                    will probably have an X manager running that supports at the least
+#                    floating or stacked windows, decide on whether we should use one of:
+#                    kdialog, zenity, gnome-dialog (but not dialog because thats CUI).
+#                    (we cant use any CUI input methods because they interfere with CUI editors!)
+#	#2 --- SOrTa --> possibly put template in a system or user binpath, possibly on eso??
+#   #3 --- kindA --> put into esoteric ubin for testing on github???
+#   #4 --- maybe --> add templates that the user can pick for other licenses or filetypes
+
+# defaults
+[[ $# -lt 1 ]] && FILENAME="<file>" || FILENAME="$1"
+[[ $# -lt 2 ]] && DESCRIPTION="A ${FILENAME^} Program" || DESCRIPTION="$2"
+[[ $# -lt 3 ]] && PROJECT_NAME="The ${FILENAME^} Project" || PROJECT_NAME="$3"
+[[ $# -lt 4 ]] && PROJECT_DESCRIPTION="A Project That Gloriously Houses ${FILENAME^}" || PROJECT_DESCRIPTION="$4"
+[[ $# -lt 5 ]] && MYSHELL="/bin/bash" || MYSHELL="$5"
+[[ $# -lt 6 ]] && DATE_TIME="$(date)" || DATE_TIME="$6"
+
+cat <<MY_EXTREME_END_OF_FILE
+#!${MYSHELL}
+#
+#    $FILENAME
+#    $DESCRIPTION
+#    $PROJECT_NAME
+#    $PROJECT_DESCRIPTION
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 $DATE_TIME
+#            ${USER}@${HOSTNAME} initially created this file
+#            with the original name, $FILENAME
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+#
+MY_EXTREME_END_OF_FILE

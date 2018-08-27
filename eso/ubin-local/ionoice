@@ -1,0 +1,14 @@
+#!/usr/bin/python3
+
+import sys
+import os
+import configparser
+
+sys
+os
+
+theconfig = configparser(	delimiters=('='),
+							comment_prefixes=('#'),
+							inline_comment_prefixes=('#'), strict=True, empty_lines_in_values=False)
+
+
