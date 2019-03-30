@@ -1,0 +1,55 @@
+#!/bin/bash
+# i = initiate time
+# t = time between '/' and 'god^m'
+# p = time between first and second repeat of command
+# d = de-initiate time
+# times are in seconds
+#  =========================================================================
+#  time cheat sheet
+#    milliseconds:
+#      0.001 = 1 millisecond
+#      0.01  = 10 milliseconds
+#      0.1   = 100 milliseconds
+#      1.0   = 1000 milliseconds or 1 second
+#    =======================================================================
+#    game ticks:
+#    =======================================================================
+#      0.05  = 500ms or 1 game tick (*20 = 1 sec)
+#      0.5   = 10 game ticks (*2 = 1 sec)
+#     ======================================================================
+#      0.05 = 1gt     0.10 = 2gt
+#      0.15 = 3gt     0.20 = 4gt
+#      0.25 = 5gt     0.30 = 6gt   
+#      0.35 = 7gt     0.40 = 8gt 
+#      0.45 = 9gt     0.50 = 10gt
+#     =======================================================================
+#   try to keep times rounded off to nearest game tick using above as a guide
+#  end of time cheat sheet
+#  ==========================================================================
+
+i=0.10
+t=0.25
+p=0.20
+d=0.45
+
+# xte 'key t'
+sleep $i
+
+xte 'key slash'
+sleep $t
+xte 'key g'
+xte 'key o'
+xte 'key d'
+xte 'key Return'
+
+sleep $p
+
+xte 'key slash'
+sleep $t
+xte 'key g'
+xte 'key o'
+xte 'key d'
+xte 'key Return'
+
+sleep $d
+

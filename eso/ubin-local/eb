@@ -87,7 +87,6 @@ use File::Temp;
 # hardwired options for developer use
 use subs 'sleep';
 
-
 my $debuggingmode = 0;
 
 # program's variables (could be edited for other regions or languages)
@@ -271,6 +270,7 @@ FILELOOP: for my $file (@files)
 	
 }
 
+my $elevator = $elevation_preferred ? "sudo" : "env";
 say "editing: " unless $opt->no_edit;
 say "\t$_" for @editfiles;
 say "\t(some unwritable)" if $elevation_preferred;
@@ -281,6 +281,8 @@ say "\t$_" for @createfiles;
 say "\t<none>" unless @createfiles;
 say scalar(scalar(@editfiles) + scalar(@createfiles)) . " file(s)";
 sleep(2), system($editorpath,@editfiles,@createfiles) unless $opt->dryrun;
+system($elevator,"chmod","a+x",@editfiles,@createfiles) unless $opt->dryrun;
+
 
 
 

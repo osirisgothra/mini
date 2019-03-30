@@ -1,5 +1,17 @@
 #!/bin/bash
 
+# try to find it quickly in usual locations
+if [[ -x /usr/bin/surf ]] && ! diff "$BASH_SOURCE" "/usr/bin/surf"; then
+	if [[ $SURF_NO_LOOK_IN_USUAL_SPOT -eq 1 ]]; then
+		echo "warn: found in usual spot but SURF_NO_LOOK_IN_USUAL_SPOT=1 is set. however, if it is the only result it might be chosen anyway."
+	else
+		echo "short-circuting: surf found in usual spot, using it"
+		echo "(disable this by defining SURF_NO_LOOK_IN_USUAL_SPOT=1)"
+		exec /usr/bin/surf "$@" || exit $?
+	fi
+fi
+
+
 TTY="$(tty)"
 
 function kdialog()
@@ -7,7 +19,7 @@ function kdialog()
 	# only use kdialog IF we dont have a tty (like running from an X based launcher)
 	if [[ $TTY =~ (pts|tty) ]]; then
 		case $1 in
-			--msgbox)	shift; printf "[1m[ $* ]\n";;
+			--msgbox)	shift; printf "[44m[1m[ $* ][0m\n";;
 			*) printf "kdlg: $*\n";;
 		esac
 	else

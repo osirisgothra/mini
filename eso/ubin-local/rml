@@ -34,7 +34,7 @@
 #	 NOTES
 #
 #      VARIABLES
-#
+# 
 #        STEPS
 #            Number of jobs to split the signature into evenly across the transfer.
 #            this is how many chunks will be collected from the input at a time each
@@ -65,10 +65,11 @@
 #            replace username/hostname with "X" for unsecure systems
 #        RANDOM_INPUT_DEVICE 
 #            change to the input device that will be used to generate random seed
-#            (default: "/dev/input/event3")
+#            (default: "/dev/input/mice")
 #        RANDOM_DEVICE_TYPE 
+#			 what to call RANDOM_INPUT_DEVICE when displaying it on the screen to the user
+#            during the script's runtime. (examples are: "mouse", "toaster", "peice of crap", "tu-tu", etc)
 #            (default: "mouse")
-#            informal name for RANDOM_INPUT_DEVICE ("mouse", "keyboard", "toaster", etc)
 #        RANDOM_INPUT_LEN 
 #            (default: 0[*])
 #            number of scanlines to read total
@@ -93,6 +94,8 @@
 #
 
 # --- script begins here ---------------------------------------------------------------
+
+
 
 # priority cleanups (done under any condition)
 function cleanup_exit()
@@ -136,6 +139,28 @@ else
 	[[ $- =~ i ]] && { cleanup; return; }
 	cleanup_exit 124
 fi
+# 1.5 verify media files
+shopt -s nullglob
+shopt -s interactive_comments
+FOUND_MEDIA=0
+for x in */*.mp3 *.mp3; do
+	if [[ -e "$x" ]]; then
+		let FOUND_MEDIA++
+	fi
+done
+if [[ $FOUND_MEDIA -eq 0 ]]; then
+	echo "cannot find media in this or child directories, please run from a directory or below a directory with media"
+	echo "or proceed if your media is deeply rooted beyond 2 dirs deep."
+	echo "proceed? [Y to proceed, any other key to abort]"
+	read -sn1 PROCEED
+	if ! [[ $PROCEED =~ [Yy] ]]; then
+		echo "terminating at user's request (at program's recommendation)"
+		cleanup_exit 125
+	else
+		echo "proceeding (could take a bit to search deeply...)"
+	fi
+fi
+
 # #2 flag variables were not initialized with a value of "0"
 for chk in "$RANDOM_NOSECURE" "$RANDOM_NOTINIT" "$RANDOM_NOSANE"; do
 	if [[ "$chk" == "0" ]]; then
@@ -149,7 +174,7 @@ for bins in echo which stty setterm clear rm mktemp echo head tail find uniq sor
 do
 	if r=$(which "$bins")
 	then
-		
+
 		stat "$r" > /dev/null
 		builtin echo -ne "[2K[u$r found ok!"
 	else
@@ -163,6 +188,22 @@ if [[ $RANDOM_CLEANUP_REQUIRED -eq 1 ]]; then
 	echo "[0;31mfatal: too many errors and/or missing executables![0m"
 	cleanup_exit 125
 fi
+# #4 command line
+declare EXTRAPARAMS=( )
+export MAXARG=1 # <- should be same as highest number in case statement below
+case $# in
+	0)	echo "running with defaults (no command line passed)";;
+	1)	case $1 in
+			--linkstoo|-l)	EXTRAPARAMS+=( "-L" );;
+			*)	echo "ignoring argument: $1";;
+		esac
+		;;
+	#^ MAXARG should be same as this number above
+	#
+	*)  echo "error: $# arguments expected, the maximum is $MAXARG"
+		exit 122
+		;;
+esac
 
 # --- end pre-run checks / init -------------------------------------------------------------------------
 
@@ -183,23 +224,25 @@ shopt -s interactive_comments
 
 # data
 
+
 declare RANDOM_LIST_OUTPUT="$(mktemp -- "$0-XXXXXXXX-$USERNAME.$HOSTNAME.$$-XXXXXXXX.rmlpls")"
 declare RANDOM_LIST_SECSIG="$(mktemp -- "$0-XXXXXXXX-$USERNAME-$HOSTNAME-$$-XXXXXXXX.rmlsig")"
-declare RANDOM_INPUT_DEVICE="/dev/input/event3"
+echo "RMLS: $RANDOM_LIST_OUTPUT\n${RANDOM_LIST_SECSIG}"
+declare RANDOM_INPUT_DEVICE="/dev/input/mice"
 declare RANDOM_DEVICE_TYPE="mouse"
 declare -i RANDOM_INPUT_LEN=0
 declare RANDOM_HEADER="_RANDOM_RML_HEADERv1.0gen"
 declare STEPS=4
 
 # code
-
-#RANDOM_HEADER=$(perl -we 'printf("%c",${#RANDOM_HEADER})')"$RANDOM_HEADER"
 if [[ -r $RANDOM_LIST_OUTPUT ]] || [[ -r $RANDOM_LIST_SECSIG ]]; then
+#RANDOM_HEADER=$(perl -we 'printf("%c",${#RANDOM_HEADER})')"$RANDOM_HEADER"
 	echo -ne "not shut down properly, removing old files.."
 	rm -f "$RANDOM_LIST_OUTPUT"
 	rm -f "$RANDOM_LIST_SECSIG"
 	echo "done"
 fi
+
 while [[ $RANDOM_INPUT_LEN -lt 1 ]]; do
 	echo "enter a NONZERO number for signature unique-ness \n(larger numbers takes more $RANDOM_DEVICE_TYPE inputs to generate)\n[number?]: "
 	read RANDOM_INPUT_LEN
@@ -216,7 +259,10 @@ echo -e "[u100% complete!         "
 ss=$(sha256sum $RANDOM_LIST_SECSIG)
 echo "matrix ok, signature: $ss"
 echo -ne "generating list..."
-find -iname '*.mp3' | sort | uniq | sort --random-source="$RANDOM_LIST_SECSIG" -R > $RANDOM_LIST_OUTPUT
+if [[ "$1" == "-v" ]]; then
+	echo "video mode enabled - but not supported yet!"
+fi
+find "${EXTRAPARAMS[@]}" -iname '*.mp3' | sort | uniq | sort --random-source="$RANDOM_LIST_SECSIG" -R > $RANDOM_LIST_OUTPUT
 echo "done"
 sleep 0.65
 clear

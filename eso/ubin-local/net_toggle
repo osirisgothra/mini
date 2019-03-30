@@ -1,0 +1,16 @@
+#!/bin/bash
+
+NETWORK_SERVICES=( postfix ntp wpa_supplicant NetworkManager ModemManager sshd )
+if pgrep NetworkManager; then
+	# stop services related to networking
+	echo "stopping network services"
+	sudo systemctl stop "${NETWORK_SERVICES[@]}"
+else
+	echo "restarting network services (may take a minute or two)..."
+	sudo systemctl start "${NETWORK_SERVICES[@]}"
+fi
+
+
+# end of program
+# license: please run 'template net_toggle "simple net service toggler" "eso-bin" "esoteric projects"' which will show actual license
+# the template program is available at https://www.github.com/osirisgothra under the subtree of mini/eso-bin/ubin-local/template

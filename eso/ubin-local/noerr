@@ -1,0 +1,42 @@
+#!/bin/bash
+case $# in
+	0) echo "usage: noerr <command [arguments]>"
+	   echo "   or: noerr -[std]out <params>"
+	   echo "   or: noerr -[std]err <params>"
+	   echo "   or: noerr -fd<number> <params>"
+	   echo "       noerr [no arguments gives you this help text]"
+	   echo ""
+	   echo "where <params> is the syntax of the first form"
+	   echo "and <number> is a valid fd# from /dev/fd and is"
+	   echo "in range of 0-255."
+	   echo ""
+	   echo "<command> is exactly the command line you normally pass on"
+	   echo "its own, optionally including the usual [arguments]. Also"
+	   echo "the -- marker not supported because the command/args must"
+	   echo "come last."
+	   echo ""
+	   echo "for the -stdout/err params, the 'std' part of the flag is"
+	   echo "optional."
+	   echo ""
+	   echo "NEBNF syntax: <item>   = item is required"
+	   echo "              [item]   = item is optional but allowed"
+	   echo "            <params>   = refers to parameters from first group"
+	   echo "            <number>   = a 1-byte integer (0-255)"
+	   echo "glossary:"
+	   echo "    NEBNF  - 'non EBNF' format"
+	   echo "       fd  - 'file descriptor'"
+	   echo "    params - short for 'parameters'"
+	   echo "      std  - standard i/o handle"
+	   echo "    flag   - any parameter that starts with '-'"
+	   echo "     group - each usage given on the four lines at the top"
+	   echo ""
+		;;
+	*) case $1 in
+		-?(std)out) fdoff=1;;
+		-?(std)err) fdoff=2;;
+		-?(std)in) fdoff=0;;
+		-fd+([0-9])) num = ${1: 3}};;
+
+		
+					
+command "$@" 2>/dev/null

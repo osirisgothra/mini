@@ -1,0 +1,1 @@
+( echo declare -gA result=;i3-msg mmm 2>/dev/null | tr ',;' '\n' | tr ':' '=' | sed -r 's/\[\{/(/g;s/\}\]/)/g' | sed -r 's/"([^"]+)"=/[\1]=/g' ) > /tmp/est

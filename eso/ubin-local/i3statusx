@@ -1,44 +1,68 @@
 #!/usr/bin/perl
+#vim: ts=2:noet:sw=2:bs=2:ruler:fdm=marker:fmr=#{{,#}}:mouse=all:fcl=all:fen:ft=perl:nowrap
+#note: perlsupport and perlsyn users: use fmr=syntax instead of fdm=marker
 
 use warnings;
 use strict;
 use v5.20;
-use Time::HiRes qw! nanosleep !;
 
-my @ELEMENTS
 
-sub sleepms
-{ 
-	nanosleep( int(shift()) * 1000000 );
-}
+use Dyna:
+package :se Time::HiRes qw! nanosleep !;
+  
 
-my $header = "{ \"version 1\" } [\n[\n";
 
-sub print_item
+my $initial = '{"version":}\n[\n';
+my $group = '[%s]';
+my $itemgroup = '{%s}';
+my $item_assignment_char = ':';
+my $stritem = '"%s"' . $item_separator . '"%s"';
+my $numitem = '"%s"' . $item_separator . '%d';
+my $boolitem = $stritem;
+my @bools = qw( false true );
+my $entry_separator = ',';
+
+sub get_itemstr
 {
 	my $name = shift;
-	my $color = shift;
-	my $full_text = shift;
-	print "{\"name\":\"$name\",\"color\":\"$color\",\"full_text\":\"$full_text\"}"
-}
-sub print_anon_item
-{
-	my $color = shift;
-	my $full_text = shift;
-	chomp($full_text);
-	print_item("item",$color,$full_text);		
+	my $value = shift;
+	if ( $value =~ /^[0-9]+$/ )
+	{
+		return sprintf($numitem,$name,int($value));
+	}
+	else
+	{
+		
+	}
 }
 
-print($header);
-for my $item (@ARGV)
-{
-	say("item: $item");
-	#my @dirs = split(':',$ENV{'PATH'});
-	#print for @dirs;
-	while (1) {
-		for my $element (@ELEMENTS) {
-			print_item($name, $colorstr, $txt);
-			sleep(1);
-		}
-	}
+
+#
+#{"version":1}
+#[
+# [{"name":"disk_info","instance":"/","full_text":"134.3 MiB"},{"name":"ethernet","instance":"enp1s8","color":"#00FF00","full_text":"INET UP: 10.0.0.3 (100 Mbit/s)"},{"name":"load","full_text":"0.59"},{"name":"tztime","full_text":"Friday October 5, 2018 -- [:  7:12[AM] :]  EDT (15\")"}]
+#
+# [[...continually!...]] 
+#
+#,[{"name":"disk_info","instance":"/","full_text":"134.3 MiB"},{"name":"ethernet","instance":"enp1s8","color":"#00FF00","full_text":"INET UP: 10.0.0.3 (100 Mbit/s)"},{"name":"load","full_text":"0.59"},{"name":"tztime","full_text":"Friday October 5, 2018 -- [:  7:12[AM] :]  EDT (16\")"}]
+#,[{"name":"disk_info","instance":"/","full_text":"134.3 MiB"},{"name":"ethernet","instance":"enp1s8","color":"#00FF00","full_text":"INET UP: 10.0.0.3 (100 Mbit/s)"},{"name":"load","full_text":"0.59"},{"name":"tztime","full_text":"Friday October 5, 2018 -- [:  7:12[AM] :]  EDT (17\")"}]
+#
+# [[...until SIGINT/SIGKILL/SIGHUP or SIGQUIT..]]
+# we should not yield to SIGTSTP (but we should to SIGSTOP)
+#
+
+k#my $fversion = 1;
+#my %texts = ( ver => "version" );
+#my $outf = '[%s]';
+#my $itemf = '{%s}';
+#my $elemfs = '"%s":"%s"';
+#my $elemfi = '"%s":%d';
+#my $sepch = ',';
+#my $headerf = sprintf($itemf,sprintf($elemfi,$texts{ver},$fversion));
+printf("%s\n",$initial);
+
+while(1) {
+	printf("%s\n",$status);
+	sleep(1);
+
 }

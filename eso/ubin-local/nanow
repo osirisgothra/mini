@@ -1,0 +1,4 @@
+#!/bin/bash
+F="$1"
+shift
+nano `which "$F"` "$@"

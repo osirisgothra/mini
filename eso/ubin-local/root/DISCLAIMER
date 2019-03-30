@@ -1,0 +1,9 @@
+this directory is provided as
+a personal example, files get
+put here by third party programs
+and i have no control of thier
+behavior
+
+use 'eso-sync' to link the 'eso-bin'
+project files into your /usr/local/bin
+dir(s).

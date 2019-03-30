@@ -1,0 +1,202 @@
+#!/bin/bash
+#
+#    mi3
+#    send multiple messages for $IPROGRAM
+#    eso-bin
+#    esoteric projects and executables
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sun Dec  2 13:24:53 EST 2018
+#            osirisgothra@larnica initially created this file
+#            with the original name, mi3
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+#
+# TARGET NOTES
+#
+# target resides in /home/osirisgothra/bin ... no
+# target resides in /home/osirisgothra/bin ... no
+# target resides in /usr/local/sbin ... no
+# target resides in /usr/local/bin ... no
+# target resides in /usr/sbin ... no
+# target resides in /usr/bin ... no
+# target resides in /sbin ... no
+# target resides in /bin ... no
+# target resides in /usr/games ... no
+# target resides in /usr/local/games ... no
+# target resides in ~/bin ... no
+# target resides in /usr/local/gxdwm ... no
+#
+
+# the H1/H2 are used to dynamically resize this help text, leave them be
+H1=$LINENO
+# syntax:
+#       mi3 [message prefix] -- blank blank blank
+# a         three blank args causes message prefix to be fired alone, three times
+# n         ie, 'mi3 echo -n -- line1 "" line3
+# y         because "" is a blank, it gets drawn as nothing
+#           and line1/line3 are glued together#
+# o     mi3 [base-message(s)] -- [suffix1] [suffix2] ...
+# f     mi3 -- [message1] [message2] ...
+#       mi3 [time-in-milliseconds] <usual arguments from above>
+#
+# LICENSED UNDER GNU GPL v3.0 SPECIFIC WITH NO USAGE LIABILITIES ON THE AUTHOR
+# 
+H2=$LINENO
+
+# OPTIONS
+
+shopt -s interactive_comments
+shopt -s expand_aliases
+shopt -s checkwinsize
+shopt -u cmdhist
+shopt -u extdebug
+shopt -ou xtrace
+
+# TRAPS
+trap -- 'catch_signal SIGINT' SIGINT
+trap -- 'catch_signal SIGHUP' SIGHUP
+trap -- 'catch_signal SIGQUIT' SIGQUIT
+
+# FUNCTIONS
+function cleanup()
+{
+	echo -n "cleaning up..."
+	echo "done!"
+}
+function catch_signal()
+{
+	local SIG=NONE
+	echo "signal caught: $SIG"
+	case $SIG in
+		SIGINT|SIGHUP|SIGQUIT)
+			cleanup
+			;;
+		*)
+			echo "caught but dropped $SIG because we do not want it... remove it from the traplist please!"
+			;;
+	esac
+}
+
+function echo()
+{
+
+	( [[ $DEBUGMODE -eq 1 ]] || [[ $* =~ (fail|error|critical) ]] )  && builtin echo "$@"
+}
+function iprogram()
+{
+	echo "DELAY(now)=$RUNDELAY"
+	echo "[32;1m$*[0m"
+	[[ $DEBUGMODE -eq 0 ]] && T=/dev/null || T=/dev/stdout
+	( command $IPROGRAM "$@" ) &> $T
+	RR=$?
+	echo "[32;1m[$RR][0m"
+	DELAY=`calc -p $RUNDELAY / 1000`
+	sleep $DELAY
+	echo "DELAY=$DELAY  RUNDELAY=$RUNDELAY"
+	return $RR
+}
+
+# VARIABLES
+
+declare -gi DEBUGMODE=0
+declare -g IPROGRAM="${1-true}"; shift # true as a shim to protect when we have 0 params, so user can see usage still (so i dont have to move it into the heading  part of the program!)
+declare -ga PREFIX=( )
+declare -gi MSGMODE=0
+declare -gi RUNCNT=0
+declare -gi PFXCNT=0
+declare -gi RUNDELAY=0
+declare -gi HELPLEN=$[ H2 - H1 - 2 ]  # 2 reflects the number of variables involved in the calculation (in this case, 2: H1 and H2)
+
+# PROGRAM
+
+if [[ -x `which $IPROGRAM` ]]; then
+   echo "verified: $IPROGRAM"; else
+   echo "failed miserably! because program \"$IPROGRAM\" does not exist";	exit 127
+fi
+case $# in
+	0)	{
+			cat "$BASH_SOURCE" | grep '# [s]yntax' -A${HELPLEN} | sed -r 's/^\s*#//g' # be sure to encase one of he chars inside [] to prevent this line from being matched as well
+		}
+		;;	# case $# is zero (0)
+	*)  {
+		# program okay?
+			if ! `which $IPROGRAM`; then
+				echo "failed: no program named $IPROGRAM -- aborting!"
+				exit 126
+			fi
+			# the optional numeric argument comes first
+			if [[ $1 =~ ^[0-9]*$ ]]; then
+					if RUNDELAY=$1 &> /dev/null; then
+					# and is then removed if existing
+					shift
+				fi
+				# otherwise it's left as part of/all of the prefix
+			fi
+				# Note: Command lines such as 'mi3 -- -- foo bar'
+				# or 'mi3 foo bar -- --' will do NOTHING because
+				# there will never be a call, this is only checked
+				# slightly and a warning is issued (very generic)
+				# we use RUNCNT for this purpose.
+				for x; do
+					if [[ $x == -- ]]; then
+						if ((MSGMODE)); then
+							MSGMODE=0
+							let PFXCNT++
+							# (starting into prefix mode again
+							#  reset last prefix)
+							PREFIX=( )
+						else
+							MSGMODE=1
+							# (starting into message mode
+							#  will be using current prefix to
+							#  deploy messages, if there is one)
+						fi
+					else
+						# handle the message text as either
+						# a prefix (common items) or as
+						# a message (extra items)
+						if ((MSGMODE)); then
+							# each time we get a message
+							# we EXECUTE the program with
+							# the prefix + our message
+							iprogram "${PREFIX[@]}" "$x" && let RUNCNT++
+						else
+							PREFIX+=( "$x" )
+						fi
+					fi
+				done
+			}
+			;; # ((case $# is '*' (anything other than previous cases (0))))
+		end):;
+	esac # ((case $# (number of arguments)))
+
+

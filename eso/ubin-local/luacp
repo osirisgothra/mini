@@ -1,0 +1,93 @@
+#!/bin/bash
+#
+#    luacp
+#    lua compiler parse feature for nano's nanorc linter setting
+#    eso-bin
+#    esoteric projects
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Mon Dec  3 21:14:19 EST 2018
+#            osirisgothra@larnica initially created this file
+#            with the original name, luacp
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+#
+# TARGET NOTES
+#
+# + target resides in /home/osirisgothra/bin ... yes + can safely delete message now +
+#
+# does just one "thing" that nano->nanorc->lua.nanorc->linter cannot
+# that thing consists of:
+#  1) calls luac with -p for parse-only (nanorc wont take flags for some reason in 2.4.2)
+#  2) passes all other items to it (nanorc not quoting correctly?)
+#  3) merge-mixes output to stdout from stderr AND stdout (stdout is the output not both stdout/err)
+#     it is unclear if linting intends rely on one or the other in >= 2.4.2 
+#     this prevents problems down the road also, for now
+#  4) makes lines parsable (nanorc expects errors in the usual gcc/g++ formatted text)
+#  (seealso: bashlint - in eso-bin project nanorc)
+#    turns
+#       luac: mlua.lua:10: unexpected symbol near '2'
+#    into
+#       mlua.lua:10:1: error: unexpected symbol near '2'
+#         ,__________________________________________________________________________________________________
+#         |requires                                                        regex                             |
+#      `  |remove luac: header                                             's/^luac: //g'                    |
+#      `  |add fake column+errortext "1: error: " after line number        's/(:[0-9]+:)/\11: error: /g'     |
+#         |__________________________________________________________________________________________________|
+#   NOTES
+#    1) luac must be in the PATH, do not change luac target below, it will change the output expected
+#    2) you need sed available that can do -r (extended regex / semi-perl egrep style )
+#    3) you can substitute 'sed -r' with 'perl -wpe' if you dont have sed but have perl 5.11+
+#    4) must use bash, not sh or dash, redirections may not work in generic shells or bash clones like zsh
+#    5) if /dev/stdout had been redirected already, the output from stderr will go there, not to the screen
+#    6) change /dev/stdout to $(tty) if redirection of stdout is a problem in your use case
+#
+
+USES_TTY=0
+OUTDEV=/dev/stderr
+DEBUGMODE=0
+REALTTY=$(tty || echo /proc/self/fd/2)
+if [[ -x `which sed` ]]; then
+	SEDPROG=( "sed" "-r" )
+elif [[ -x `which perl` ]]; then
+	SEDPROG=( "perl" "-wpe" )
+else
+	[[ -r "$1" ]] && echo "${1}:1:1: error: fatal error-no perl or sed in your PATH!" || echo "luacp-generic:1:1: error: fatal error-no perl or sed in PATH and FILENAME was missing also!"
+	exit 127
+fi
+if ((USES_TTY)); then
+  OUTDEV="$REALTTY"
+fi
+#  output is in:
+
+( luac -p "$@" |& sed -r 's/^luac: //g;s/(:[0-9]+:)/\11: error: /g' ) &> "$OUTDEV"
+
+

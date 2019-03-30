@@ -1,0 +1,63 @@
+#!/bin/bash
+#
+#    meqamp
+#    amplify mocp presets
+#    mini:eso:ubin-local
+#    esoterical local scripts and utilities
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sun Nov  4 08:09:34 EST 2018
+#            osirisgothra@larnica initially created this file
+#            with the original name, eqamp
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+#
+# TARGET NOTES
+#
+# target resides in /home/osirisgothra/bin ... [68Gno
+# target resides in /home/osirisgothra/bin ... [68Gno
+# target resides in /usr/local/sbin ... [68Gno
+# target resides in /usr/local/bin ... [68Gno
+# target resides in /usr/sbin ... [68Gno
+# target resides in /usr/bin ... [68Gno
+# target resides in /sbin ... [68Gno
+# target resides in /bin ... [68Gno
+# target resides in /usr/games ... [68Gno
+# target resides in /usr/local/games ... [68Gno
+# target resides in ~/bin ... [68Gno
+# target resides in /usr/local/gxdwm ... [68Gno
+# target resides in /home/osirisgothra/.fzf/bin ... [68Gno
+#
+#[[ $# -eq 1 ]] && rate=$(( $1 + 0 )) || rate="1.75"
+#[[ $# -eq 2 ]] && target=$(realname "$2") || target="${PWD}/.."
+#echo "using rate: $rate"
+#echo "using target: $PWD/.."
+for x in ../*; do if grep EQSET "$x" -Pq --directories=skip; then echo -ne "processing $x..."; ( mapfile r < $x; for y in "${r[@]}"; do for z in $y; do [[ $z =~ ^[-.0-9]+$ ]] && echo -ne "$(calc -- $z' * '$rate | tr -d '\t')" || echo -ne "$z"; echo -ne " "; done; echo; done ) > "$(basename "$x")"; echo "done (${#r[@]} lines converted)"; else echo "skipped $x"; fi; done

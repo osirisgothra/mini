@@ -1,0 +1,58 @@
+#!/usr/bin/perl
+
+use v5.20;
+use warnings;
+use strict;
+use Getopt::Long::Descriptive;
+use Path::Tiny;
+no warnings "experimental";
+
+my ($opt, $usage) = describe_options(
+  path($0)->basename() . " %o <location>",
+ # required => 1 | default => ???
+  [ 'run|r', "actually perform operations, otherwise do a dry run, with a detailed report" ],
+  [ 'debug|d',   "print debugging information before starting" ],
+  [],
+  [ 'verbose|v',  "print extra detailed report even when doing a --run"            ],
+  [ 'quiet|q', "say nothing, this turns off both -d and -v but not -r" ],
+  [ 'confirm|c=s', "confirm mode: all, existing, existing-outside\n\t\tall = ask for confirming on all actions\n\t\texisting = ask for confirm if the link exists and is intact locally\n\t\texisting-outside = ask for confirm if the link exists but only if that destination lies outside the work directory \n\t\t\t(SEE:--opt)", { default => "all" } ],
+  [ 'opt|o=s', 'set the option string (can be one of: [o]utside [u]nderoutside [a]nyoutside [d]ifferentfilesystemoutside [s]imulateconfirm [b]ackupallfiles [c]reatelinksintempdir', { default => "" } ],
+  [ 'help',       "print usage message and exit" ],
+  [ '-', "<location> refers to any valid path, current directory is used otherwise" ],
+);
+
+print($usage->text), exit if $opt->help;
+sub confirm
+{
+}
+
+sub echo 
+{
+	if (@_ > 0)
+	{
+		my $fmtstr = shift;
+		$fmtstr .= "\n";
+		printf($fmtstr,@_) if defined($fmtstr);
+	}
+	elsif (length($_) > 0)
+	{
+		print($_ . "\n");
+	}
+	else
+	{
+		print("\n");
+	}	
+}
+
+if ($#ARGV >= 0)
+{
+	my @paths = grep { path($_)->is_dir() } @ARGV;
+	my @files = grep path($_)->is_file(), @ARGV;
+	echo "files:";
+	echo for @files;
+	echo "paths:";
+	echo for @paths;	
+}
+else
+{	echo("You must specify at least one target, use --help to see arg list"); }
+

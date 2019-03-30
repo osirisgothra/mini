@@ -1,0 +1,33 @@
+#!/bin/zsh
+# ccat -bht [head] [tail] 
+# -b exclude both head/tail aka "(b)etween mode" from output
+# -h exclude head from output
+# -t exclude tail from output
+if [[ $# -eq 2 ]]; then	
+	perl -wne '$r1="'$1'";$r2="'$2'";print if /$r1/ ... /$r2/ and not ( /$r1/ or /$r2/ )'
+elif [[ $# -eq 3 ]]; then
+	flag=$1
+	shift
+	case $flag in
+		-b)
+			perl -wne '$r1="'$1'";$r2="'$2'";print if /$r1/ ... /$r2/ and not ( /$r1/ or /$r2/ )'
+			;;
+		-h)
+			perl -wne '$r1="'$1'";$r2="'$2'";print if /$r1/ ... /$r2/ and not ( /$r1/ )'
+			;;
+		-t)
+			perl -wne '$r1="'$1'";$r2="'$2'";print if /$r1/ ... /$r2/ and not ( /$r2/ )'
+			;;
+		*)
+			echo "bad args! 1 must be -b -h or -t when using 3"
+			exit 127
+			;;
+	esac
+else
+	echo " error: arguments passed ($#) are not the right amount"
+	echo "syntax: between [-b|-h|-t] [perl-regex from] [perl-regex to]"
+fi
+
+
+
+

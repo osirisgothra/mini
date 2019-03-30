@@ -1,0 +1,60 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+use v5.20;
+
+no warnings "experimental";
+
+use File::Slurp;
+use Path::Tiny;
+my $verbose = 1;
+sub vsay { say(@_) if $verbose; }
+
+for my $file (@ARGV) 
+{
+	my @lines = read_file($file);
+	chomp(@lines);
+	my $section = "global";
+	my $subsection = "root";
+	my $text = "<none>";
+	my %sections = ( );	
+	my $secnum = 0;
+	my $secltr = 'A';
+	say("set color");
+	say("format A 10 2 1");
+	for my $line (@lines)
+	{
+		given($line)
+		{
+			when(/^\*+/)
+			{	#$secltr++;
+				$section = $line;	
+				$section =~ s/(^\s*\*+\s*|\s*\*+\s*$)//g;
+				# we also reset back to default subsection
+				$subsection = "root";
+				vsay("${secltr}${secnum} [0;31mnew section: [0;36m${line}[0m");				
+				vsay("[0;34msection is now effectively[30;1m: [0;34m${section}[30;1m::[0;35m${subsection}");
+			}
+			when(/^\s*sed\b/)
+			{
+				# text is the actual command refered by subsection
+				$text = $line;
+				say("label ${secltr}1 = \"${section} ${subsection}\"");
+				say("label ${secltr}2 = \"${text}\"");				
+				$secltr++;
+				# only time something gets added is here
+								
+			}
+			default
+			{
+				# unstarred is a description (subsection) of proceeding sed statement(s)
+				$subsection = $line;
+				#$secltr++;
+				vsay("${secltr}${secnum} [0;32m${section}[0;30m::[0;35m${subsection}[0m has been created[0m");								
+			}
+		
+		}	
+	}
+}
+say("goto B8 A0");

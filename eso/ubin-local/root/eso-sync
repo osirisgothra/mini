@@ -1,0 +1,17 @@
+#!/bin/bash
+echo "eso-sync now depreciated, please use <eso-ubin-local-dir>/install.sh 
+echo "instead. Typically found at github under https://github.com/osirisgothra/mini."
+echo "to install you might try doing: "
+echo ""
+echo "           cd .."
+echo "           ./install.sh"
+echo ""
+echo "*** this method assumes many things and is ***"
+echo "   *** subject to change without notice ***   "
+echo "                    -*-                       "
+echo ""
+echo "<< press any key to exit this placeholder script >>"
+setterm -cursor off
+read -sn1
+setterm -cursor on
+

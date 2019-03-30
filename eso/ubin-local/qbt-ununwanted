@@ -1,0 +1,98 @@
+#!/bin/bash
+#
+#    qbt-ununwanted
+#    move unwanted qbittorrent files back into their parents, removing the unwanted dir
+#    the eso-bin project
+#    esoteric projects--scripts and programs
+#
+#	 run note: 1-mp3 is the deafult, but this can be changed programatically
+#              2-dont use --realrun initially, so you can preview the changes
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Thu Dec 13 11:20:13 EST 2018
+#            osirisgothra@larnica initially created this file
+#            with the original name, qbt-ununwanted
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+#
+# TARGET NOTES
+#
+# target resides in /home/osirisgothra/bin ... [0Gno
+# target resides in /home/osirisgothra/bin ... [0Gno
+# target resides in /usr/local/sbin ... [0Gno
+# target resides in /usr/local/bin ... [0Gno
+# target resides in /usr/sbin ... [0Gno
+# target resides in /usr/bin ... [0Gno
+# target resides in /sbin ... [0Gno
+# target resides in /bin ... [0Gno
+# target resides in /usr/games ... [0Gno
+# target resides in /usr/local/games ... [0Gno
+# target resides in ~/bin ... [0Gno
+# target resides in /usr/local/gxdwm ... [0Gno
+#
+
+# required shell options
+shopt -s nullglob
+shopt -s interactive_comments
+shopt -s expand_aliases
+shopt -s globstar
+shopt -s extdebug
+
+
+# variables that can be changed here
+findext=".mp3"
+
+
+# variables that must not be changed here
+declare pfx=echo
+
+case $1 in
+	--realrun)
+		pfx=command
+		;;
+	*)	echo "usage: $(basename $0) [--realrun]"
+		echo "(warning: dont use --realrun until you preview the changes [no arguments at all triggers this])"
+esac
+
+find -type f -iwholename '*/.unwanted/*'$findext | while read r; do
+	set "$r" "$(realpath -m "$r/../..")" "$(realpath -m "$r/..")"
+	$pfx mv "$1" "$2"
+	if [[ "$3" != "$LRD" ]]; then
+		$pfx rmdir "$LRD"
+	fi
+	LRD="$3"
+done
+
+if [[ $pfx == echo ]]; then
+	echo "nothing done, use --realrun to actually do this! (informing phase)"
+else
+	echo "files moved, dirs removed because --realrun was specified by the user"
+fi

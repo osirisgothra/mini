@@ -1,0 +1,160 @@
+#!/bin/bash
+#
+#    i3m
+#    send i3-msg commands with user-friendly and pretty-formatted result text
+#    http://github.com/osirisgothra/mini.git
+#    eso-bin/ubin-local
+#
+#    Copyright (C) 1995-2019 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Mon Mar 25 11:28:39 EDT 2019
+#            osirisgothra@larnica initially created this file
+#            with the original name, i3m
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+#
+ps -p $$
+
+parse_cmdline()
+{
+	# parse_cmdline [program_args]
+	# framework for program's meat
+	init
+	# only care about first argument
+	# note that we must shift out the first argument once we handled it!
+	case $1 in
+		--help)
+			eval "i3-msg" "--help"
+			echo "i3m-specific help:"
+			echo "i3m [i3moption] [i3-msg options]"
+			echo ""
+			echo "  i3moption	options recognized by i3m:"
+			echo ""
+			echo "   --help			show help for i3-msg AND this help message appended to it"
+			echo "   --debug		debug messages included"
+			echo "	 --trace		turn on shell trace features"
+			echo "	 --ftrace		debug inside functions as well (turns on --debug too)"
+			echo ""
+			echo " shell variables can control the above (except help):"
+			echo ""
+			echo "  I3M_DEBUG		same as --debug"
+			echo "  I3M_TRACE		same as --trace"
+			echo "	I3M_FTRACE		same as --ftrace"
+			echo ""
+			echo " These variables are considered ON when defined, regardless of their values, empty or zero still causes them to be set in an ON state (so be cautious when setting variables). You can simply unset them to disable them if need be. They probably shouldnt be automatically set in a configuration like bashrc or zshrc since their effects would felt every time you use this program unless you unset them."
+			echo ""
+			echo " subject to GNU-GPL license v2.0"
+			echo " questions? email: <osirisgothra@hotmail.com>"
+			echo " written by Gabriel T. Sharp, found at https://www.github.com/osirisgothra/mini.git"
+			echo " possibly (depending on release state) in submodule entitled eso-bin"
+			echo " subject to removal w/o notice, read LICENSE for full details!"
+			echo ""
+			;;
+		--debug|--ftrace) declare -gx I3M_DEBUG=1
+			# stuff to do for BOTH --debug AND --ftrace:
+				trap 'echo "$(date) $SECONDS: $BASH_COMMAND"' DEBUG
+				trap 'echo " --RETURN: $BASH_COMMAND to $FUNC_NAME --"' RETURN
+				;;&
+			# end: stuff to do for both --debug and --ftrace
+		--debug)
+			echo "debugging is on" > /dev/stderr
+			shift
+			;;
+		--trace) declare -gx I3M_TRACE=1
+			echo "trace is on" > /dev/stderr
+			set -x
+			shift
+			;;
+		--ftrace) declare -gx I3M_FTRACE=1
+			echo "ftrace+debugging is on" > /dev/stderr
+			shift
+			;;
+	esac
+	# end argument handling
+	main "$@"
+	init
+
+}
+err()
+{
+	case $# in
+		local u="unspecified error"
+		0|1) case $# in
+			0)	set 127 "$u";;
+			1)  set $1  "$u";;
+		;;
+	esac
+	echo "error($num): $* (exiting $0)"
+	exit $num
+}
+init()
+{
+	case ${INIT_STATE-startup} in
+		startup)
+			declare -gx I3_OUT="$(mktemp)"
+			declare -gx I3_ERR="$(mktemp)"
+			declare -gxa CLEANUP_FILES=( "$I3_OUT" "$I3_ERR" )
+			declare -gx INIT_STATE=shutdown
+			;;
+		shutdown)
+			cleanup
+			unset I3_OUT I3_ERR CLEANUP_FILES
+			INIT_STATE=invalid
+			;;
+		invalid)
+			echo "error(127): already cleaned up! (INIT_STATE==$INIT_STATE)"
+			exit 127
+			;;
+	esac
+}
+
+cleanup()
+{
+	rm -f "${CLEANUP_FILES[@]}"
+}
+
+main()
+{
+	# main [auth] [i3-args]
+	# meat of program, do not call directly! (to be called by parse_cmdline!)
+	local auth="${1-invalid}"; shift
+	local uqual=e61f3f33 sig=316a idx=0002 ln=0001 ddef=450b suf_salt=92fd118b557e6b41 inul=0000 isalt=${ddef: inul:ln}
+	case $auth in
+		$uqual-$sig-$ddef-${suf_salt: inul:isalt}-${suf_salt: isalt}) return ${ddef: idx:ln};; esac; return ${ufi: idx:ln};
+			echo "its valid";;
+		*)
+			echo "invalid: $auth";;
+	esac
+
+}
+
+
+
+

@@ -1,9 +1,9 @@
 #!/usr/bin/perl
 #
-#    <fname>
-#    <fdesc>
-#    <pname>
-#	 <pdesc>
+#   file name: ptsa
+#        desc: terminal search aggregator (perl version)
+#     project: eso-bin
+#   proj desc: collection of esoteric projects, binaries, and scripts
 #
 #    Copyright (C) 1995-20?? Gabriel Thomas Sharp
 #
@@ -31,7 +31,7 @@
 #    with this program; if not, write to the Free Software Foundation, Inc.,
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
-#    HISTORY
+#  HISTORY
 #
 #	 <date>
 #            say hello to <fname>, <fdesc>!!
@@ -40,11 +40,26 @@
 #            added to the project, <pname>, a project that
 #            is described by <pdesc>.
 #
-#    FOOTNOTES
+#  NOTES
 #
-#      this header was created using the template generator by Gabriel T. Sharp)
-#  
-#
+#    header creation
+#		  this header was created using the template generator by Gabriel T. Sharp)
+#    built-in names
+#       note first that this is a FAILSAFE, if these are used we are running in an erroneous state that
+#       should be recitified by the user in some way, in this state, the program does not guarentee it 
+#       will operate as specified. It is offered as an alternative to just spitting out an error message
+#       in times in which the program's operation may be needed by the user and can still be continued by
+#       the program. Since we cannot prepare for emergency situations, the best thing that can be done here
+#       is to run with the assumption that user may have one of the browsers installed in this hard list.
+#		These built-in names, in case update-alternatives is not found or empty for some reason,
+# 		shouldnt be relied on, user should have update-alternatives(1) installed on their system
+# 		for proper operation of this program! (it is standard with just about any linux distro except for
+# 		minimal or diagnostic builds which are not used for standard day-to-day internet browsing)
+# 		if this list appears incomplete, you may push updated list but please do not remove items from
+# 		the list (if a remove is required, you must submit it in writing not as a pull request!)
+#       Again the reasoning for not just spitting out an error is because software may be needed in some
+#		emergency situation where conditions or time may not be favorable, in which case we should try
+#       to run anyway (as best we can).
 #
 
 use warnings;
@@ -52,6 +67,10 @@ use v5.18;
 use strict;
 use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
 use English; 				   # used for PROGRAM_NAME and others
+use Path::Tiny;
+use File::Slurp;
+
+my $name = path($PROGRAM_NAME);
 
 no warnings "experimental";
 
@@ -59,20 +78,32 @@ my $prog = $PROGRAM_NAME // exit("could not determine program name $! $?");
 
 
 my ($opt, $usage) = describe_options(
-        '$0 %o <some-arg> file',
-        [ 'no-dialog', "dont use dialog to show log", { required => 1  } ],
-        [ 'no-follow',   "do not follow the log, just show it",   { default  => 79 } ],
-        [],
-        [ 'verbose|v',  "print extra stuff"            ],
-        [ 'help',       "print usage message and exit" ],
+        '$PROGRAM_NAME %o <some-arg> search+terms | unseparated search terms',
+        [ 'background|b', "run in background"                  ],
+        [ 'quiet|q', "silent running, including programs called" ],
+        [ 'stdin|s', "take terms from stdin" ],        
+        [                                                      ],
+        [ 'verbose|v',  "print extra stuff"                    ],
+        [ 'help',       "print usage message and exit"         ],
       );
 
 print($usage->text), exit if $opt->help;
+my @terms = @ARGV || die("\nno search terms provided!!! please see --help for details\n${!}\nreturning with code: $?\n\n");
+# see (NOTES: built-in names)
+my @binames_g = qw( firefox chromium-browser midori dillo konqueror rekonq opera google-chrome xombrero safari );
+my @binames_t = qw( links2 elinks links lynx GET );
+# the proper names list OR auto-assign the built-in names to each if not available
+chomp ( my @names_g = `update-alternatives --list x-www-browser` // @binames_g,
+	    my @names_t = `update-alternatives --list www-browser` 	 // @binames_t);
+# next this is our program meat
+# remain argument is always it
+my $base =  $name->basename();
 
-
-
-
-
-my $name = $PROGRAM_NAME;
+say("my name is $base");
+if ( -l $name ) {
+	say("$base is a soft link to another file");
+} else {
+	say("$base is a hard link to an inode");
+}
 
 

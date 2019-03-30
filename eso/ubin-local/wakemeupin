@@ -7,17 +7,40 @@ use Term::ReadLine;
 no warnings "experimental";
 
 use Getopt::Long::Descriptive;
+
+
+my $quiet = 0;
 my $myprogram = "wakemeupin";
 
 my ($opt, $usage) = describe_options(
 
-	'$myprogram %o <some-arg>',
+	'$myprogram %o | [[hours]h] | [[minutes]m] | [[seconds]s] | [[milliseconds]ms]',
 	[ 
-		'time|t=s',
-		"the time to wake up in passing to sleep",
+		'gui|g', "use graphical interface",
+	],
+	[
+		
+		'time|t=s',	"the time to wake up in passing to sleep",
 		{ default  => "5s" } 
 	],
+	[ 
+		'delay|d=i',"time between notifications/beeps/audios/etc",
+		{ default => 0.5 }
+	],
+	[
+		'method|m=s',"method used to wake: beep(default) audio, command, or notify",
+		{ default => "beep" }
+	],		
 [],
+	[	'value|d=s',
+		'data to pass to method:
+			beep		- frequency/duration pair
+			audio		- audio file to send to player (sox)
+			command		- path of command to execute (or one in PATH)
+			notify		- string to display with notify(1)
+		',
+		{ default => "5000 0.5" }
+	],
 	[ 
 		'verbose|v',
 		"print extra stuff"
@@ -27,28 +50,179 @@ my ($opt, $usage) = describe_options(
 		"print usage message and exit"
 	],
 );
-
 print($usage->text), exit if $opt->help;
 
-die("too many bad arguments(" . scalar(@ARGV) . "), use --help for proper use information\n $? $!")
-	if (scalar(@ARGV) > 0);
+my $time = $opt->time;
+my $verbose = $opt->verbose;
+my $method = $opt->method;
+my %units = qw	( 	h 	hour 
+					m 	minute 
+					s 	second 
+					ms 	millisecond 
+					y 	year 
+					w 	week 
+					d 	day 
+				);
+my $value = $opt->value;				
+my $debugmode = 1;	# disable this when not debugging (set to 0)
+my $usegui = $opt->gui;
 
-print("passing wakeup data to system and waiting...\n");
-system( "sleep", $opt->time );
-system( qw( sudo -H modprobe pcspkr ) );
-my $forkid = fork();
-unless($forkid) {
+# SUBROUTINES
+sub gui
+{
+	my $px = 1;
+	my $py = 1;
+	my $x = $ENV{'COLUMNS'} // 40;
+	my $y = $ENV{'ROWS'} // 24;
+	print("[44;37;1m[2J[1;1H");
+	## bars
+	print("[0;42;35m");
+	print(" Gui Interface [K[" . $px . ";". $y ."H");
+	print(" More Info[K" );
+	## content start
+	print("[0;43;35m[4;2H")	
+}
+sub gui_content
+{
+	print("[2G$_\n") for @_;
+}
+sub gui_io
+{
+	my $kp = "";
+	OUTER: 
 	while(1) {
-		sleep(0.5);
-		system("beep");
+		read(STDIN,$kp,1,0);	
+		given($kp)
+		{
+			when(/[qQ]/) 
+			{ 
+				last OUTER; 
+			}
+			default 
+			{ print("[s[2;2H[31mINVALID KEY[u");
+					  sleep(1.2);
+					  print("[2K[u");
+			}
+					  
+		}
 	}
+	return 0;
+}
+
+sub dmsg
+{
+	# level 3: unconditional debug messages
+	CORE::say(@_) if $debugmode;
+}
+sub mesg 
+{ 
+	# level 2: extra info messages
+	CORE::say(@_) if $verbose;
+}
+sub nmsg
+{
+	# level 1: user messages
+	CORE::say(@_) unless ( $quiet && ! $verbose );
+}
+sub mmsg
+{
+	# level 0: unconditional messages
+	CORE::say(@_);
+}
+
+sub killspk {
+			mesg("killing pc speaker...");
+			system( qw! sudo -H modprobe -r pcspkr ! );
+			my $result = $?;
+			mesg("pcspk disable result code: $result");
+						
+		
+}
+sub lifespk {
+			mesg("resurrecting pc speaker...");
+			system( qw( sudo -H modprobe pcspkr ) );
+				mesg("warning: pcspk enable failed!!");
+
+}
+
+
+
+# CHECK POSITIONAL ARGUMENTS
+
+mesg("command line was: @ARGV");
+
+if ($usegui) {
+	gui;
+	gui_content( qw! Press Q To Exit !);
+	exit(gui_io);
+}	
+
+while (@ARGV > 0) {
+
+	$_ = shift(@ARGV);
+
+	# must match:		but not:
+	# 0.0s				..0s
+	# .5ms              123.4.5.s
+	# 1h				999..h
+	# 10.22m            1...2m
+	# .9h               333...ms
+	if ( /(?<amt>^[-+]?([0-9]*\.[0-9]+|[0-9]+))(?<unit>[hmsdwy]|ms|)$/ )
+	{
+		my $amt = $+{amt};
+		my $unit = $+{unit};
+	
+		print("amount=$amt  unit=$unit ");	
+		print(" (unit type detected as \"" . $units{$unit} . "(s)\"\n");
+		mesg("$_ is validated");
+		mesg("resassigning from $time to $_");
+		$time = $_;	
+	}
+	else { unshift @ARGV,$_; }	
+
+
+# CHECK OPTIONS
+
+die("method is not valid!!! ($!)") unless $opt->method =~ /(beep|audio|command|notify)/;
+##die("too many bad arguments(" . scalar(@ARGV) . "), use --help for proper use information\n $? $!")	if (scalar(@ARGV) > 0);
+
+
+mesg("waiting for time to elapse:");
+system( "sleep", $time );
+mesg("waking, time reached!");
+lifespk();
+my $pid = $$;
+my $forkid = fork();
+my $delay = $opt->delay;
+if ($forkid == 0) {
+	
+	while(1) {
+		sleep($delay);
+		given($method)
+		{
+			when(/beep/) { system("beep"); }
+			when(/audio/) { system("play","-q",$opt->value); } 
+			# die("audio play failed on client side"); }
+			when(/command/) { system($opt->value); }
+			when(/notify/) { system($opt->value); }
+			default { die("unknown method passed: $method -- fatal!"); }
+		}
+			
+		unless ( -d "/proc/$pid" ) {
+			say("parent of $$ -> $pid exited and I am not dead, killing self..");
+			say("");
+			killspk();
+			exit(127);
+		} 
+	}
+	exit(0);
 }
 my $term = Term::ReadLine->new('waitingforbeeptostop');
-$term->readline("press ENTER key to stop it");
+$term->readline("press ENTER key to stop [CTRL+C will exit but not gracefully!]");
 kill($forkid);
 waitpid($forkid,2500);
+killspk();
 
-system( qw( sudo -H modprobe -r pcspkr ) );
-
+}
 
 

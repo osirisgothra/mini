@@ -4,18 +4,45 @@ use warnings;
 use v5.18;
 use strict;
 use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
+use File::Slurp;
+use Path::Tiny;
+
+# constants (compile time, do not precompile me)
+
+use constant HOME => $ENV{HOME};
+use constant PSF => ".logofrc";
+use constant PRESET => "<preset name>";
+
+# command line options
 
 my ($opt, $usage) = describe_options(
         $0 . ' %o <file>',
-        [ 'no-dialog|p', "use plain-text mode, dont use dialog to show log", ],
+        [ 'no-dialog|t', "use plain-text mode, dont use dialog to show log", ],
         [ 'no-follow|n',   "do not follow the log, just show it", ],
+        [ 'add-preset|a=s', "add preset PRESET with path used", ],
+        [ 'preset|p=s', "use preset PRESET instead of a path", ],
+        [ 'remove-preset|d=s', "remove preset PRESET (doesnt delete any files)", ],
+        [ 'list-presets|l', "lists presets currently saved", ],
+        [ 'presetfile|f=s', "use PRESETFILE instead of ~/.logofrc", { default => path(HOME)->child(PSF) }, ],
         [],
         [ 'verbose|v',  "print extra stuff"            ],
         [ 'help',       "print usage message and exit" ],
       );
 
+say("\n" . $opt->presetfile . " = current presets default\n"), print($usage->text), exit if $opt->help;
+my %presets = ( -f -r $opt->presetfile ) ? $opt->presetfile->lines : qw( empty true ); 
+chomp for @presetlines;                                                                                                                   # note: removes start/end spaces and newlines
+s/\s+/ /g for @presetlines;	                                                                                                          # note: removes extra spaces within presets list
+my %presets = split(" ",@presetlines);	# 
 
-print($usage->text), exit if $opt->help;
+if ( $opt->list_presets )
+{
+	say("Preset(s)");
+	say("-" x ($ENV{COLUMNS} // 20) );
+	say for keys(%presets);
+	say("-" x ($ENV{COLUMNS} // 20) );	
+	exit;
+}
 
 sub logof
 {

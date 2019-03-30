@@ -1,0 +1,148 @@
+#!/bin/bash
+
+shopt -s interactive_comments
+shopt -s expand_aliases			# let use comments like this one and expand aliases
+
+vecho()
+{
+	if [[ $_OPTIONS_VERBOSEMODE -eq 1 ]]; then
+		echo "$*"
+	fi
+}
+
+_OPTIONS_VERBOSEMODE=1
+HEX_EDITOR="/usr/bin/hexeditor"
+
+# quick and dirty mode 
+# also coerced by 'env NO_SAFEBACKUP=1 gzhexedit ...'
+
+if [[ $NO_SAFEBACKUP -eq 1 ]]; then
+	vecho "skipped backup because NO_SAFEBACKUP is in the environment"
+else
+	read -sn1 -p "Make safe backup first?? [[y]/n]" QAD
+	if [[ $QAD =~ [nN] ]]; then
+		vecho "user skipping optional extra-safe backup.."
+		vecho "(a backup will still be made, but could be overwritten in the future runs of this program)"
+	else
+		vecho "making safety gzhe/qad backup first..."
+
+		[[ -d ".gzhexedit" ]] || ( ( mkdir ".gzhexedit" || let ERRORS++ ) && ( echo ".gzhexedit exists, using it..." ) )
+		cp "$1" ".gzhexedit/$1-$(date +'%M%d%Y-%H%M%S')-gzhe" || let ERRORS++
+		[[ $ERRORS -gt 0 ]] && { echo "too many errors($ERRORS)"; exit $[ 127 + $ERRORS ]; }
+	fi
+fi
+# functions
+
+	# extras [install|uninstall] -- used internally for extra features present in the OS
+	extras()
+	{
+		case $1 in
+			install)
+			{
+				if [[ -x $(which colorme) ]]; then
+					printf()
+					{
+						builtin printf "$@" | colorme
+					}
+				fi
+			}
+			;;
+			uninstall)
+				unset -f printf
+			;;
+			*)
+				echo "FATAL: incorrect call (cl=$*) to $FUNCNAME $LINENO ${BASH_SOURCE[@]} $(callers)"
+				exit 125
+			;;
+		esac
+	}
+	# cleanup_exit [no params] -- automatically cleanup and exit from any point of the program
+	cleanup_exit()
+	{
+		# still try to remove tempfile, otherwise many tmpfiles could pile up if we are automated somehow
+		# this is also a security measure for DDoS protection on the filesystem level
+		rm -f "$TMPFILE"
+		extras uninstall
+		[[ $EXITS -gt 0 ]] && echo "too many errors ($EXITS), aborting!"
+		exit $[ 127+$EXITS ]
+	}
+
+
+# aliases
+
+alias noargs='[[ $# -eq 0 ]]'
+alias wantshelp='[[ $* =~ --help ]] || [[ $* =~ -h ]]'
+alias exit_on_error='[[ $EXITS -gt 0 ]] && cleanup_exit'
+
+# main
+
+extras install
+EXITS=0
+TARGET="$1"
+TMPFILE="$(mktemp -u)"
+TARGET_COPY="${1}.copy.gz"
+TARGET_EDIT="${1}.copy"
+cp "$TARGET" "$TARGET_COPY" || let EXITS++		# delegates own error messages
+cp "$TARGET" "$TMPFILE" || let EXITS++
+if noargs || wantshelp; then
+	printf "\n"
+	printf "usage: $(basename "$BASH_SOURCE") [path[/..]/]target-file.ext\n"
+	printf "\n"
+	exit 127
+fi
+for CHECK_TARGET in "$TARGET" "$TMPFILE" "$TARGET_COPY"; do
+	printf "acquired target: $CHECK_TARGET -- checking sanity..."
+	if ! [[ -r "$CHECK_TARGET" ]]; then
+		printf " **FAILED** - cannot read!!\n"
+		let EXITS++
+	elif ! [[ -w "$CHECK_TARGET" ]]; then
+		echo "**FAILED** - cannot overwrite!!\n"
+	else
+		printf "ok!\n"
+	fi
+done
+exit_on_error
+# at this point, no errors, all files are now in place
+# the BACKUP can be decompressed and edited in-place
+# source will be decompressed with .gz so we must use a suffix .gz
+gunzip "$TARGET_COPY"
+$HEX_EDITOR "$TARGET_EDIT"
+gzip "$TARGET_EDIT"
+if [[ -r "${TARGET}.before-edit" ]]; then
+	echo "WARNING: a previous backup file before edit exists already, what do you wish to do with it?"
+	echo "1: delete OLD backup data and replace it with the NEW backup data from your most recent edit"
+	echo "   This means: you will not be able to undo the edit before this edit,"
+	echo "   but will still be able to undo THIS edit only. It is recommended only if you are"
+	echo "   certain that you will not need to undo more than just the most recent edit to the"
+	echo "   file being edited. (recommended for advanced users only)"
+	echo "2: cancel changes and quit and ***LOSE MOST RECENT EDITS*** (not recommended)"
+	echo "3: specify a new name for the backup (recommended for most users)"
+	echo -n "choose one: [s"
+	unset TODO
+	while ! [[ "$TODO" =~ [123] ]]; do
+        # BEEK if TODO is set, echo invalid choice, wait 3/4sec, clear up to end of line, and wait again
+		[[ -n "$TODO" ]] || { printf "INVALID CHOICE, TRY AGAIN"; sleep 0.75; printf "[u[Ku"; }
+		read -sn1 TODO
+	done
+	case $TODO in
+		1)	echo "proceeding overwriting data"
+			NO_BACKUP=0
+			;;	#needs no intervention
+		2)	echo "cancelling edit..."
+			F=$(mktemp)
+			cp -f "${TARGET_COPY}" "$F"
+			echo "tried copying your edits anyway to $F in case you want it, will be delted by system at some time"
+			exit 141
+			;;
+		3)	read -p "enter new name, this is a one shot deal so type it in correctly:" NEWNAME
+			touch "$NEWNAME"
+			cp -f "${TARGET_COPY}" "$NEWNAME"
+			NO_BACKUP=1
+			;;
+		*)	exit 142
+			;;
+	esac
+fi
+( [[ $NO_BACKUP -eq 1 ]] || mv --verbose "$TARGET" "${TARGET}.before-edit" ) && mv "$TARGET_COPY" "$TARGET" --verbose
+exit_on_error
+cleanup_exit

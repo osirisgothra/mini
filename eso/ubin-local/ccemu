@@ -66,7 +66,7 @@ shopt -s xpg_echo
 # VARIABLES
 
 declare -g CCEMU_DIR_DISABLED="/usr/bin" # remove the "_DISABLED" to enable hard-coding of variable
-declare -g JARFILE="ccemu.jar"
+declare -g JARFILE="ccemuredux.jar"
 declare -a JAVA=( "java" "-jar" )
 declare -g WORKING_DIR="${CCEMU_DIR-${HOME-${PWD-/}}}"
 [[ ${WORKING_DIR: -1:1} != "/" ]] && WORKING_DIR+="/ccemu.jar" || WORKING_DIR+="ccemu.jar" # (See: NOTES #1)

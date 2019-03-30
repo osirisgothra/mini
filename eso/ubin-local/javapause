@@ -1,0 +1,114 @@
+#!/bin/bash
+#
+#    javapause
+#    simple start-restart pauser for java processes and others possible by renaming options
+#    mini
+#    esoteric projects
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Mon Feb 11 08:01:10 EST 2019
+#            osirisgothra@larnica initially created this file
+#            with the original name, javapause
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+#
+
+# FUNCTIONS
+
+function error()
+{	
+	eval local evalstr=\"${jp_error[$1]}\"
+	local errcode="${evalstr: 0:3}"
+	
+    echo -e "error #$errcode $(date +%13X%13x): ${evalstr: 4}"
+	if ((jp_interactive)); then
+		return $errcode
+	else
+		exit $errcode
+	fi
+}
+
+function doall()
+{
+	declare -gx doall_args="$*"
+	if [[ $# -ne 2 ]]; then
+		error bad_args_doall
+	elif [[ $1 =~ ^-[A-Z] ]]; then
+		killall "$@"
+	else
+		error bad_args_doall
+	fi	
+}
+
+# VARIABLES
+
+if [[ $(cat /proc/loadavg | grep '^[^ .]+' -Po) -gt 1  ]]; then
+	echo "please wait while starting (system load higher than normal levels, so it may take a few seconds)"
+fi
+declare -gi jp_interactive="`case $- in *i*) echo 1;; *) echo 0;; esac`"
+declare -gx jp_executable="java"
+declare -gi jp_error_base=128
+declare -gA jp_error=(	[bad_state]='$[jp_error_base+6],cannot stop/continue process, the state of (one or more of) the processes is volitile. task must be either [R]unning [S]leeping or s[T]opped (other states mean unstable conditions that we shouldnt touch) -- please only use when your program is in a non-transitional state!'
+						[bad_args_doall]='$[jp_error_base+5],doall called without correct arguments ($doall_args), a signal MUST be specified (doall -SIGNAL binary_name) and the argument count MUST be 2, no more, no less.'
+				 		[bad_name]='$[jp_error_base+4],the target $jp_executable either partially or fully contains one or both of: parent_name=$jp_parent_name  self_name=$jp_name (this is not allowed, change the name of the target to something that does not directly control this script or its parent(s)'
+				 		[not_running]='$[jp_error_base+3],the executable $jp_executable is not running at all, nothing to do!' 
+				 		[unknown]='$[jp_error_base+2],unknown error (used as a template error message -- see code docs)'
+						[test]='$[jp_error_base+1],test error (not really an error, but used to test the error function (script-name=$jp_name script-id=$jp_pid script-parent-id=$jp_parent script-parent-name=$jp_parent_name tgt-state(s)=${jp_states[@]} tgt-exec=$jp_executable'
+                     )
+            jp_running_first_pid=`pidof -xs $jp_executable` || error not_running
+declare -ga jp_states=( $(ps -o state= -p `pidof -x $jp_executable`) ) 
+declare -gi jp_pid=$$
+declare -gx jp_name="$(ps -o comm= -p $$)"
+declare -gi jp_parent=$PPID
+declare -gx jp_parent_name="$(ps -o comm= -p $jp_parent)"
+
+# PROGRAM CODE
+if [[ $jp_executable =~ ($jp_parent_name|$jp_name) ]]; then
+	error bad_name
+fi
+echo "program states:"
+echo "then:"
+ps -o state,comm,ppid,pid,tid,uid,longtname,nice,priority,user,group,intpri -p `pidof $jp_executable` | sed 's/^/     /g'
+if [[ "$jp_states" =~ T ]]; then
+	if [[ $1 == "-s" ]]; then echo "[1;31mSTOPPED[0m"; exit 124;fi
+	echo "[1;30mSTOP ----> [1;32mRUN[0m"
+	doall -SIGCONT $jp_executable
+elif [[ "$jp_states" =~ [RS] ]]; then
+	if [[ $1 == "-s" ]]; then	echo "[1;32mRUNNING[0m"; exit 124;fi
+	echo "[1;30mRUN ----> [1;31mSTOP[0m"
+	doall -SIGSTOP $jp_executable
+else
+	error bad_state
+fi
+echo "now:"
+ps -o state,comm,ppid,pid,tid,uid,longtname,nice,priority,user,group,intpri -p `pidof $jp_executable` | sed 's/^/     /g'
+echo "completed ok ($?)"
+

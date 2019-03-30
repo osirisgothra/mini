@@ -1,7 +1,8 @@
 #!/bin/bash
 #
 #    rea
-#    try (to) [r]enice [e]xtra [a]synchronous threads 
+#     re-nice/ionice elected applications
+#
 #    eso project
 #    eso-bin on github/osirisgothra
 #
@@ -79,56 +80,50 @@
 #    [zsh]="-4"		sets all processes with the name 'zsh' (including all threads) to the nice value of -4
 #    [bash]="-1"	sets all bash shells running right now to a -1 nice value
 #
+# UNDER CONSTRUCTION: may not work just yet
+#    [java]="[pri]=-1 [thr]=all" all threads too
+#    [java]="[pri]=-1 [thr]=only"  threads only
+#    
+#
 # LANGUAGE NOTES
 #
 #    * the bash language requires [] in the process names in the list below for the hash values, they must be included
 #    * these values must remain on one line unless $IFS is set to $'\n', then the lines could be broken (use at own risk!)
 
-
-
-declare -A PROC_NAMES=( [java]="-17" [X]="-15" [perl]="-4" [i3bar]="5" [play]="-16" [Xorg]="-10" [dbus-daemon]="-12" [xinit]="-10" [startx]="5" [bash]="-5" [sh]="-2" [ssh]="12" [gvsd-fuse]="-17" [gvsd]="-12" [init]="-17" [htop]="-5" [nano]="4" )
+# TODO: pull from .rearc instead if it exists, otherwise it needs to come from the commandline
+declare -A PROC_NAMES=( [java]="[priority]='-1' [threads]='all'" [X]="-1" [perl]="-1" [i3bar]="-1" [play]="-1" [Xorg]="-1" [dbus-daemon]="-1" [xinit]="-1" [startx]="-1" [bash]="-1" [sh]="-1" [ssh]="-1" [gvsd-fuse]="-1" [gvsd]="-1" [init]="-1" [htop]="-1" [nano]="-1" )
 
 for x in "${!PROC_NAMES[@]}"; do
-	PROC_PRI="${PROC_NAMES[$x]}"
-	echo "threads for: $x (new priority: ${PROC_PRI})..."
+	declare PROC_DATA="${PROC_NAMES[$x]}"
+	declare -A PROC_VALUES=( )
+	# check to see if value is a multi-type or a single type
+	# the other values get set depending on this, if it is a
+	# single type, we must rewite it to its proper form before
+	# to ensure proper value translation.
+	if [[ $PROC_DATA =~ \[.*\]= ]]; then
+		eval "PROC_VALUES=( ${PROC_DATA} )"
+	else
+		eval "PROC_VALUES=( [priority]='${PROC_DATA--1}' )"
+	fi
+	# assign defaults or values, if they were defined or not
+	PROCESS_PRI=${PROC_VALUES[priority]--1}					# a number from -20 to 19
+	PROCESS_THREADS=${PROC_VALUES[threads]-main}			# main, only, all
+	PROCESS_IOCLASS=${PROC_VALUES[ioclass]-besteffort}		# besteffort, realtime, roundrobin, or idle
+	PROCESS_IODATA=${PROC_VALUES[iodata]-4}					# 0(most) --- 4(avg) --- 7(least)
+	PROCESS_IOCODE=${PROC_VALUES[iocode]-NA}				#	alternate method than previous two, realtime5 would be 'R5', idle 'ID', besteffort would be 'B4' (default for linux), 'I0' is idle, 'NA' means dont use (the default)
+	PROCESS_USER=${PROC_VALUES[user]-current}				# current, owner, groupmember, username, or UID (default is "current")
+
+	echo "threads for: $x (new priority: ${PROCESS_PRI})..."
 	echo "[s"
+
+	declare -a THREADS=(  `ps -L -C "$x" -o tid=` )
+
 	for y in `ps -L -C "$x" -o tid=`; do
-		echo -ne "[u$$: ${x}:${y} setting (to $PROC_PRI).. ("
-		sudo -H renice  -n "$PROC_PRI" -p "$y" | tr -d '\n'
-		#	echo "[32;1mok[0m"
-		#else
-		#	echo "[31;1mfailed(return=$?)[0m"
-		#fi
+		echo -ne "[u$$: ${x}:${y} setting (to $PROCESS_PRI).. ("
+		sudo -H renice  -n "$PROCESS_PRI" -p "$y" | tr -d '\n'
 		echo ")"
 	done
 done
 echo "renice-ing extra asynchronous processes completed"
 
-
-#function n()
-#{
-#	case $# in
-#3		2)
-#3			echo -e "\e[33;1msingle-shot for: \e[34;1m$1 \e[0mwith priority of\e[34;1m $2 \e[0m"
-#			~/bin/ionice "$@"
-#			;;
-#		*)
-#			echo "multi-shot not supported: org: $@"
-#			exit 122
-#			;;
-#	esac
-#}
-#for i in {1..7}; do
-#	for j in R B; do
-#		#echo "generating function ${j}${i} ..."
-#		eval 'function '${j}${i}'() {	for x; do echo -e "\e[33;1mmulti-shot for: \e[34;1m$x \e[0mwith priority of \e[34;1m${FUNCNAME}\e[0m"; ~/bin/ionice "$x" '${j}${i}';	done; }'
-#
-#	done
-#done
-##declare -pf
-
-#n java B4
-#n X B4
-#n pulseaudio B4
-#n mocp B4
 

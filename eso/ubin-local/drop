@@ -6,22 +6,29 @@ use warnings;
 use strict;
 use v5.20;
 use Getopt::Long::Descriptive;
+no warnings "experimental";
 
-my $NONCOSHER = 1; # read above!
+# Settings for Program 
+# these settings are meant for programmer or admin setup, users should not change
+# these values without consent from the system administrator or owner of the 
+# system it resides. Ownership does not guarentee that these settings are safe. See
+# the license for details.
 
-my $complex_help = "
-	complex command reference
-	----------------------------------------------
-	command			effect
-	----------------------------------------------
-	1 2 or 3        write number to dropcache file
-	s               run sync(1)
-	q               switch off verbose mode
-	b               beep
-	----------------------------------------------
-	";
-#	(TODO: more compatibility features coming soon)
-
+my $NONCOSHER = 1; 							# unprotected mode, allow reckless use of sudo(1)
+my $complex_help = "\n	 complex command reference
+	-------------------------------------------------------------------------------
+	 command			effect
+	-------------------------------------------------------------------------------
+	 1 2 or 3        write number to dropcache file
+	 s               run sync(1)
+	 q               switch off verbose mode
+	 v		 		 switch on verbose mode
+	 S[1-9]   		 sleep t * 125 ms (where t is 1-9, up to 1125ms, 1 1/8 second)
+	 b               beep
+	 f				 run free(1)
+	 w				 run swapon(1)
+	--------------------------------------------------------------------------------\n"; 
+my $drop_range = qr/^[1-3]$/;
 my ($opt, $usage) = describe_options(
    'drop %o <level>',
    [ 'interval|i=i', "times to run drop", { default => 1 } ],
@@ -36,9 +43,10 @@ my ($opt, $usage) = describe_options(
                                                              ] } ],
    [ 'complex|c=s', "complex command string (see --help-complex)", { default => 'none' } ],
    [ 'verbose|v',  "do not be quiet (outputs status messages)"  ],
-   [ 'help',  "print usage message and exit" ],
-   [ 'complexhelp', "print complex command reference" ],
+   [ 'help|h',  "print usage message and exit" ],
+   [ 'help-complex|H', "print complex command reference" ],
 );
+
 sub verbose 
 { 
 	say @_ if $opt->verbose;
@@ -63,9 +71,7 @@ sub drop
 		# people accidently disabling it and getting confused
 		# we dont erase yellow lines from the road!
 		say "you have turned off $NONCOSHER, no attempts to use sudo will be made" unless -w $target;
-	}
-	
-		
+	}	
 }
 sub complex_mode 
 {
@@ -78,37 +84,38 @@ sub complex_mode
 	
 	while ($cur < $len)
 	{
-		$_ = substr($modestr,$cur,1);	
-		if ( m/[s123b]/ )
+		my $next = substr($modestr,$cur+1,1) // "0";
+    	$_ = substr($modestr,$cur,1);	
+		verbose("processing: $_");
+		given($_)
 		{
-			verbose "processing valid complex command: $_";
-			`sync` if m/s/;
-			drop(int($_)) if m/[123]/;
-			`beep` if m/b/;
-			$opt->verbose = 1 if m/q/;
-		}
-		else
-		{
-			verbose "ignoring unknown complex command: $_";
+					when(/s/) { `sync`; }
+				when(/[123]/) { drop(int($_)); }
+			    	when(/b/) { `beep`; }
+			    	when(/q/) { $opt->verbose = 0; }
+			    	when(/S/) { sleep(int($next)*125); $cur++; }
+			    	when(/v/) { $opt->verbose = 1; }
+			    	when(/f/) { print( `free` ); }
+			    	when(/w/) { print( `swapon` ); }			    		
+					default { verbose "ignoring unknown complex command: $_"; };
 		}
 		$cur++;
 	}
 	return 0;
-
 };
 
 print($usage->text), exit if $opt->help;
-print($complex_help), exit if $opt->complexhelp;
+print($complex_help), exit if $opt->help_complex;
 
 verbose "dropping " . $opt->interval . " times at level " . $opt->level;
 verbose "sync mode is set to: " . $opt->sync;
 my $complexmode = 0;
 $complexmode = 1 if $opt->complex ne "none";
-verbose "entering complex mode string" if $complexmode == 1;
+verbose "complex mode is " . ($opt->complex) . ( $complexmode ? "ON" : "OFF" );
 complex_mode $opt->complex if $complexmode == 1;
-foreach my $x (@ARGV)
+
+for (@ARGV)
 {
-	$_ = $x;
-	drop(int($x)) if (m/^[1-3]$/);
-	complex_mode($x) if length($x) > 1;		# process longs as complex commands
+	complex_mode($_) unless /$drop_range/;
+	drop(int($_)) if /$drop_range/;
 }

@@ -1,0 +1,2 @@
+#!/bin/bash
+alias useof='f() { unset IFS; unset -f f; for x in `pidof "$@"`; do ps -p $x -f -o user:14=BELONGS,pid:12=BASH_PID,tty:15=TERMINAL,args=ARGUMENTS; done; for y in $(pidof "$@"); do echo "$x --->"; lsof +D . -p $y | grep -P '[0-9]{7,}' -v; done; }; f'

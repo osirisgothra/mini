@@ -1,0 +1,64 @@
+#!/usr/bin/perl
+#
+# "hi"
+# $INSTALLPREFIX/bin/hi
+# script for highlighting things
+# it supports 1 to 5 highlight groups, each on its own argument as a regex:
+#
+# syntax: hi [group1 regex] [group2 regex] [...] [group 5 regex]
+#
+
+use warnings;
+use v5.20;
+use strict;
+use Getopt::Long::Descriptive;
+use Path::Tiny qw( path );
+
+my $progname = path($0)->basename();
+
+
+my ($opt, $usage) = describe_options( 
+                                      "$progname %o [group(s)]",
+									  ['color|c=s',"colorized output mode: color(default) none, or mono", { default => 'color' }, ],
+									  ['l-isolate|l', "show only lines that have highligts on them"],
+									  ['w-isolate|w', "show only highligted text/words"],
+                                      [],
+									  ['verbose|v', "print extra stuff"],
+                                      ['help', "print usage message and exit"],
+									  ["\n\tgroups\n\n\ta list of perl regular expressions must be given on the command line for \n\thighlighting and output of the pipe to be displayed. Input text is expected\n\t to be piped in, but, if it is not, lines will be read directly from stdin.\n\t This usually means that the program will accept lines being typed on the keyboard, until\n\tan EOF is typed. You can type an EOF by pressing CTRL+D on most linux/bsd systems. On exotic operating systems like Windows,\n\tyou would need to use CTRL+C or CTRL+BREAK however output would be interrupted. It is recommended to use \n\tcygwin since it allows use of CTRL+D eof insertions and a native linux shell like bash can run under it in a\n\tcommand-console (text-only) window like cmd.exe. There must be at least one of these given on the command line. \n\tIf there is no expressions given on the command line, an error message will result. The one flag that can be given that allows omission of regular expressions is the help flag (--help or -h) which\n\tyou are viewing right now.\n\n\tSee perlreref(3) for more about \n\tperl regular expressions."],
+									  [],		
+                                    );
+
+print($usage->text), exit if $opt->help;
+die("color must be set to 'color', 'mono', or 'none'\n") unless $color =~ m/(color|mono|none)/;
+
+my $groups = $#ARGV+1;
+my $grouplimit = 40000;
+my @group = @ARGV;
+
+die("too many groups specified, limit is $grouplimit.\nnote: if you need more than that, use the pipeline to call the program multiple times (the limit is really high so the chances of this happening without some error being the cause is pretty unlikely, check your source code to be sure: passed arguments were: $0 @ARGV") if $groups > $grouplimit;
+die("needs at least one search group (regular expression) to proceed!!") if $groups < 1;
+
+while (<STDIN>)
+{
+	my $i = 0;
+
+	while ($i < $groups) 
+	{
+		#say "using number: $i";
+		my $cgroup = $group[$i];
+		#say($cgroup);
+		my $j = ( $i + 50 ) & 255;	
+		my $ccolor = "[38;5;${j}m";
+		if ($i > 200) {
+			$j = int($i / 200);	
+			$ccolor .= "[48;5;${j}m";
+		}
+
+		my $creset = "[0m";
+		s/($cgroup)/${ccolor}${1}${creset}/g;
+		$i++;
+	}	
+	#exit(1);
+	print($_);
+}

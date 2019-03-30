@@ -1,5 +1,6 @@
-#!/bin/bash
+#!/bin/zsh
 
+declare -x debugging=0
 declare -agx PAGES=( )
 declare -agx TOPICS=( )
 #set -x
@@ -10,7 +11,7 @@ for w; do
 	for y in $(command man "$w" | grep --color=never '^([A-Z]+( |$))+$' -Po); do
 		eval "TOPIC_${w}+=( '$y' )"
 	done
-	eval declare -p TOPIC_${w}
+	((debugging)) && eval declare -p TOPIC_${w}
 	TOPICS+=( "$w" )
 done
 
@@ -22,7 +23,7 @@ function menu()
 	shift
 	# args: MENUTEXT item(s)
 	for i; do
-		echo "adding $i x2" 
+		((debugging)) && echo "adding $i x2"
 		TAGS+=( "$i" )
 		TAGS+=( "$i" )
 	done
@@ -32,5 +33,6 @@ function menu()
 }
 menu "Select a Topic" "${TOPICS[@]}"
 eval menu "Select Subtopic" "\${TOPIC_${RESPONSE}[@]}"
+echo $RESPONSE
 
 set +x

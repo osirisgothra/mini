@@ -1,0 +1,75 @@
+#!/bin/bash
+#
+#    mocp
+#    music on console player alternate loader for i3 environment
+#    eso/mini
+#    small esoteric projects for linux
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Fri Nov 23 19:03:16 EST 2018
+#            osirisgothra@larnica initially created this file:
+#            	* the file's name is: mocp
+#				* the file's preferred location is: $HOME/bin
+#               * the file's type is: bash script
+#               * the file's other attributes: noninteractive, stat as executable/readable all, writable user/group (-rwxrwxr-x/775)
+#	Sun Mar 24 20:12:33 EDT 2019
+#			osirisgothra@larnica changed: 
+#				* this file's filename from mocp to mocp-console
+#           	* TARGET default value from /usr/lib/mocp.bin to /usr/bin/mocp
+#			    * file's attributes changed: from mode 775 to 750 (-rwxr-x---) (may be upgraded to 751 next time)
+#
+TARGET="/usr/bin/mocp"
+
+if [[ "$1" == "--x" ]]; then
+	shift
+	if ! pgrep i3; then
+		function i3-msg()
+		{
+			echo "skipping i3 interface : $*"
+		}
+	fi
+	I3_WORKSPACE="03 MOCP "
+	[[ $(xprop -root _NET_WM_NAME | grep -wPo i3) == i3 ]] || i3-msg() { :; }
+	i3-msg move window workspace "$I3_WORKSPACE"
+	i3-msg workspace "$I3_WORKSPACE"
+	exec "$TARGET" "$@"	
+else
+	echo "running in normal mode"
+	exec "$TARGET" "$@"
+fi	
+# note!
+# do not run script while editing!
+#
+#
+# 
+# pad ensures this line is printed if script is edited during runtime, dont do this though!
+echo "warn: reached unreachable line, most likely the script was edited during runtime, you should not do this because it can cause harm to your system!"
+sleep 5
+

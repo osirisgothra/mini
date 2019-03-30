@@ -5,7 +5,14 @@
 # make executable files executable in specified location, using a few 
 # different methods.
 #
-
+if [[ -d "$1" ]]; then
+	pushd .
+	cd "$1"
+	"$BASH_SOURCE"
+	popd
+	exit
+fi
+	
 if [[ $1 == "-u" ]]; then
         echo -- "-u was specified, removing sudo from command line"
         sudo()

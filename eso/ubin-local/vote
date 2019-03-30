@@ -6,6 +6,23 @@ use strict;
 no strict "refs";
 no warnings "experimental";
 use English;
+use Data::Dumper;
+use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
+use Path::Tiny;
+
+
+my ($opt, $usage) = describe_options(
+        path($PROGRAM_NAME)->basename . ' %o <some-arg> [sitelist to use]',
+        [ 'atonce|a', "do it all at once" ],
+        [],
+        [ 'verbose|v',  "print extra stuff"            ],
+        [ 'help',       "print usage message and exit" ],
+      );
+
+sub vsay { CORE::say(@_) if $opt->verbose; }
+vsay("verbose mode enabled, printing extra stuff...");
+
+print($usage->text), exit if $opt->help;
 
 # associate a list with each server name prefix
 # add more here, planning to add a rcfile if needed
@@ -30,9 +47,13 @@ my %sitelist =
 	);
 my $empty = "<allocated-but-uninitialized>";
 my $item = $empty;
-my $binary = "/usr/bin/surf";
+my $binary = "/usr/bin/chromium-browser";
 my $site = $empty;
 my $num = 0;
+my $atonce = $opt->atonce;
+
+vsay(%sitelist);
+
 
 unless ($#ARGV >= 0)
 {
@@ -50,15 +71,24 @@ unless ($#ARGV >= 0)
 }
 else
 {
-	$item = $ARGV[0] // "unknown";
-	$binary = $ARGV[1] // "/usr/bin/surf";
+	$item = $ARGV[0] if $#ARGV >= 0;
+	$binary = $ARGV[1] if $#ARGV >= 1;
+	
 	print("\narguments given:\n\n\titem: $item\n\tbinary: $binary\n");
 	if ( $sitelist{$item} )
 	{
-		for $site ( @{$sitelist{$item}} )
+		unless ($atonce) 
 		{
-			system("/usr/bin/xtitle","trying to start $binary $site for $item");
-			system($binary,$site);
+			for $site ( @{$sitelist{$item}} )
+			{
+				system("/usr/bin/xtitle","trying to start $binary $site for $item");
+				system($binary,$site);
+			}
+		}
+		else
+		{
+			vsay($binary,@{$sitelist{$item}} );
+			system( $binary,@{$sitelist{$item}} );
 		}
 	}
 	else

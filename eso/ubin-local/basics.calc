@@ -1,0 +1,11 @@
+#!/usr/bin/calc -f
+#vim: ts=2:noet:sw=2:bs=2:ruler:fdm=marker:fmr=#{{,#}}:mouse=all:fcl=all:fen:ft=xmath
+#note: vim has no calc filetype by default, but xmath is about as close as you get
+#      as far as symbols are concerned.
+
+define bin(num) = printf("%b\n",num)
+define oct(num) = printf("%o\n",num)
+define dec(num) = printf("%d\n",num)
+define hex(num) = printf("%x\n",num)
+
+

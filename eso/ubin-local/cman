@@ -1,0 +1,131 @@
+#!/bin/bash
+
+# shell options
+shopt -s interactive_comments
+shopt -s expand_aliases
+shopt -s globstar
+shopt -u nullglob
+shopt -o -u histexpand
+
+# fallback defaults, may be changed by program/flags
+
+declare -gx CMAN_BIN="/usr/bin/man"
+declare -gx CMAN_PAGER="/usr/bin/less -raw"
+declare -gx CMAN_OPTIONS="c"
+declare -gi CMAN_DEBUG=0
+declare -gi CMAN_LESSONLY=0
+declare -gx CMAN_TTY="$(tty)"
+declare -gx CMAN_PAGERSTATE="on"
+declare -gx CMAN_COLORSTATE="on"
+
+decho()
+{
+	local r=$?
+	if [[ $CMAN_DEBUG -eq 1 ]]; then
+			# prevent injection into pipeline and not use builtin
+	 		command echo "$@" &> $CMAN_TTY
+			return $?
+	else
+			return $r
+	fi
+}
+
+setup()
+{
+	setup_cman # calls s_cmanpager from within
+}
+
+setup_cman()
+{
+	declare -gx CMAN_BIN="$(which man)"
+	if [[ -x $CMAN_BIN ]]; then
+		CMAN_BIN="man"
+		decho "warn: man not in path, using just 'man' without a path"
+		decho "      this might (probably will)  fail because the man"
+		decho "      executable is not detected when calling which(1)"
+		decho ""
+	else
+		decho "man found, using $CMAN_BIN"
+	fi
+}
+
+setup_cmanpager()
+{
+	declare -gx CMAN_PAGER="${MANPAGER-$(which less)}"
+	if [[ $CMAN_PAGER =~ less|more|view|ed|tetra|sh|cat ]]; then
+		decho "using $CMAN_PAGER because it is compatible with ansi..."
+	else
+		decho "ditching $CMAN_PAGER and using default because its not compatible with ansi!"
+		unset CMAN_PAGER
+		unset MANPAGER
+		declare -gx CMAN_PAGER="less -raw"
+	fi
+}
+spawn_man()
+{
+	decho "setting up..."
+	setup
+	decho "setup done with code $?"
+	decho "spawning $CMAN_BIN with $*"
+	env MANPAGER="${CMAN_PAGER}" "${CMAN_BIN}" "$@"
+	decho "spawn finished with code $?"
+}
+colorify()
+{
+	case $CMAN_COLORSTATE in
+		off)	cat; return 0;;
+	esac
+	decho "using colorfy perl: $(which perl)"
+	perl -wpe '
+			s///g;s/GNU .*[0-9.]+\b|\b[0-9]+\b (.or more. )?\bargument(\(s\)|s)?|\s\/\s|\/bin|\/boot|\/dev|\/etc\/profile|\/doc\/man-pages|\/etc|\/etc\/opt|\/etc\/sgml|\/etc\/skel|\/fhs|\/home|\/include|\/lib|\/man|\/media|\/mnt|\/opt|\/proc|\/root|\/sbin|\/srv|\/tmp|\/usr|\/usr\/bin|\/usr\/dict|\/usr\/doc|\/usr\/etc|\/usr\/games|\/usr\/include|\/usr\/include\/asm|\/usr\/include\/g++|\/usr\/include\/linux|\/usr\/lib|\/usr\/lib\/gcc-lib|\/usr\/lib\/groff|\/usr\/lib\/uucp|\/usr\/local|\/usr\/local\/bin|\/usr\/local\/doc|\/usr\/local\/etc|\/usr\/local\/games|\/usr\/local\/include|\/usr\/local\/info|\/usr\/local\/lib|\/usr\/local\/man|\/usr\/local\/sbin|\/usr\/local\/share|\/usr\/local\/src|\/usr\/man|\/usr\/sbin|\/usr\/share|\/usr\/share\/dict|\/usr\/share\/doc|\/usr\/share\/games|\/usr\/share\/info|\/usr\/share\/locale|\/usr\/share\/man|\/usr\/share\/misc|\/usr\/share\/nls|\/usr\/share\/sgml|\/usr\/share\/terminfo|\/usr\/share\/tmac|\/usr\/share\/zoneinfo|\/usr\/src|\/usr\/src\/linux|\/usr\/src\/linux\/include\/asm|\/usr\/src\/linux\/include\/linux|\/usr\/tmp|\/var|\/var\/adm|\/var\/backups|\/var\/cache|\/var\/cache\/man\/cat|\/var\/catman\/cat|\/var\/cron|\/var\/lib|\/var\/local|\/var\/lock|\/var\/log|\/var\/mail|\/var\/msgs|\/var\/opt|\/var\/preserve|\/var\/run|\/var\/spool|\/var\/spool\/at|\/var\/spool\/cron|\/var\/spool\/lpd|\/var\/spool\/mail|\/var\/spool\/mqueue|\/var\/spool\/news|\/var\/spool\/rwho|\/var\/spool\/smail|\/var\/spool\/uucp|\/var\/tmp|\/var\/yp|\/www/[31;1m$&[0m/g;s/\b[A-Z][A-Z0-9_]+[A-Z]\b/[32;1m$&[0m/g;s/\s+--?[-A-Za-z0-9=]+/[33m$&[0m/g;s/[()<>"!@#\$%^&*]/[38;5;238m$&[0m/g;s/[.:={}\\,]/[38;5;235m$&[0m/g;s/\[([-a-zA-Z ]+)\]/[0;34;2m[[22;1m$1[0;34;2m][0m/g;
+	';
+	decho "colorify finished with code $?"
+}
+pager()
+{
+	case $CMAN_PAGERSTATE in
+		off) cat; return 0;;
+	esac
+
+	decho "paging..."
+	if [[ $CMAN_LESSONLY -eq 1 ]]; then
+		decho "using less -raw because CMAN_LESSONLY=1 is defined"
+		less -raw
+	else
+		decho "using $CMAN_PAGER to page item buffer"
+		$CMAN_PAGER
+	fi
+	decho "paging completed with code $?"
+}
+main()
+{
+	decho "entering main loop";
+	decho "checking flags..."
+	case "$1" in
+		-d)	let CMAN_DEBUG++
+			decho "debug enabled (>0)"
+			shift
+		 	;;
+		+d) let CMAN_DEBUG=0
+			decho "debug disabled (=0)"
+			shift
+			;;
+	esac
+	decho "checkflags done /w code $?"
+	decho "executing /w command line: $@"
+	case $CMAN_OPTIONS in
+		*c*) decho "opt=~c"; spawn_man "$@" | colorify | pager;; # *c*)olor filtered output +pager
+		*b*) decho "opt=~b"; spawn_man "$@" | pager;;            # *b*)are unfiltered output +pager
+		*n*) decho "opt=~n"; spawn_man "$@" | cat;;				 # *n*)o pager or formatting
+		*d*) decho "opt=~d"; spawn_man "$@";; # *d*)isable pager
+		*) decho "opt=~BAD==$CMAN_OPTIONS"; echo "fatal: bad cman options ($CMAN_OPTIONS), must be a combination of: c|b|n|d";; # must be above item(s)
+	esac
+	decho "finished exec. cmdline with code $?"
+	decho "finished main with code ${PIPESTATUS[@]}"
+}
+
+
+#      #                 # # # # #   ###########################################  # # # # # #                         #         #
+decho "starting program script (entering main with: $@ == code $?)"
+main "$@"
+decho "finished program script (left main with code $? and pipestatus $PIPESTATUS in $PWD)"

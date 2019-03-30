@@ -1,0 +1,22 @@
+#!/bin/zsh
+
+for ((x=1;x<9000;x+=1)); do
+	newf=$(calc -e "(sin($x) * 1000)+2000");
+	if [[ $f =~ ^[.0-9]+$ ]]; then
+		lastf=$f;
+	else
+		lastf=$newf;
+	fi
+	f=$newf
+	echo "lastf=$lastf f=$f"
+	if [[ $lastf -gt $f ]]; then
+		for ((c=$lastf; c<$f; c+=10)); do
+			beep -l 10 -f $c
+		done
+	else
+		for ((c=$lastf;c>$f;c-=10)); do
+			beep -l 10 -f $c
+		done
+	fi
+	echo $f
+done

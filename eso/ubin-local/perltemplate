@@ -1,0 +1,263 @@
+#!/usr/bin/perl
+#    Project Information                                                       {{{ 
+#       vim: sw=2:tw=2:noet:nowrap:fen:fdm=marker:fmr={{{,}}}:fdo=all:fcl=all:cc=105:nu:bs=2:nows:wm=0
+#       filename: perltemplate
+#       description: perl CLI template generator 
+#       project: mini (on github)
+#  																		        }}}   
+#    Copyright  (C) 1995-2018 Gabriel Thomas Sharp                             {{{ 
+#
+#    Written by Gabriel T. Sharp <21shariria\@gmail.com>                       }}} 
+#    Project Repository                                                        {{{    
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).#
+#                                                                           }}} 
+#    LICENSE                                                                   {{{
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#                                                                              }}}
+#    HISTORY                                                                   {{{
+#
+#	 Sat Nov  3 08:37:04 EDT 2018
+#            osirisgothra\@larnica initially created this file
+#            with the original name, perltemplate
+#  (this header was created using the template generator by Gabriel T. Sharp,
+#   if that is confusing read paragraph below for a more detailed description.)
+#
+#                                                                              }}}
+#  PROGRAM SETTINGS {{{
+use warnings;
+use strict;
+use v5.20;
+no warnings "experimental";
+use Curses::UI;
+# }}}
+
+
+
+
+# {{{ TEMPLATE content data
+my $template = '
+#!/usr/bin/perl
+#
+#    <filename>
+#    <filedesc>
+#
+#    PROJECT
+#
+#    <projname>
+#    <projdesc>
+#
+#    AUTHOR
+#
+#    Copyright (C) <copyright-years>, <author>
+#
+#    Written by <author>, [<author-email>]
+#    Latest versions of this and all of <author>\'s projects can be
+#    obtained from:
+#
+#    <https://github.com/<author-alias>>
+#
+#    Documentation Available At:
+#
+#    <https://<author-alias>.github.io/<projname>/<docbranch>>
+#
+#    LICENSE
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 <date>
+#         <username>\@<hostname> created this file using perltemplate
+#         and named it <filename>
+#
+use warnings;
+use v5.18;
+use strict;
+use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
+use Path::Tiny;
+use File::Slurp;
+use IPC::Open3  qw( open3 );
+use Term::ANSIColor qw ( colorstrip color );
+
+my ($opt, $usage) = describe_options(
+        \'$0 %o <some-arg> file\',
+        [ \'no-dialog\', "dont use dialog to show log", { required => 1  } ],
+        [ \'no-follow\',   "do not follow the log, just show it",   { default  => 79 } ],
+        [],
+        [ \'verbose|v\',  "print extra stuff"            ],
+        [ \'help\',       "print usage message and exit" ],
+      );
+
+say($usage->text), exit if $opt->help;
+
+# creating Path::Tiny objects
+
+my $dir = path("/tmp");
+my $foo = path("foo.txt");
+my $subdir = $dir->child("foo");
+my $bar = $subdir->child("bar.txt");
+# stringifies as cleaned up path
+
+my $file = path("./foo.txt");
+say $file; # "foo.txt"
+
+# reading files
+
+my $guts = $file->slurp;
+$guts = $file->slurp_utf8;
+
+my @lines = $file->lines;
+@lines = $file->lines_utf8;
+
+my ($head) = $file->lines( {count => 1} );
+my ($tail) = $file->lines( {count => -1} );
+say "head";
+say $head;
+say "tail";
+say $tail;
+say "write data...";
+
+# writing files
+my @data = qw ( sample data );
+
+$bar->spew( @data );
+$bar->spew_utf8( @data );
+
+# reading directories
+
+for ( $dir->children ) { say("children: $_"); }
+my $iter = $dir->iterator;
+while ( my $next = $iter->() ) { say("iterated: $next"); }
+
+
+# color
+
+    print color \'bold blue\';
+    print "This text is bold blue.\n";
+    print color \'reset\';
+    print "This text is normal.\n";
+    print colored("Yellow on magenta.", \'yellow on_magenta\'), "\n";
+    print "This text is normal.\n";
+    print colored [\'yellow on_magenta\'], \'Yellow on magenta.\', "\n";
+    print colored [\'red on_bright_yellow\'], \'Red on bright yellow.\', "\n";
+    print colored [\'bright_red on_black\'], \'Bright red on black.\', "\n";
+    print "\n";
+
+    # Map escape sequences back to color names.	
+    my $names = uncolor(\'01;31\');
+    print join(q{ }, @{$names}), "\n";
+
+    # Strip all color escape sequences.
+    print colorstrip \'\e[1mThis is bold\e[0m\', "\n";
+
+    # Determine whether a color is valid.
+    my $valid = colorvalid(\'blue bold\', \'on_magenta\');
+    print "Color string is ", $valid ? "valid\n" : "invalid\n";
+
+    # Create new aliases for colors.
+    coloralias(\'alert\', \'red\');
+    print "Alert is ", coloralias(\'alert\'), "\n";
+    print colored("This is in red.", \'alert\'), "\n";
+
+    print BOLD, BLUE, "This text is in bold blue.\n", RESET;
+
+    {
+        local $Term::ANSIColor::AUTORESET = 1;
+        print BOLD BLUE "This text is in bold blue.\n";
+        print "This text is normal.\n";
+    }
+
+    print PUSHCOLOR RED ON_GREEN "This text is red on green.\n";
+    print PUSHCOLOR BRIGHT_BLUE "This text is bright blue on green.\n";
+    print RESET BRIGHT_BLUE "This text is just bright blue.\n";
+    print POPCOLOR "Back to red on green.\n";
+    print LOCALCOLOR GREEN ON_BLUE "This text is green on blue.\n";
+    print "This text is red on green.\n";
+    {
+        local $Term::ANSIColor::AUTOLOCAL = 1;
+        print ON_BLUE "This text is red on blue.\n";
+        print "This text is red on green.\n";
+    }
+    print POPCOLOR "Back to whatever we started as.\n";
+
+';
+
+#
+# END TEMPLATE }}} 
+
+my $cui = new Curses::UI;
+my $isyes = $cui->dialog( -message => "test",
+  -buttons =>  [ 'yes','no' ],
+  -values => [1,0], 
+  -title => 'test question'
+);
+$cui->error("It's the end of the\n"
+                   ."world as we know it!");
+ my $file = $cui->filebrowser(
+            -path => "/tmp",
+            -show_hidden => 1,
+        );
+$cui->status("Saying hello to the world...");
+$cui->progress(
+            -max => 10,
+            -message => "Counting 10 seconds...",
+        );
+my $win = $cui->add('mywindow', 'Window', -centered => 1);
+
+for my $second (0..10) {
+            $cui->setprogress($second);
+            sleep 1;
+        }
+
+        $cui->noprogress;
+
+my %templar = (
+  	name => "template-project",
+	template => "$template",
+  	items => {
+		filename => "perltemplate-file",
+		filedesc => "a wonderful <filename> program",
+		projname => "<filename>-project",
+		projdesc => "a great <projname> of endless capability",
+		date => "today",
+		'copyright-years' => "this year",
+		author => "me",
+		'author-email' => "me\@mail.com",
+		'author-alias' => "somebody",
+		username => "self",
+		hostname => "mypc",
+		docbranch => "my-gh-docs",
+	},
+);
+
+

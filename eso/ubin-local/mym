@@ -1,5 +1,9 @@
 #!/usr/bin/perl
-# vim:laststatus=2:backspace=eol,start,indent:nowrap:nocp#nano:syntax=github/osirisgothra/nanorc/perl.nanorc;linter=github/osirisgothra/mini/eso-ubin/perlint#atom:package=perlint;syntax=perl5#sublime:syntax=perl5		#notepadplus:wordwrap=false#preferred:vim,nano,atom,sublime,other#program(%local-usability-features)
+# vim:laststatus=2:backspace=eol,start,indent:nowrap:nocp
+# nano:syntax=github/osirisgothra/nanorc/perl.nanorc;linter=github/osirisgothra/mini/eso-ubin/perlint#atom:package=perlint;syntax=perl5#sublime:syntax=perl5
+# notepadplus:wordwrap=false
+# preferred:vim,nano,atom,sublime,other
+# program(%local-usability-features)
 #
 #  	 launcher-launcher.pl (see FILE DETAILS below!)
 #
@@ -140,7 +144,6 @@
 #
 #
 
-#
 use v5.20;
 use warnings;
 use strict;
@@ -148,9 +151,22 @@ use Path::Tiny qw! path !;
 use IPC::Run qw! run !;
 use File::Slurp qw! read_file !;
 
+# other options for i3 (explained each)
+# $workspacename_has_trailing_space (1 = entries have space after them, 0 = names are as-is)
+# $i3workspace (set to wherever you want i3 to put the new launcher at)
+# $gamma (passed to xgamma when starting up)
+
+my $basename = path($0)->basename();
+my $workspacename_has_trailing_space=1;
+my $i3workspace = "02 JAVA";
+my $gamma="1.2";
+my $log="${basename}-2xlauncher.log";
+
+printf("logging to $log ...\n");
+
 # pre-run stuff that should eventually be integrated
 system("drop","3s");
-system("i3","workspace","2 M Y M");
+system("i3","workspace","02 JAVA" . ($workspacename_has_trailing_space == 1 ? " " : ""));
 
 
 # jar files (for running/checking)
@@ -169,9 +185,27 @@ my $clear_first = 0;
 my $do_pleasant_pauses = 0;
 my $show_preruns = 0;
 my $args = scalar(@ARGV);
+my @oneproc_only = ( $0 );   # only care for ourselves at this time
+my @default_prerun_actions = ( [ 'killall','-SIGKILL','java' ],
+					   [ 'nvidia-tweak' ],
+					   [ 'drop','1','2','3','s','3','s' ],
+					   [ 'xgamma', '-gamma', $gamma ],
+					   [ 'stopservices' ],
+					   [ 'rea' ],
+					   
+						 );
+my ($in,$out,$err);
+
+for my $item ( @oneproc_only ) {
+	my @running = qx! pidof $item !;
+	die("too many instances of $item running! (a condition predefined as a no-no!) ($?)($!)") if ( scalar(@running) > 1 );
+	next if scalar(@running) < 1;
+	warn("single instance found: $item -- currently, at the LIMIT!"); # no if, cant get here unless ==1
+	
+}
 
 if ( $args > 0 ) 
-{
+{	
 	if ( $ARGV[0] =~ "--?q(uiet)?" ) 
 	{
 		say("running silent...");
@@ -234,24 +268,15 @@ if ($show_preruns) { say for @prerun_actions; };
 say "---" if $show_preruns;
 
 pleasant_pause;
+				 
 
-my @default_prerun_actions = ( [ 'killall','-SIGKILL','java' ],
-					   [ 'nvidia-tweak' ],
-					   [ 'drop','1','2','3','s','3','s' ],
-					   [ 'xgamma', '-gamma', '1.2' ],
-					   [ 'stopservices' ],
-					   [ 'rea' ],
-					   
-						 );
-					 
-my ($in,$out,$err);
 
 
 # not crutial so dont die or report errors on these
 foreach my $action (@prerun_actions)
 {
 	my @action = split(' ',$action);   # DISABLED:	my @action = @{$action};	# get array ref into local ref
-	print("[s[u[2Kexecuting pre-run action: @action ... "); # ansi: s=savepos u=restorepos k=homecol(2=eraseline)
+	say("executing pre-run action: @action ... "); # ansi: s=savepos u=restorepos k=homecol(2=eraseline)
 	run \@action, \$in, \$out, \$err ? print("ok\n") : print("no\n");	
 }
 

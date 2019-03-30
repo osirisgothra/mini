@@ -1,0 +1,138 @@
+#!/bin/bash
+#
+# ionice
+# a simple ionice wrapper
+# by Gabriel Sharp <osirisgothra@hotmail.com>
+#
+# check out other projects at github
+# http://github.io/osirisgothra
+#
+
+declare -g  DTARG="/usr/bin/ionice"
+declare -ga MYPIDS=( )
+declare -ga MYPRI_C
+declare -gi nx=0
+declare -g x=""
+
+for x; do
+	if [[ -x "$x" ]]; then
+		# has a command that is not running
+		if [[ $x =~ .*\/.* ]] && ! pgrep "$x"; then
+			let nx++
+		fi
+	elif [[ "$x" =~ ^--?..*$ ]]; then
+		# has a flag option
+		let nx++
+	fi
+done
+
+if [[ $nx -gt 0 ]]; then
+	echo "passing $nx arguments/commands to ionice executable"
+else
+
+	function checkrun2()
+	{
+	if [[ `whoami` == root ]] || [[ "$2" == "nice" ]]; then
+		if [[ "$2" == "nice" ]]; then
+			echo "nice as second parameter given, delegating to ${DTARG}please wait..."
+		else
+			echo "you are root; for security purposes ionice must be run securely."
+			echo "(this script is NOT secure, but $DTARG is!) please wait..."
+		fi
+		exec "$DTARG" "$@"
+		echo "danger: passed point of exec, returning with error 126..."
+		return 126
+		exit 126
+	fi
+	}
+
+
+	function mypriok()
+	{
+		case ${MYPRI: 0:1} in
+			R)	MYPRI_C=realtime;;
+			B)  MYPRI_C=best-effort;;
+			I)  MYPRI_C=idle;;		
+			N)  MYPRI_C=none;;
+			*)	echo "$MYPRI, char 1, is not a valid letter for priority!"
+				return 1;;
+		esac
+		return 0	
+	}
+	checkrun2 "$@"
+	case $# in
+		 
+		2)	declare -gi p=$1
+			if [[ $p -gt 1 ]]; then
+				echo "program name was numeric, assuming it as a PID..."
+				if [[ -d /proc/$p ]]; then
+					MYPIDS+=( "$1" )
+				else
+					echo "fatal: PID $p does not exist (anymore) on the system (in /proc/$p)"
+					echo "Stop."
+					exit 127
+				fi				
+			else		
+				unset IFS
+				for x in `pidof $1`; do
+					if [[ -d /proc/$x ]]; then
+						echo "added PID=$x to list of pids to change..."
+						MYPIDS+=( "$x" )
+					else
+						echo "skipping PID $x because it is not in /proc..."
+					fi
+				done
+			fi
+			declare -ig PIDCOUNT=${#MYPIDS[@]}
+			if [[ $PIDCOUNT -le 0 ]]; then
+				echo "fatal: no PIDs were attached to specified item name(s)"
+				echo "Stop."
+				exit 128
+			fi
+			echo "setting pid(s): ${MYPIDS[@]} ($PIDCOUNT total)"
+			MYPRI=${2^^}
+			if mypriok; then
+				for j in "${MYPIDS[@]}"; do
+					# note: MYPRI_C was translated by mypriok()
+					echo -ne "\e[1;36mspawning slave:\e[1m sudo /usr/bin/ionice -c $MYPRI_C -n ${MYPRI: 1:1} -p $j \e[1;30m...\e[0m "
+					if sudo /usr/bin/ionice -c $MYPRI_C -n ${MYPRI: 1:1} -p $j; then
+						echo "[32;1mok (return=0)[0m"
+					else
+						echo "[31;1mfail (return=$?)[0m"
+					fi
+				done
+			else
+				echo "$0: fatal error in cmd line class spec"
+			fi
+			;;
+		*)
+			echo "usage: ionice [progname|pid] [class]"
+			echo ""
+			echo "class: [classdigit|prioritydigit]"
+			echo ""
+			echo "class digits:"
+			echo ""
+			echo " r = realtime     b = best-effort (default)"
+			echo " n = none         i = idle"
+			echo ""
+			echo "priority digits:"
+			echo " 0 = highest		1 = high"
+			echo " 2 = higher       3 = above normal"
+			echo " 4 = normal (default) "
+			echo " 5 = below normal 6 = low"
+			echo " 7 = lowest"
+			echo ""
+			echo "example:"
+			echo ""
+			echo "   ionice xterm B4"
+			echo "      sets all xterm processes to best effort normal (default)"
+			echo "   ionice bash R0"
+			echo "      set all bash processes to realtime highest priority"
+			echo "   ionice 32115 I0"
+			echo "		set to idle*"
+			echo ""
+			echo "NOTE: for I and N, the number is discarded!"
+			echo
+		;;
+	esac
+fi
