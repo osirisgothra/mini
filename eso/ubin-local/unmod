@@ -1,0 +1,142 @@
+#!/usr/bin/perl
+#
+# FILE
+#    unmod
+#    UnJar a Modpack's Modfile
+#
+# PROJECT
+#    Mini/Minecraft Stuff
+#    a large collection of smaller projects, usually single file
+#
+# AUTHOR / COPYRIGHT
+#
+#    Copyright (C) 2019, Gabriel Thomas Sharp
+#
+#    Written by Gabriel Thomas Sharp, [osirisgothra@larnica.(none)]
+#    Latest versions of this and all of Gabriel Thomas Sharp's projects can be
+#    obtained from:
+#
+#    <https://github.com/osirisgothra>
+#
+#    Documentation Available At:
+#
+#    <https://osirisgothra.github.io/Mini/Minecraft Stuff/http://www.github.com/osirisgothra/Mini/Minecraft Stuff.git>
+#
+# LICENSE
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  HISTORY
+#
+#	 Sat Aug 17 21:23:43 2019
+#         osirisgothra\@larnica.(none) created this file using perltemplate
+#         and named it unmod
+#
+#                    created with Text::Template::Alternative::Perl (or just 'perltemplate')
+#
+use warnings;
+use v5.18;
+use strict;
+no warnings "experimental";
+
+## CURSES ##
+
+use Curses::UI;
+ use Curses::UI;
+
+# create a new C::UI object
+my $debug = 0;
+my $cui = Curses::UI->new( -clear_on_exit => 1, -debug => $debug, );
+# this is where we gloss over setting up all the widgets and data
+# structures :)
+# start the event loop
+
+$cui->mainloop;
+$cui = Curses::UI->new();
+$cui->dialog("Hello, world!");
+
+my $yes = $cui->dialog(
+	-message => "Hello, world?",
+	-buttons => ["yes","no"],
+	-values  => [1,0],
+	-title   => "Question",
+);
+
+if ($yes) {
+	chomp(); # whatever
+}
+
+$cui->error("It's the end of the\n"."world as we know it!");
+
+my $file = $cui->filebrowser(
+	-path => "/tmp",
+	-show_hidden => 1,
+);
+
+# Filebrowser will return undef if no file was selected.
+
+if (defined $file) {
+	unless (open F, ">$file") {
+		print F "Hello, world!\n";
+		close F;
+	} 
+	else 
+	{
+		$cui->error(qq(Error on writing to "$file":\n$!));
+	}
+}
+
+$cui->status("Saying hello to the world...");
+# code for saying "Hello, world!"
+
+$cui->status("Saying goodbye to the world...");
+# code for saying "Goodbye, world!"
+
+$cui->nostatus;
+$cui->progress(
+	-max => 10,
+	-message => "Counting 10 seconds...",
+);
+
+for my $second (0..10) {
+	$cui->setprogress($second);
+	sleep(1);
+}
+
+$cui->noprogress;
+
+
+## END CURSES ##
+
+## GETOPT ##
+
+use Getopt::Long::Descriptive; 
+
+# opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
+
+my ($opt, $usage) = describe_options(
+        '$0 %o <some-arg> file',
+        [ 'no-dialog', "dont use dialog to show log", { required => 1  } ],
+        [ 'no-follow',   "do not follow the log, just show it",   { default  => 79 } ],
+
+        [],
+        [ 'verbose|v',  "print extra stuff"            ],
+        [ 'help',       "print usage message and exit" ],
+		
+      );
+
+say($usage->text), exit if $opt->help;
+
+

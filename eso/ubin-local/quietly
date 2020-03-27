@@ -1,0 +1,177 @@
+#!/bin/zsh
+emulate zsh
+#
+#    quietly
+#    run (real) binary with same name, quietly, disowned in the background
+#    zsh-x
+#    extra zsh customization framework, excess zsh manipulation, etc..
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#		See 'HOW TO USE' below on important notes for this utility.
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#	HOW TO USE
+#
+#	 Usage is simple, just link a name of your preferred privledged program
+#	  to this script and it will magically run as a sudo command:
+#
+#		ln -s <script-installdir>/bin/quietly  <my-executed-before-any-other-binaries>/mount
+#
+#	 will create a link to this script, which will run it, and cause it to run 'sudo mount + parameters'
+#
+#	simply:
+#
+#		1) user@host# ln -s /zsh-x/bin/quietly ~/bin/umount_
+#		2) user@host# ~/bin/umount /dev/srZ
+#					v- the same as typing this when ~/bin is in your path FIRST -v
+#		   user@host# umount /dev/srZ
+#					v- which in turn will cause the following (no new PIDs are created) -v
+#					  sudo /bin/umount /dev/srZ
+#					at this point, /bin/umount now has direct control and will hand back any return codes directly to sudo, to you
+#		thats it!
+#
+#    HISTORY
+#
+#	 Sun Feb 23 02:01:20 EST 2020
+#            osirisgothra@ initially created this file
+#            with the original name, quietly
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#
+#	template output completed (code=OK(ERROR_NONE))
+#
+#
+
+#TODO: add interactive setup for adding links
+
+
+setopt aliases
+disable hash
+disable true
+disable false
+
+alias char='typeset -gg'
+alias int='typeset -gi'
+alias array='typeset -ga'
+alias hash='typeset -gA'
+alias bool='typeset -gi'
+alias echo='print -P'
+alias necho='print -Pn'
+alias rint='typeset -gir'
+alias color='integer lastcolor_fg; integer lastcolor_bg; () {
+	case $1 in
+		fg)	echo $lastcolor_fg;;
+		bg) echo $lastcolor_bg;;
+	  last) echo $lastcolor_fg $lastcolor_bg;;
+	     *)	integer fg=7
+			integer bg=0
+			fg=${1-7} bg={2-0}
+			if [[ $fg =~ , ]]; then
+				fg=${1%%,*} bg=${1##*,}
+			fi
+			if [[ $fg == $bg ]]; then
+				echo "warning: color spec must not be same for both back/foreground colors, setting to default"
+				tput sgr0
+			else
+				tput setaf $fg
+				tput setab $bg
+				lastcolor_bg=$bg
+				lastcolor_fg=$fg
+			fi;;
+	esac
+}'
+# syntax: color [fg] [bg] | color [fg,bg]
+
+rint false=0
+rint true=1
+# fhicolor (first high color, 16, is usually black)
+int black=0 red=1 green=2 yellow=3 blue=4 pink=5 cyan=6 white=7 lite=8
+int lblack=$[lite+0] litered=$[lite+1] litegreen=$[lite+2] liteyellow=$[lite+3] liteblue=$[lite+4] litepink=$[lite+5] litecyan=$[lite+6] litewhite=$[lite+7] fhicolor=$[lite+8]
+
+char linkname="$0"
+char linkbase=$(basename "$0")
+char scriptname=$(realpath "$0")
+char scriptbase=$(basename $scriptname)
+ int err_base=127
+ int err_disqualified=0+err_base
+ int err_fnf=1+err_base
+ int err_abort=2+err_base
+bool use_debug=true
+bool use_messages=false
+char flagfile="$HOME/.config/quietly/flags/donotdebug.flg"
+
+# flagfile (usually ~/.config/quietly/flags/donotdebug.flg) overrides all and makes truely quiet
+[[ -r $flagfile ]] && use_debug=false && use_messages=false
+
+if ((use_debug == false)); then
+	echo() { : ; }
+elif ((use_debug == true)); then
+	color $litered,$blue
+	echo "warn: $0 is running in DEBUG mode right now, you must disable this inside the script or execute 'mkdir -pf $flagfile' to make a flag dirent"
+	:
+else
+	echo "fail: use_debug must be either true or false, not ${use_debug-NO_VALUE}"
+	echo "remedy this, and restart"
+	exit err_abort
+fi
+
+
+
+echo "linkname (base=$linkbase) is $linkname"
+echo "scriptname (base=$scriptbase) is $scriptname"
+
+
+if [[ $linkbase == $scriptbase ]]; then
+	echo "script and link are same, usually means you either"
+	echo "1) copied file instead of linking, 2) ran $scriptbase directly"
+	echo "this program can only be run from a symbolic link"
+	echo "program state: disqualified for linking"
+	exit err_disqualified
+else
+	echo "searching for a binary named $linkbase"
+	for x in $path; do
+		[[ -n $WASR_TRACE ]] && echo "checking ${x}/$linkbase"
+		if [[ -x ${x}/$linkbase ]]; then
+			if diff "$0" "$x/$linkbase" &> /dev/null; then
+				echo "($x/$linkbase is this script, cannot use that)"
+			else
+				echo "found $x/$linkbase"
+				target=$x/$linkbase
+				break
+			fi
+		fi
+		target=none
+	done
+	if [[ $target == none ]]; then
+		echo "no target was found - aborted"
+		exit err_fnf
+	else
+		echo "found target: $target - attempting $ma on this ($ma \"$target $@\")"
+		( $target $@ &> /dev/null & disown ) &> /dev/null & disown
+	fi
+fi
+

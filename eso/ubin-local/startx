@@ -1,16 +1,36 @@
 #!/bin/sh
 
+# this is not /usr/bin/startx
+# this is a user-specific version (eso/ubin-local/startx)
+# however it still is mainly a fork of /usr/bin/startx
+
+# - user .xinitrc, .xserverrc in ~
+# - system xinitrc, xserverrc in /etc/X11
+# - uses defaults for user/system files when none exist
+# - system xinitrc checks for .Xresources files 
+# - system merges resources in (xrdb)
+# when no .xinitrc present:
+# - start up a window manager
+# - run a clock 
+# - run several xterms.
 #
-# This is just a sample implementation of a slightly less primitive
-# interface than xinit. It looks for user .xinitrc and .xserverrc
-# files, then system xinitrc and xserverrc files, else lets xinit choose
-# its default. The system xinitrc should probably do things like check
-# for .Xresources files and merge them in, start up a window manager,
-# and pop a clock and several xterms.
-#
-# Site administrators are STRONGLY urged to write nicer versions.
-#
-if xprop -root; then
+xinit() { hexdump -C "$fileshow"; echo "XINIT $*"; command xinit "$@"; }
+xauth() { 
+	echo "XAUTH $*"
+	for x; do 
+		if [ -r "$x" ]; then
+			echo "contents of $x \n------------------------------"
+			hexdump -C "$x"
+			fileshow="$x"
+			echo "------------------------------" 
+		fi
+	done
+	command xauth "$@"
+}
+xhost() { echo "XHOST $*"; command xhost "$@"; }
+xdm() { echo "XDM $*"; command xdm "$@"; }
+
+if xprop -root 2> /dev/null 1> /dev/null; then
 	echo "failed: currently running in an X session window space; please start from a CONSOLE terminal!"
 	return 122
 else
@@ -22,26 +42,30 @@ else
 	fi
 	echo "finished pre-run checkpoints OK!"
 fi
-
-
 unset DBUS_SESSION_BUS_ADDRESS
 unset SESSION_MANAGER
 userclientrc=$HOME/.xinitrc
 sysclientrc=/etc/X11/xinit/xinitrc
 userserverrc=$HOME/.xserverrc
 sysserverrc=/etc/X11/xinit/xserverrc
+
 defaultclient=/usr/bin/xterm
 defaultserver=/usr/bin/X
+
 defaultclientargs=""
 defaultserverargs=""
+
 defaultdisplay=":0"
+
 clientargs=""
 serverargs=""
-vtarg=""
+
+vtarg="vt8"
 enable_xauth=1
 
 
 # Automatically determine an unused $DISPLAY
+
 d=0
 while true ; do
     [ -e /tmp/.X$d-lock ] || break
@@ -50,28 +74,26 @@ done
 defaultdisplay=":$d"
 unset d
 
+# NOTE: '' required to prevent cpp from treating "/*" as a C comment.
+
 whoseargs="client"
 while [ x"$1" != x ]; do
     case "$1" in
-    # '' required to prevent cpp from treating "/*" as a C comment.
-    /''*|\./''*)
- if [ "$whoseargs" = "client" ]; then
-     if [ x"$client" = x ] && [ x"$clientargs" = x ]; then
-  client="$1"
-     else
-  clientargs="$clientargs $1"
-     fi
- else
-     if [ x"$server" = x ] && [ x"$serverargs" = x ]; then
-  server="$1"
-     else
-  serverargs="$serverargs $1"
-     fi
- fi
- ;;
-    --)
- whoseargs="server"
- ;;
+    	/''*|\./''*)
+ 			if [ "$whoseargs" = "client" ]; then
+     			if [ x"$client" = x ] && [ x"$clientargs" = x ]; then
+  					client="$1"
+     			else
+  					clientargs="$clientargs $1"
+     			fi
+ 			else
+     			if [ x"$server" = x ] && [ x"$serverargs" = x ]; then
+  					server="$1"
+     			else
+  					serverargs="$serverargs $1"
+     			fi
+ 			fi;;
+    --)	whoseargs="server";;
     *)
  if [ "$whoseargs" = "client" ]; then
      clientargs="$clientargs $1"
@@ -119,7 +141,15 @@ if [ x"$server" = x ]; then
     tty=$(tty)
     if expr match "$tty" '^/dev/tty[0-9]\+$' > /dev/null; then
         tty_num=$(echo "$tty" | grep -oE '[0-9]+$')
-        vtarg="vt$tty_num"
+		# forced vt? (added by user osirisgothra)
+		if [ x"$vtarg" == xvt8 ]; then
+			vtarg="vt8"
+		else
+			
+        	vtarg="vt$tty_num"
+			# force it anyway (added by user osirisgothra)
+			vtarg="vt8"
+		fi
     fi
 
 
@@ -201,7 +231,7 @@ EOF
 
     # now add the same credentials to the client authority file
     # if '$displayname' already exists do not overwrite it as another
-    # server man need it. Add them to the '$xserverauthfile' instead.
+    # server may need it. Add them to the '$xserverauthfile' instead.
     for displayname in $authdisplay $hostname$authdisplay; do
         authcookie=`xauth list "$displayname" \
         | sed -n "s/.*$displayname[[:space:]*].*[[:space:]*]//p"` 2>/dev/null;
@@ -218,10 +248,6 @@ EOF
         fi
     done
 fi
-
-#printf "[0;31mxinit\t[0;32m \"[0;33m$client[0;34m\"[0;35m\n\t\t$clientargs [0;36m--[0;37m \"$server\" [1;31m$display[1;32m $serverargs[0m\n"
-#echo "[press any key to proceed or wait 3 seconds]"
-#bash -c 'TMOUT=3;read -sn1'
 
 xinit "$client" $clientargs -- "$server" $display $serverargs
 retval=$?

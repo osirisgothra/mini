@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env perl
 #
 #    starter
 #    program starter hub
@@ -46,19 +46,32 @@
 #
 
 # hub
-FIFO_NAME="$(mktemp)"
-FIFO_OK=0
-if [[ -r "$FIFO_NAME" ]]; then
-	rm "$FIFO_NAME" && 	mkfifo "$FIFO_NAME" && FIFO_OK=1
-fi
-
-while ((FIFO_OK)); do
-	nextitem=$(cat $FIFO_NAME)
-	echo "$nextitem"
-done
-
-
-
+use warnings;
+use v5.20;
+use strict;
+use Path::Tiny qw( tempfile );
+use POSIX qw( mkfifo );
+sub execute {
+	# execute item or set of items
+	# items are executed sequentally, one after the other ends
+	# this procedure is done in the background
+	# returns: pid of executioner
+	unless (fork()) {
+		qx! $_ ! for @_;
+	}
+}
+my $finame = tempfile;
+my $fiok=0;
+$finame->remove() if $finame->exists();
+say("using $finame to communicate with other programs");
+mkfifo($finame,770) || die("cant make $finame into a fifo, aborting");
+while ($fiok == 0) {
+	say("waiting for call...");
+   for my $item ($finame->lines()) {
+		say "recieved: $item";  
+		execute "$item";
+	}
+}
 
 
 

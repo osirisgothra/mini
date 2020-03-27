@@ -1,0 +1,56 @@
+#!/bin/sh
+
+err_loopbreak=131
+err_fatal=129
+err_fail=128
+err_unexpected=130
+tmpdir=$(dirname `mktemp -u`)
+
+if [ -d $tmpdir ]; then
+	echo "tempdir: $tmpdir"
+else
+	echo "fatal, your system is unstable (mktemp not working correctly!)"
+	exit $err_fatal
+fi
+
+begin()
+{
+	for argument; do case $argument in
+	repeat)
+		# repeats over and over (for pesky HDMI errored busses)
+		rscript=$(mktemp repeating-i3-XXXXXX)
+		echo '#!/bin/sh\nwhile true; do /usr/bin/i3; done' > $rscript
+		chmod a+x $rscript
+		xinit vt8 $rscript
+		exit $err_loopbreak;
+	*)
+		# one way ticket, keep this PID and continue toa fes
+		exec xinit /home/osirisgothra/bin/absolute-i3-process
+		# in case above failed somehow (file got deleted, permissions, etc)
+		fail;;
+	esac; break; done
+	fail
+	exit $err_unexpected
+	
+}
+fail()
+{
+	echo "does not run as program"
+	echo "please type 'source' absolute-i3" 
+	echo "or use 'exec absolute-i3'"
+	exit $err_fatal
+}
+	
+pname=$(ps -p `ps -p $$ -o ppid=` -o command=)
+echo "parent: parent_name=$pname parent_pid=$PPID this_pid=$$ this_cml=[$*]"
+
+case $- in
+i) begin;;
+*) if echo $pname | grep -q login; then
+		begin repeat
+   else
+		fail
+   fi;;
+esac
+
+exit $err_unexpected

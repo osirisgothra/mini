@@ -1,0 +1,90 @@
+#!/usr/bin/zsh
+
+setopt localoptions
+setopt noxtrace
+setopt aliases
+setopt kshglob
+setopt extendedglob
+setopt nonullglob
+setopt interactivecomments
+exec 2>/dev/null
+echo -ne "checking for window manager..."
+case $(wmname) in
+	i3)
+		echo "found i3!"
+		echo -ne "floating the window..."
+		i3-msg floating enable && echo "ok" || echo "failed (i3 refused to perform the command)";;
+		#TODO: add multiple DM handlers here
+		#example:
+		# mywm)
+		#		echo "found my windowmanager!"
+		#		mywm-cmd float
+		#		echo "finished setup! ($?)"
+		#		;; <- dont forget these!
+	kwin|kde|enlightenment)
+		echo "kde/enl"
+		echo "no special setup required for kde/kwin or enlightenment (whistles fake-happy tune while nervously and slowly sneaking away in plain sight as they stare almost up at the ceiling)"
+		;;
+
+	*)	echo "reports $(wmname)"
+		echo "(this window manager has no special setup, so none is being performed, yet)"
+		;;
+esac
+
+
+echo -ne "loading help..."
+# TODO: compile a class cache if possible
+if [[ $1 =~ [A-Za-z_][_A-Za-z0-9]*::[_A-Za-z][_A-Za-z0-9]* ]] || [[ $* =~ perl ]]; then
+	echo "appears to be a perl classname or doc fastrunning result to perldoc"
+	if [[ $1 =~ ^perl ]] && [[ $# == 1 ]]; then
+		echo "autodetect: a manpage, but also a perl helpdoc"
+	elif [[ $* =~ "::" ]]; then
+		if [[ $# -gt 1 ]]; then
+			echo "autodetect: one or more perl class or modules (possibly mixed with other stuff)"
+		else
+			echo "autodetect: a perl class or perl module (pm)"
+		fi
+	else
+		echo "autodetect: a mixed set of perl helpdocs of varied types"
+	fi
+	if perldoc "$1"; then
+		echo "reader reports: ok"
+		exit 0
+	else
+		echo "reader reports: failed :( "
+		echo -ne "...continuing the search..."
+	fi
+fi
+goodcount=0
+arg=( -v -f -q -- -a )
+for x in $arg; do
+	echo -ne '..'
+	files=`perldoc -l $x "$@" 2>/dev/null`
+	if [[ $? -eq 0 ]]; then
+		perldoc $x "$@" && let goodcount++
+	fi
+done
+if [[ $goodcount -lt 1 ]]; then
+	echo -ne '..'
+	item="$*"
+	case $item in
+		*\(*\))
+ 			declare -g  page="${item%%\(*}"
+			declare -gi section="${${item##*\(}%%\)*}"
+			echo -ne ".."
+			#echo "user specified suffix for section: page=$page, section=$section"
+			man --section $section $page && let goodcount++;;
+		*)
+			echo -ne ".."
+			#echo "no special syntax embedded in string, passing all arguments to man... ($item)"
+			man -- "$@" && let goodcount++;;
+	esac
+fi
+if [[ $goodcount -lt 1 ]]; then
+	echo -ne '..'
+	info "$@" && let goodcount++
+fi
+if [[ $goodcount -lt 1 ]]; then
+	echo -ne '..'
+	nano /usr/share/doc/$*/^*.gz
+fi

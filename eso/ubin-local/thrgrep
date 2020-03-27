@@ -1,4 +1,330 @@
-#!/bin/bash
+#!/bin/zsh
+MAXINT=32767
+docloc="/usr/share/doc/paradisim/mini/ubin-local/thrgrep"
+presetconfig="$HOME/.thrgreppresetrc"
+# adhere to this comment either inline or during execution!
+! [[ -r ~/.iamosirisgothra ]] && { echo "
+# NB: not intended for release of any kind use at own risk, or not at all! (ctrl+break aborts) you will have to read code to disable this message if you are not me
+"; sleep 15; }
+# NB: new argument, do we:
+#    1) allow preset lines such as:
+#					 "mystuffavg" "allavg"
+#    2) or have a special operator like:
+#					 alias mystuffavg=allavg
+#				or	alias mystuffavg allavg
+#				or  allavg [definitions] "aliases:testavg,[otheraliasnames]"
+#	problem being in 1) confusion whether the preset is a process name or not
+#	and in 2) another type of syntax to check, that basically doesnt do
+#	anything special or new (except resolves ambiguity).
+#	at this time, the only way it can be done is to use a "singular list"
+#	to disambiguate it from a non-preset or process name. This can be written
+#	one of two different ways:
+#						"mystuffavg"  ",allavg"
+#	or (preferred) 		"mystuffavg"	"allavg,"
+#
+#	the second one is preferred because the operator is in the back which
+#   keeps it from obstructing the name from view, and also acts as a placeholder
+#   for new items, should they be added (this is actually an idiom used by many
+#	mid and hi-level languages, where lists or hashes [aka dictionaries] are used).
+#	# NB: much argumenting about if (or not) bash->zsh was 'worth it', i wrote out
+# this lengthy evaluation to put this topic to bed.
+# CHANGED: arrays from bash format ( declare -gxA VARNAME=( [keyname]="value" )
+#                   to zsh format: ( declare -gxA VARNAME=( "keyname" "value" )#
+# have been converted and then also the ini file updated, and tested 
+# the meta feature was never in the bash version (is why we went to zsh)
+# the meta feature makes use of parameter flags (zsh only) and prevents the
+# need of manipulating IFS (saving, checking, setting, resetting)
+# the risks of going to zsh were far less than the risks of staying with bash
+# draft risks:
+# bash risks: possibly incompatible because of newer versions (0%)
+#             syntax problems (5%)  inferior syntax methods (30%)
+#             execution time and redundant code (10%)
+#             syntax reviewing confusion (10%)
+#			  user not having bash (0%)  conversion of code (%0)
+#			  overall: 55%
+# zsh risks:  user not having zsh (5%)   conversion of code (1%)
+#			  syntax reviewing confusion (5%)
+#			  overhead due to underuse on the system (2%)
+#			  overall: 13%
+# calculated risks: (draft is for observation and reference only, 
+#                    not for calculation!)
+# risk ---------------:---BASH---:---ZSH---:
+# incompatible version:    0%         1%
+#   conversion of code:   25%         5%
+#   syntax workarounds:   20%         0%
+#script execution time:    0%        15%
+#  reviewing confusion:   10%         8%
+#    language overhead:    2%        20%
+# user missing program:    0%        10%
+# -overall percentage:----[57%]------[59%]
+# -average----------------[8.1%]     [8.4%]
+# -largest risk-----------[25%]------[20%]
+# -integrated risk--------[30.0]     [29.1]
+# -overall gain in using zsh: [0.9] (9%)
+# -integrated "worth-it" percentage: [0.65] (65% gain in positive features and effects)
+#declare -gxA BUILTIN_PRESETS=( [rtfast]="-12 realtime 2" [rtgood]="-14 realtime 4"
+#							 [normal]="0 best-effort 5" [lazy]="12 idle 0" 
+#							 [javafast]="java -14 realtime 5"
+#							 [xorg]="Xorg -14 realtime 2"  )
+# yes this is sugar, pure sugar, and will be moved to another document once
+# this document is in the tree and has a place for older version(s)
+# *if this happened already you are looking at an older branch!!*
+# now, no more complaining, yes its worth it!
+otty=$(tty)
+stty sane
+unset_state="$(uuidgen)"
+assert()
+{
+	# syntax: assert(directive,value) (works for all but developer tool(s) below)
+	#   developer tools:
+	#     assert(avg_op,opname,target,value) --> [[ value OPERATION target ]]
+	#			(where OPERATION is opname replaced at runtime)
+	#			(note: avg_op is not usually to be used directly by user)
+	#
+	directive="${1-$unset_state}"
+	shift
+	case $directive in
+	   $unset_state) echo "super failure, not enough arguments for assert!!"
+					 echo "(none at all given, not even a DIRECTIVE)"
+					 echo "report code: $unset_state"
+					 exit 131; sleep 12288
+					;;
+			 eqavg)	 assert avg_op eq $@ ;;
+			 gtavg)	 assert avg_op gt $@ ;;
+			 ltavg)  assert avg_op lt $@ ;;
+			 geavg)  assert avg_op ge $@ ;;
+			 leavg)  assert avg_op le $@ ;;
+			 neavg)  assert avg_op ne $@ ;;
+			 avg_op)
+					 typeset -g op="${1-eq}"; shift
+					 typeset -i target="${1-0}"; shift
+			 		 typeset -i final=0
+					 typeset -i count=$#
+					 typeset -i tag=0
+					 [[ $# -lt 1 ]] && { return 0 }
+					 for tag; do final+=$tag; done
+					 eval "[[ $final -$op $target ]]"
+					;;
+			 R) for tag; do assert r "$tag"; done;;
+			 W) for tag; do assert w "$tag"; done;;
+			 X) for tag; do  assert x "$tag"; done;;
+			 D) for tag; do  assert d "$tag"; done;;
+			 x) [[ -x "$*" ]];;		d) [[ -d "$*" ]];;
+			 w) [[ -w "$*" ]];;
+	         r) [[ -r "$*" ]];;
+	 qbalanced) r=$(grep -c "[\"']" "$*"); (( r % 2 == 0 && r > 1 ));;
+   qunbalanced) ! assert qbalanced;;
+	   numeric) [[ "$*" =~ ^[0-9]+$ ]];;
+       nimatch) ! assert imatch "$@";;
+        imatch) assert match "${(U)@}";;
+        nmatch) ! assert match "$@";;
+         match)  [[ $1 =~ ${@: 2} ]];;
+        filled) ! assert empty "$@";;
+         empty)    [[ ${#${(j: :)*}} -lt 1 ]];;
+             *) echo "assert failed (${directive-UNSPECIFIED} directive was unexpected) failing abnormally(130): testparams=[$@]";    false;;
+	esac
+	# return value will be delegated to caller by default, make sure not to do ANYTHING outside of the case
+}
+xassert()
+{
+	if assert "$@"; then
+		exec 1>$otty
+		exec 2>&1
+		echo "failed to assert $1 $2 ..."
+		echo "stopping"
+		sleep 2
+		echo "press a key to exit"
+		read -sk1
+	fi
+}
+if [[ $1 == custom ]]; then
+	ib() {
+			stty sane > $otty
+			echo -e "\n\nabout to execute \"$0(${(j:,:)${(qq)@}})\"" | hi "[\"'][^\"']+[\"']"  > $otty
+			echo -e "\ndetail:\n\n\tPrompt=[$1]\n\tDefaultValue=[$2]\n\tTestAgainst=[$3]\n\n" > $otty
+			read -sk1
+			response="$unset_state"
+			# common dialog settings (here only)
+			local comm=( --cancel-label Back --no-lines --output-fd 1 --backtitle "\"${THRGREP_BACKTITLE-Press Cancel or Break anytime to abort custom selection process}\"" )
+			xassert filled "$3"
+			xassert empty "$4"
+			until [[ $response =~ ${3} ]]; do
+				[[ $response != "$unset_state" ]] && {
+					dialog $comm --msgbox "$response is not a valid option (expects a match to regex: $3)" 0 0
+				}
+				response=`dialog $comm --inputbox "$1" 0 0 "$2"`
+			done
+		}
+	# remember DIALOGRC to be set before call(s) for custom colors!
+	declare -gx proc=`ib "RegEx for Processes to Match" ".*"` || exit 127
+	declare -gx nlvl=`ib "Process Niceness, -19 (fastest) to 19 (slowest)" "^-?1?[0-9]\$"` || exit 127
+	declare -gx iogrp=`ib "Process IO Group (realtime,best-effort,idle)" "best-effort" "^(realtime|best-effort|idle)\$"` || exit 127
+	declare -gx iopri=`ib "Process IO Priority (0=none 1=lowest .. 5*=normal .. 7=highest)" "5"` || exit 127
+exit 111
+	dialog --prgbox $((LINES-4?LINES-4:24)) $((COLUMNS-4?COLUMNS-4:80)) "Applying Custom Preset" "thrgrep $proc $nlvl $iogrp $iopri"
+fi
+
+
+declare -gxA BUILTIN_PRESETS=( "rtfast"		"-12 realtime 2"
+								"rtgood"	"-14 realtime 4"
+							 	"normal"	"0 best-effort 5"
+								"lazy"		"12 idle 0"
+							 	"javafast"	"java -14 realtime 5"
+							 	"xorg"		"Xorg -14 realtime 2"  )
+declare -gxA PRESETS=( )
+declare -gxA err=(	unk		"127?unspecified error" )
+function crash()
+{
+	case ${1-none} in
+		none) 	echo "fatal error: crashing (no error description given (cmdline=$*)!"
+			  	crash unk
+				;;
+		*)  	if [[ $1 =~ ^[0-9]+\\\?[a-z]+$ ]] {
+					local errcode=${1%%\?*}
+					local errtext=${1##*\?}
+					echo "crashing (code $errcode): $errtext"
+				}
+				;;
+	esac
+}
+
+function gather()
+{	#    int gather(type)
+	#	 type: owned all root service system siblings parent-siblings toplevel bottomlevel detached tty stopped stopping zombied
+	#	  int: 0=ok !0=error (1=unspecified error, return code possible from last program executed)
+	# type(s) implemented so far: (uncoded: owned all root) (coded: NONE YET)
+	case ${1-unk} in
+		unk)	echo "no type given - program error - exiting (${?-no return code available}/${pipestatus-no pipe status})"; exit ;;
+		*) echo "unsupported: $1"; return 1;;
+	esac
+
+}
+local function debug()
+{
+	#completely transparent if not enabled, let all status codes
+	#fall through the cracks!
+	if ((tg_debug_enable)); then
+		printf "debug($SECONDS,$PWD,$?,$pipestatus): $*"
+	fi
+}
+assert()
+{
+	local R=$? PS=$pipestatus USCOR="$_" BS="$0"
+	if eval "$@"; then
+		return 0
+	else
+		echo "FATAL: ASSERT FAILED!"
+		echo "-----------------------------\ncall stack:\n$(caller $MAXINT)-----------------------------\n"
+		echo "pipes: $PS			status/returncode: $R"
+		echo "lastparam: $USCOR		source(?stack?): $BS"
+		echo "pid: $$ 				ppid: $PPID"
+		tput setaf 13
+		echo "[A] ABORT(DEFAULT)	[C] CONTINUE AT OWN RISK"
+		tput sgr0
+		while true; do read -sk1
+			[[ $REPLY =~ [aAcC] ]] && break
+			if [[ $REPLY == "" ]]; then
+				REPLY=A
+				break
+			fi
+			echo "Invalid Choice, please pick A or C [ENTER=C]"
+		done
+
+		case ${REPLY^^} in A) echo "aborted."; exit 124;;
+                           C) echo "continuing in 5 seconds...";sleep 5s; return 122;;
+			     		   *) echo "fatal??? real bad: even assert failed, must be corruption somewhere!"; exit 123;;
+		esac
+	fi
+}
+init_presets()
+{
+	local nopresets=0
+	if [[ -r $presetconfig ]]; then
+		 eval "typeset -gxA PRESETS=( `cat $presetconfig | grep '^\".*" ".*"'` )"
+#		mapfile PRESETS <$presetconfig ## DISABLED (due to lack of support for named array entries)
+		if [[ ${#PRESETS[@]} -lt 1 ]]; then
+			echo "$presetconfig did not contain any valid presets!"
+			let nopresets++
+		else
+			echo "$#PRESETS preset(s) loaded from $presetconfig"
+		fi
+	else
+		let nopresets++
+	fi
+	if ((nopresets)); then
+		echo -e "notice: no $presetconfig found, only internal presets are available at this time\n		  see $docloc (make sure ubinlocal-docs are installed) for details/examples"
+		unset PRESETS
+		declare -gA PRESETS=( "${(kv)BUILTIN_PRESETS[@]}" )
+	fi
+}
+function has_preset()
+{
+	select_preset "$1"
+	if [[ $PRESETVAL != "" ]]; then
+		return 0;
+	else
+		return 1;
+	fi
+	# (1==false 0==true)
+}
+function select_preset()
+{
+	for x in "${(k)PRESETS[@]}"; do
+		debug echo "checking $1 against $x"
+		if [[ $1 == $x ]]; then
+			echo "found $x = $PRESETS[$x]"
+			PRESETNAME="$x"
+			PRESETVAL="$PRESETS[$x]"
+			return 0
+		else
+			PRESETNAME=""
+		fi
+	done
+}
+init_presets
+if ! has_preset "$1"; then
+	echo "processing as normal command line (no known preset named)"
+else
+	echo "about to use preset $PRESETNAME with value of $PRESETVAL"
+	assert '[[ $PRESETVAL != "" ]]'
+	if [[ "$2" != "" ]]; then
+		searchterm="$2"
+	else
+		searchterm=""
+	fi
+	[[ $# -gt 2 ]] && { echo "warning: more arguments on command line in preset mode---they will be ignored"; }
+	echo "transform from preset: $PRESETNAME -> $PRESETVAL"
+	if [[ $PRESETVAL =~ , ]]; then
+		echo "detected meta-preset, running as subcommand..."
+		for x in ${(s:,:)PRESETVAL}; do
+			echo "delegating thrgrep $x..."
+			command "$0" "$x"
+		done
+		exit 122
+	fi
+	if [[ $searchterm != "" ]]; then
+		eval set -- $searchterm $PRESETVAL
+	else
+		eval set -- $PRESETVAL
+	fi
+
+	echo "injecting into normal command..."
+fi
+
+if [[ $1 == "list" ]]; then
+	# declare -p PRESETS
+	pp=0
+	echo "known presets"
+	echo "---------------------------------------------------"
+	for p in "${(k)PRESETS[@]}"; do
+		echo "$p[[20C${PRESETS[$p]}"
+		let pp++
+	done
+	echo "---------------------------------------------------"
+	echo "$pp preset(s)"
+
+fi
+
 usage()
 {
 cat <<-EOF
@@ -6,6 +332,18 @@ cat <<-EOF
 					   or: thrgrep "search-regex" [nice]
 					   or: thrgrep "search-regex" [nice] [be-ionice]
 					   or: thrgrep "search-regex" [nice] [class] [ionice]
+					   or: thrgrep [preset]
+
+					presets are in the form of command assigning to a thrgrep
+					syntax as stated above (except for the preset one of course)
+					an example shown here:
+						thrgrep javafast		<- typed
+					inside .thrgreppresetrc or BUILTIN_PRESETS:
+ORIGINALLY (when bash was the scripting language):
+						[presetname]='commandline'
+CHANGE:
+						presetname 'commandline'
+						presetname subpreset1, subpreset2, ...
 
 					where "search-regex" is any regular expression(s) that are
 					supported by pgrep (see pgrep(1) for details), and [nice] is
@@ -50,8 +388,30 @@ fi
 
 CMD="$1"
 shift
+echo "using $CMD as criteria"
 THREADS=( $(pgrep -w $CMD) )
-if [[ ${#THREADS[@]} -eq 0 ]]; then
+if [[ $CMD == "all" ]]; then
+	echo "special criteria 'all' found (meaning: all threads under current user)"
+	BLACKLIST=( '\(sd' '^systemd' '^dbus-' )
+	NAMES=( $(awk '{ print $2 ; }' <<< `pgrep -u1000 -l`) )
+	# 2(0) <- loop distance-from-right(left-depth) \v/
+	for x in $NAMES; do
+								#1(1)
+		for y in $BLACKLIST; do
+									#0(2)
+			if [[ $x =~ $y ]]; then
+				echo "cannot do $x, its a blacklist item"
+				continue 2
+			fi
+		done
+        # echo "we should thrgrep $x $@"
+		# we do, here (recalls self, but not in same symbol space)
+		# debug only: # echo thrgrep $x $@
+		thrgrep $x $@
+		# if we had to continue inner_loop, we would actually do inner_loop-1 here (but that wouldnt be needed since its our loop anyway)
+	done
+	exit 0
+elif [[ ${#THREADS[@]} -eq 0 ]]; then
 	echo "no threads found under the given critieria: $CMD"
 	exit 1
 else
@@ -63,21 +423,30 @@ else
 		pfx=sudo
 	fi
 fi
+std_out="/dev/stdout"
+err_out="/dev/null"
+
 for THREADID in "${THREADS[@]}"; do
 	case $# in
 		0)	# display only
 			echo "$THREADID"
 			;;
 		1)	# renice only
-			$pfx renice -n $1 -p $THREADID
+#			[[ $1 =~ ^-?[0-9]+$ ]] || die "bad nice level value: $1"
+#			[[ $THREADID =~ ^[0-9]+$ ]] || die "thread id not legal (numeric decimal integers only): $THREADID"
+			$pfx renice -n $1 -p $THREADID 2>$err_out 1>$std_out
 			;;
 		2)	# renice | besteffort-prio
-			$pfx renice -n $1 -p $THREADID
-			$pfx ionice -c best-effort -n $2 -p $THREADID
+			$pfx renice -n $1 -p $THREADID 2>$err_out 1>$std_out
+			$pfx ionice -c best-effort -n $2 -p $THREADID 2>$err_out 1>$std_out
 			;;
 		3)	# renice | class + prio
-			$pfx renice -n $1 -p $THREADID
-			$pfx ionice -c $2 -n $3 -p $THREADID
+			#echo "pfx=\"$pfx\", declaration follows:"
+			#declare -p pfx
+			#echo "$pfx renice -n $1 -p $THREADID 2>$err_out 1>$std_out"
+			$pfx renice -n $1 -p $THREADID 2>$err_out 1>$std_out
+			#echo "$pfx ionice -c $2 -n $3 -p $THREADID 2>$err_out 1>$std_out"
+			$pfx ionice -c $2 -n $3 -p $THREADID 2>$err_out 1>$std_out
 			;;
 		*)
 			usage

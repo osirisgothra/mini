@@ -2,7 +2,62 @@
 use warnings;
 use strict;
 use v5.19;
+use constant true => 1, false => 0;
+use Curses::UI;
 use Term::ReadLine;
+
+
+# --%version rules---------------------------------------------------------------------------------------------------
+# add to minor +1 every time a complete run has been successful
+# add to major +1 every time a full commit has been done on the repository
+# increment the revision letter whenever more than 20% of code has been rewritten (ie, 'b' to 'c', or 'y' to 'z')
+# letters are base-26 numbers: 'a,b,c..x,y,z,aa,ab,ac....ay,az,ba,bb...zx,zy,zz,aaa,aab' (are just as unlimited)
+# reset revision to 'a' whenever the major (not minor) number is incremented
+# change revision to 'final' when packaging for distribution, a fully tested and verified version release!
+# change revision to 'alpha' for untested state releases
+# change revision to 'beta' for user-tested state releases to be evaluated by volunteering users
+
+my %version = ( major => 1,
+				minor => 0,		revision => 'a' );
+				
+my $version = "v".$version{'major'}.".".$version{'minor'}." rev ".$version{'revision'};
+
+my $cui = new Curses::UI( -color_support => 1 );
+my @menu =( {-label=>'File',
+							-submenu => [{
+											-label => 'Exit		^Q',	-value => \&exit_dialog
+										}]
+			},
+			{-label=>'Help',
+							-submenu => [{
+											-label => 'About	F1',	-value => \&about_dialog
+										}]
+			});
+
+sub exit_dialog()
+{
+	my $ret = $cui->dialog	(	-message	=>	"Sure you want to exit now??",
+								-title		=>	"Confirm Exit",
+								-buttons	=>  ['Ok','Cancel'],
+							);
+	exit(0) if $ret;
+}
+sub about_dialog()
+{
+	my $author = "Gabriel Sharp";
+	my $version = "1.0";
+	my $copyright = "(C)2019";
+	my $license = "GNU GPL v3";
+	my $downloadurl = "http://github.io/mini.git/eso/ubin-local/wakemeupin";
+	my $ret = $cui->dialog	(	-message	=>	"About $0",
+								-title		=>	"$0 version $version, written by $author\n$copyright\n$license\n$downloadurl",
+								-buttons	=>  ['Close'],
+							);	
+}
+								
+
+
+#exit(0);
 
 no warnings "experimental";
 
@@ -17,6 +72,10 @@ my ($opt, $usage) = describe_options(
 	'$myprogram %o | [[hours]h] | [[minutes]m] | [[seconds]s] | [[milliseconds]ms]',
 	[ 
 		'gui|g', "use graphical interface",
+	],
+	[	
+		'at|a=s', "at (fixed destination/dynamic time) instead of in (fixed time/dynamic destination)", 
+		{ default => 'no' },
 	],
 	[
 		
@@ -66,6 +125,38 @@ my %units = qw	( 	h 	hour
 my $value = $opt->value;				
 my $debugmode = 1;	# disable this when not debugging (set to 0)
 my $usegui = $opt->gui;
+my @gui_elements = (	
+	{ Class => "TitleBar",
+	  Text => "Gui Interface",
+	  Width => -1,
+	  Height => 2,
+	  Color => color(1,2), 
+	},
+	{ Class => "StatusBar",
+		Items => [ "Status Item Left", "Center", "Right" ],
+	  Width => -1,
+	  Height => 2,
+	  Refresh => 1000,
+	} );
+	#{ Class => "Menu",
+	#	Items => { File => { menu(qq("Exit"
+	 # Width => -1
+
+
+					
+sub color
+{
+	my @colors = (shift // 7, shift // 8);
+	return \@colors;	
+}
+sub updategui()
+{
+	for my $elem (@gui_elements) 
+	{
+		say ${$elem}{"Class"};
+	}
+	return true;
+}
 
 # SUBROUTINES
 sub gui
@@ -74,18 +165,14 @@ sub gui
 	my $py = 1;
 	my $x = $ENV{'COLUMNS'} // 40;
 	my $y = $ENV{'ROWS'} // 24;
-	print("[44;37;1m[2J[1;1H");
-	## bars
-	print("[0;42;35m");
-	print(" Gui Interface [K[" . $px . ";". $y ."H");
-	print(" More Info[K" );
-	## content start
-	print("[0;43;35m[4;2H")	
+	my $run = 1;
+	while ($run) 	
+	{
+		updategui() or die("error: updating gui failed: $!");		
+		$run = gui_io();
+	}		
 }
-sub gui_content
-{
-	print("[2G$_\n") for @_;
-}
+
 sub gui_io
 {
 	my $kp = "";
@@ -93,17 +180,9 @@ sub gui_io
 	while(1) {
 		read(STDIN,$kp,1,0);	
 		given($kp)
-		{
-			when(/[qQ]/) 
-			{ 
-				last OUTER; 
-			}
-			default 
-			{ print("[s[2;2H[31mINVALID KEY[u");
-					  sleep(1.2);
-					  print("[2K[u");
-			}
-					  
+		{											
+			return 1 when /[qQ]/;
+			default { return 0;	}					  
 		}
 	}
 	return 0;
@@ -185,6 +264,10 @@ while (@ARGV > 0) {
 
 die("method is not valid!!! ($!)") unless $opt->method =~ /(beep|audio|command|notify)/;
 ##die("too many bad arguments(" . scalar(@ARGV) . "), use --help for proper use information\n $? $!")	if (scalar(@ARGV) > 0);
+if ( $opt->at ne "none" )
+{
+	# todo subtract
+}
 
 
 mesg("waiting for time to elapse:");

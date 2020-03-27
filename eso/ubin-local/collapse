@@ -1,0 +1,76 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+use v5.20.2;
+
+use Path::Tiny 					qw( path );
+use Cwd;
+use Getopt::Long::Descriptive;
+use vars 						qw( $opt $usage $syntax @options $program );
+use Term::ANSIColor 4.00		qw ( color colored uncolor colorstrip colorvalid :constants :pushpop coloralias );
+
+
+
+
+
+$program = path($0)->basename();
+$syntax  = "$program %o DIRECTORY";
+@options = 
+	(  	[ 'depth|d=i', "max depth to descent when packing empty directories", 	{ default => -1  } 	],
+    	[],
+    	[ 'verbose|v',  "print extra stuff"									],
+    	[ 'help',       "print usage message and exit" 						],
+ 	);
+($opt, $usage) = describe_options($syntax,@options);
+(print($usage->text), exit)  if $opt->help;
+
+sub collapse
+{
+	# collapse (dir,lvl)
+	my $single= "";
+	my $target= shift or die(YELLOW, "DIR is required in collapse() $! $?");
+	my $curlvl= shift or die(RED, "CURLVL is required in collapse() $! $?");
+	my @entries = path($target)->children();
+	my $ecnt = $#entries + 1;
+	if ($ecnt > 1)
+	{
+		say MAGENTA, "end: $target has $ecnt entries which cannot be collapsed";
+		
+		say GREEN, "this dir would be copied to cwd, " . cwd();
+	}
+	elsif ($ecnt == 1)
+	{
+		$single = path($entries[0]);
+		if ( $single->is_dir() )
+		{
+			say CYAN, "traversing into singular dir: $single (no other siblings)";
+			collapse($single,$curlvl+1);
+		}		
+	}
+	else
+	{   #entries is zero
+		die(RED, "cannot collapse (entries is $ecnt) ",GREEN,"empty directory tree would be removed altogether, collapse is meant for paths that have many empty dirs under them.",RESET," $? $!")
+	}
+	
+}
+
+collapse($_,1) for @ARGV; 
+
+
+#
+# local $Term::ANSIColor::AUTOLOCAL = 1;
+# say colorstrip, '\e[31mTest no codes';
+# say( (color 'red'), "Test ansi color");
+# say colored ['red on_black'], 'Test color ansi';
+# say "valid bluebold on magenta: " . colorvalid('blue bold', 'on_magenta');
+# coloralias('alert', 'yellow');
+# say coloralias('alert') , "alert";
+# say colored("more","alert");
+# say BOLD, BLUE, "This text is in bold blue.\n", RESET;
+# say PUSHCOLOR RED ON_GREEN "This text is red on green.\n";
+# say PUSHCOLOR BRIGHT_BLUE "This text is bright blue on green.\n";
+# say RESET BRIGHT_BLUE "This text is just bright blue.\n";
+# say POPCOLOR "Back to red on green.\n";
+# say LOCALCOLOR GREEN ON_BLUE "This text is green on blue.\n";
+# say "This text is red on green.\n";

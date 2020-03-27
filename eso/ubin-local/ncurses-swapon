@@ -1,0 +1,125 @@
+#!/bin/zsh
+# dialog sizes (sizesf=formWd,formHt,fieldLen [0=auto] (AxAx12 default)
+#               sizes=lines,cols (80x25 default)
+
+# SHELL OPTIONS
+
+setopt localoptions
+setopt interactivecomments
+setopt extendedglob
+setopt dotglob
+setopt nonullglob
+setopt noerrexit
+setopt aliases
+
+# PREINIT
+declare -gi debugging=1
+if ((debugging))\
+{
+
+# ALIASES (LANGUAGE EXTENSIONS)
+
+alias _lx="alias ns_"
+_lx zmodload="() { [[ $modules[zsh/$1] == loaded ]] && decho "$1 already loaded" || zmodload zsh/$1; ]]
+
+
+# MODULES
+
+if [[ -n $modules[zsh/zutil]
+zmodload zsh/mathfunc
+
+
+# DECLARATIONS
+
+callers() { echo "(zsh unsupported)"; }
+sizesf=( 0 0 12 )
+sizes=( 0 0 )
+parts=( $( for y in $(sed -nr '/swap/{s@^[^/]+@@g;p}' <<< `lsblk -fnlpo fstype,name`); do echo "$y" "$y"; done ) )
+t_banner="swapon-cursess-v0.1-d r2, a minimal swap manager"
+t_progname="$(basename $0)"
+t_sec="1"
+t_disco="Discovering Swap Partitions..."
+t_fatal="FATAL"
+t_operation="Select Operation?"
+t_menutxt="Select a partition to perform an operation on:"
+t_assert="Unhandled Exception on $LINENO with $*, call stack follows (if available)"
+t_utask="Unexpected/Unsupported Task"
+t_exit="Really Exit $t_progname($t_sec)??"
+t_sel="Select"
+t_exit="Exit"
+t_really="Do you really want to"
+t_cancel="Cancelled Operation"
+
+# FUNCTIONS
+
+assert() { 	eval "if [[ $1 ]]; then _ok=y; else _ok=n; fi";
+			if [[ $2 == "-noncritical" ]] || [[ $2 == "-N" ]]; then
+				case $_ok in y) return 0;; n) return 1;; esac
+			else
+				tput setaf 1
+				echo "$t_fatal: $t_assert"
+				callers
+			fi
+		 }
+dialog()
+{
+	command dialog --backtitle "$t_banner" --output-fd 1 "$@"
+}
+generic()
+{
+	assert '$# -gt 2'
+	local kind="${1-msgbox}"
+	local message="${2-$0}"
+	shift 2
+	dialog --msgbox "$message" $sizes "$*"
+}
+yn()
+{
+	local message="${1-$0}"
+	dialog --yesno "$message" $sizes
+}
+menu()
+{
+	title="$1"
+	shift
+	dialog --ok-label "$t_sel" --cancel-label "$t_exit" --menu "$title" $sizesf "$@"
+}
+
+
+modswap()
+{
+	local task=${1-swapon}
+	if reply=$(menu "$t_menutxt" $parts); then
+		task=$(menu "$t_operation" swapon "Add Swap Partition" swapoff "Remove Swap Partition" status "View Swap Status From swapon(1)" cancel "Cancel (Don't do anything!)")
+		#debug only:
+		#echo "reply: $reply  task: $task [end]"; read -sk1
+		case $task in
+  			swapon)	sudo swapon --priority 1 $reply;;
+			swapoff) sudo swapoff $reply;;
+			status) status;;
+			cancel)	dialog --msgbox "$t_cancel" $sizes;;
+			*) echo "$t_fatal: $t_utask"; exit 127;;
+		esac
+	else
+		if dialog --yesno "$t_really $t_exit ??" $sizes; then
+			return 1
+		fi
+	fi
+	return 0
+}
+status()
+{
+ 	sudo swapon | dialog --programbox swap-status $((LINES/2)) $((COLUMNS/2))
+}
+main()
+{
+	progname="$(getarg)"
+	while (modswap)\
+	{
+		sync
+	}
+	return $?
+}
+
+main "$0" "$@"
+

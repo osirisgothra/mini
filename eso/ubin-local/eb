@@ -24,13 +24,6 @@
 #    home-run servers:   <http://paradisim.twilightparadox.com>
 #    corporate hosted:   <http://paradisim.tk>
 #
-#  	 notice: seasonal mirrors left for historical reasons but are rarely online
-#	         please use the public repository instead:
-#
-#	 'git clone https://github.com/osirisgothra/mini.git'
-#
-#    or visit 'https://github.com/osirisgothra/mini'	 
-#
 #    This program is free software; you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
 #    the Free Software Foundation; either version 2 of the License, or
@@ -71,148 +64,206 @@
 #     firstly, the EDITOR environment variable is checked. If there is a $editorpath
 #     specified inside this script, and it is found first, it is used above all others
 #     if you dont like this, make $editorpath=Path::Tiny->rootdir.
-#
+# 4 - the listing of files has a pause for which the user can read it, but there is less
+#	  time needed for reading this list if less files are in it, and, the probability
+# 	  is high that a long list would ever want to get read entirely. For this reason
+#	  threshold and wait values are declared so that the pause can be not annoyingly long
+#     or short depending on how many things are in the list. The file listing takes
+#     both editing and creating files into consideration in its counts. This mechanism
+#	  uses two variables to calculate the time to wait:
+# 		my $threshold_file_wait = 6;	
+#			how many files influence waiting for user to read
+#		my $threshold_time_wait = 4;	
+#			the max number of seconds from the 0-threshold, and beyond, in seconds, the program should ever wait for user to read the file list
+#	  so in the above example, up to a list of 6 files will be considered, each file
+#     added to the list will be (4/6) seconds long (about 0.6 seconds), and, the max
+#     time wait will be '4' seconds (at 6 files), any file listing greater than 6 files
+#     long will still only get 4 seconds, you can, of course change this but be careful
+#     with the file_wait number, if it is too high you could be waiting a loooong time to read the list!
 
 
-# directives - standard v5.20.x brew
-use warnings;
+# VERSION
+
+use v5.20.2;
+
+# PRAGMAS
+
 use strict;
-use v5.20;
-# imported packages for argument searching, file and directory i/o
+use warnings;
+
+# PACKAGES
+
+use POSIX qw( floor ceil );
 use Getopt::Long::Descriptive;
+use Term::ANSIColor qw( :constants );
 use Cwd qw! cwd !;
-use Path::Tiny qw! path !; 
+use Path::Tiny qw! path !;
 use File::Temp;
 
-# hardwired options for developer use
+# PROTOTYPES
+
 use subs 'sleep';
+use subs qw( print nprint say );
 
-my $debuggingmode = 0;
+# CONSTANTS
 
-# program's variables (could be edited for other regions or languages)
+use constant DEBUG_MODE => 0;
+use constant POD_COMPLETE => 0;	# todo: complete perl documentation
+use constant TRUE => 1;
+use constant FALSE => 0;
+use constant ON => "ON";
+use constant OFF => "OFF";
+use constant YES => 1;
+use constant NO => 0;
+
+# DIRECTIVES
+
+use warnings "redefine";
+
+# VARIABLES
 
 my $prefix = Path::Tiny->rootdir;					# usually /, but could be /usr or /usr/local if needed
 my $defbin = $prefix->child("bin");					# fallback binary location
-my $defbin_name = "nano";							# fallback binary name
 my $temp = ( -r -w -x -d "/tmp" ? "/tmp" : cwd() ); # default to current dir if no temp found
-my $path = $ENV{"PATH"} // $defbin;					# failsafe for possibly read-only environments
-my $home = path($ENV{"HOME"} // $temp);   				# set this way so exploits dont happen in curdir
-my $editorpath = $ENV{"EDITOR"} // detect_editor($prefix) // $defbin->child($defbin_name);
+my $path = path( $ENV{"PATH"} // $defbin );			# failsafe for possibly read-only environments
+my $home = path( $ENV{"HOME"} // $temp );   				# set this way so exploits dont happen in curdir
+my $editorpath = $ENV{"EDITOR"} // detect_editor($prefix) // $defbin->child("nano");
 my $shmtgt = "$home/.cache/powerbash/mon";	
 my $reloadflag = "$temp/.pb.reload.flag";
 my $signalflag = "$home/.config/powerbash/flags/no_signal";
 my $program_lang = 'en_US';				# locale_we_are_using (todo:implement it when needed)
 my $program_name = 'eb';				# name of executable file (this file)
 my $edit_this = $0;
+my $debugging = 0;						# '1' when debugging, '0' when normal usermode
+my $pdir = '/proc/'.getppid().'/comm';
+my $pname = `cat $pdir`;
+my $threshold_file_wait = 6;	# please read the header notes for how this is used
+my $threshold_time_wait = 4;	# to estimate fairly disannoying pausing for reading
+
+# SUBROUTINES
+
+sub sleep 
+{	
+	my $timeout = shift // 1;
+	CORE::sleep($timeout) if DEBUG_MODE; 
+}
+sub detect_editor {
+	my $start = path(shift);
+	return undef unless $start->exists();
+	# see note 3
+	
+	my $altpath = $start->child("etc")->child("alternatives")->child("editor");
+	my $edpatha = $start->child("usr")->child("bin")->child("editor");
+	my $edpathu = $home->child("bin")->child("editor");
+	# priority is: alt (update-alternatives), user binary (/usr/bin/editor), system-wide binary (/bin/editor)
+	# first existing, executable path gets chosen and returned
+	return $altpath if ( -r-x $altpath );
+#	return $edpatha if ( -r-x $edpathu );
+#	return $edpathu if ( -r-x $edpatha );	
+}
+sub longhelp 
+{ 
+	# "type perldoc $program_name for long help (for now)"
+	if (POD_COMPLETE) {
+		system("perldoc",$program_name);
+	} else {
+		nprint RED,"Sorry, long help is unavailable in this version.",RESET ;
+	}
+};
+sub dodefault
+{
+	no warnings 'experimental';
+	my $target = "unknown.file";
+	say "using $pname as shell, editing (guessing) its configuration file as default...";
+
+	given($pname)
+	{
+		when (/zsh/) 	{ $target = path($home)->child('.zshrc');	}
+		when (/ksh/) 	{ $target = path($home)->child('.kshrc');	}
+		when (/bash/)	{ $target = path($home)->child('.bashrc'); }	
+		default 		{ $target = path($home)->child(".${pname}rc"); }
+	};
+	given ( -w $target )
+	{
+		system($editorpath,$target) when TRUE;
+		system($editorpath,"~/untitled.sh") when FALSE;
+	}
+
+};
+
+# MAIN PROGRAM
+
+# program operation: debug pre-init
+
+unless (DEBUG_MODE==FALSE) {
+	nprint "script: $0 (args=$#ARGV, @ARGV)\n";
+	nprint "environment: ";
+	my $hsz = 11;
+	my $lsize = int( (($ENV{COLUMNS} // 80)-$hsz) * 0.25);		# hsz: #chars reserved for the '/t'(8) and ' = '
+	my $rsize = int( (($ENV{COLUMNS} // 80)-$hsz) * 0.70);		#
+	nsay(GREEN, "\nlsize=$lsize rsize=$rsize hsz=$hsz\n");
+	nprintf(CYAN, "\t%".$lsize."s = %".$rsize."s\n", substr($_,0,$lsize), substr($ENV{$_},0,$rsize) ) for keys(%ENV);
+	nprint RESET, "";
+	sleep 2;
+}
+
+# program operation: options handling
+my ($opt, $usage) = describe_options(
+
+  '$program_name %o <file>',
+
+[ 'shut-up|U',"do not output ANYTHING (warning, this really means EVERYTHING, even errors, help, etc)" ],
+[ 'check-path-first|p', "check PATH, and ~/bin last" ],
+[ 'nowarnpath|N','do not warn about invalid path items' ],
+[ 'no-execute-new|e', "do not make new files executable" ],
+[ 'no-write-check|w', "do not check for write permissions and elevate" ],
+[ 'no-exec-check|x',"make file executable if not already" ],
+[ 'no-create|C',"do not create any files, edit only" ],
+[ 'no-edit|E',"do not edit any files, create only" ],
+[ 'user|u=s',"set owner to different user" ],
+[ 'group|g=s', "set group owner to different group" ],
+[ 'no-home-bin|n',"do not check ~/bin for file" ],
+[ 'no-home|h',"do not check home directory if it is not in the PATH" ],
+[ 'hints|H=s', "(can be 'on' or 'off') display hints when scan seem questionably empty (default is on)", { default => ON } ],
+[ 'no-curdir|r', "do not check current directory if it is not in the PATH" ],
+[ 'backup-count|b=i', "keep a number of (defaults to 1) backups in /tmp/eb/idx/*", { default => 1 } ],
+[ 'this|t', "this file (perl script) immidiately (overrides command line)" ],
+[],
+[ 'verbose|v',  "print information about each step during runtime" ],
+[ 'help',       "print this usage message and exit" ],
+[ 'long-help',  "print the perl pod documentation for this program" ],
+[ 'dryrun|d',   "perform scanning and report only, no program execution" ], );
+
+# program operation: pre-condition checks that must be passed (and fail first two) to proceed
+
+sub nsay { say @_ unless $opt->shut_up; }
+sub nprint { print @_ unless $opt->shut_up; }
+sub nprintf { printf @_ unless $opt->shut_up; }
+
+
+
+nprint($usage->text), exit if $opt->help;
+longhelp(), exit if $opt->long_help;
+dodefault(), exit if (scalar(@ARGV) < 1);
+# program operation: set up program's inner variables (these SHOULD NOT need to be changed for any reason!)
 my $initdir = cwd();					# track where we are
 my @files = @ARGV;					# GetOpt::Long::D..e took care of all but the filenames
 my $elevation_preferred = 0; 		# set to 1 when a file can't be written to (but readable)
 my $execution_preferred = 0;		# set to 1 when one of the files is not yet executable
+
+# program operation: prepare data
 $path =~ s/~/$home/g;				# replace shell's "~" with an actual directory so we dont rely on it [this can save you/me headache bugs down the road!]
 my @paths = split(":",$path);		# split path into a list so its easier to deal with
 my @editfiles = qw! !;
 my @createfiles = qw! !;
 my $wants_link_msg = 0;
 
-print "this file: $0\n";
-sleep 2;
-my ($opt, $usage) = describe_options(
-						'$program_name %o <file>',
-						[ 'check-path-first|p', "check PATH, and ~/bin last" ],
-						[ 'no-execute-new|e', "do not make new files executable" ],
-						[ 'no-write-check|w', "do not check for write permissions and elevate" ],
-						[ 'no-exec-check|x',"do not make file executable if not already" ],
-						[ 'no-create|C',"do not create any files, edit only" ],
-						[ 'no-edit|E',"do not edit any files, create only" ],
-						[ 'user|u=s',"set owner to different user" ],
-						[ 'group|g=s', "set group owner to different group" ],
-						[ 'no-home-bin|n',"do not check ~/bin for file" ],
-						[ 'no-home|H',"do not check home directory if it is not in the PATH" ],
-						[ 'no-curdir|r', "do not check current directory if it is not in the PATH" ],
-						[ 'backup-count|b=i', "keep a number of (defaults to 1) backups in /tmp/eb/idx/*", { default => 1 } ],
-						[ 'edit-self|s', "this file (perl script) immidiately (overrides command line)" ],
-						[],
-						[ 'verbose|v',  "print information about each step during runtime" ],
-						[ 'help',       "print this usage message and exit" ],
-						[ 'long-help',  "print the perl pod documentation for this program" ],
-						[ 'dryrun|d',   "perform scanning and report only, no program execution" ],
-					); 				   # self-creating help and command line option system
-# helper subs
-sub sleep
-{
-	CORE::sleep($@) if $debuggingmode;
-};
-sub detect_editor {
-	my $start = shift;
-	return undef unless $start->exists;
-	# see note 3
-	my $altpath = $start->child("etc")->child("alternatives")->child("editor");
-	my $edpatha = $start->child("usr")->child("bin")->child("editor");
-	my $edpathu = $home->child("bin")->child("editor");	
-	return $altpath if ( -r-x $altpath );
-	return $edpathu if ( -r-x $edpathu );
-	return $edpatha if ( -r-x $edpatha );
-	return undef;
-};
-sub longhelp
-{	
-	# say("type perldoc $program_name for long help (for now)");
-	`perldoc -m $edit_this` or die($!);
-	
-};
-sub dodefault
-{
-	my @shells = split(' ',`pidof bash`);	
-		
-	say "no filename(s) given, edit/signaling ~/.bashrc";
-	system($editorpath,path($home)->child('.bashrc'));	
-	
-	# active message signalling (if powerbash is running with it enabled)
-	# you can turn it off by writing a flag file 'no_signal' into powerbashs'
-	# flags directory
-	print("passive signal queued for pid ","$_ \n") for @shells;	
-	unless ( -r $signalflag )
-	{
-		for my $sh (@shells) 
-		{
-			my $shfile = path($shmtgt)->child($sh);
-			if ( -r-w $shfile )
-			{			
-				qx! reload_bashrc >> $shfile !;								
-			}
-			else { say("bash shell PID=$sh is not listening for update messages, skipping"); }
-		}
-	} 
-	else
-	{
-		say "passive signal queue dumped because signalling is disabled by user with $signalflag";
-	}
-	# passive signal for change, create the 'powerbashreload' file in tmp
-	`touch $reloadflag 2>&1 1>/dev/null`;
-};
+# program operation: resolve file locations
 
-# pre-start check arguments for help or long help requests
-
-# program pre-condition checks that must be passed (and fail first two) to proceed
-print($usage->text), exit if $opt->help;
-longhelp(), exit if $opt->long_help;
-
-# PROGRAM START POINT
-
-# check for required items first
-
-die("there is no editor present that can be found, please set your EDITOR environment variable, or, make a link to your favorite editor with $prefix/editor or $home/bin/editor!")
-	unless -r-x $editorpath;
-	
-
-# do default action if no arguments are present
-dodefault(), exit if (scalar(@ARGV) < 1);
-
-# resolve file location(s)
 FILELOOP: for my $file (@files)
 {
-	say "searching for detail on $file ..." if $wants_link_msg;
-	print("~");
+	nsay "searching for detail on $file ..." if $wants_link_msg;
+	nprint("~");
 	$_ = $file;
 	my $foundfile = 0;
 	unless ($opt->no_edit)
@@ -220,14 +271,14 @@ FILELOOP: for my $file (@files)
 		PATHLOOP: for my $dir (@paths)
 		{
 			my $loc = path($dir)->child($file);		
-			
+				
 			if ( -d-r-x $dir && chdir($dir) )
 			{				
-				if ( -f-r-x $file && ! -l $file && ! -d $file )
+				if ( ( -f-r-x $file || ( -f-r $file && $opt->no_exec_check) ) && ! -l $file && ! -d $file )
 				{				
 					push(@editfiles,$loc);
-					print ".";
-					print("+") if ( -w $file );
+					nprint ".";
+					nprint("+") if ( -w $file );
 					$elevation_preferred = 1 unless -w $file;
 					$execution_preferred = 1 unless -x $file;
 					$foundfile = 1;				
@@ -235,14 +286,14 @@ FILELOOP: for my $file (@files)
 				}
 				elsif ( -l $file )
 				{
-					print "skipping $file symlink\n" unless $wants_link_msg;					
+					nprint MAGENTA, "skipping $file symlink\n", RESET unless $wants_link_msg;					
 				}
 				else
 				{
 					if ( -f $file )
 					{
-						print("error: $file was found but ignored because we cannot access it\n") if $wants_link_msg;
-						print("!");
+						nsay(YELLOW ON_BLUE"\nerror: $file was found but ignored because we cannot access it\n", RESET) if $wants_link_msg;
+						
 						$foundfile = 1;
 					}
 					# else file not found so do nothing		
@@ -250,7 +301,7 @@ FILELOOP: for my $file (@files)
 			}
 			else
 			{
-				say("warning: couldnt check $dir (from your PATH) because its not readable!");
+				nsay(WHITE ON_RED,"\nwarning: couldnt check $dir (from your PATH) because its not readable!\n", RESET) unless $opt->nowarnpath;
 			}			
 		} # "for my dir (paths)
 	} # "unless $opt->no_edit"
@@ -258,10 +309,10 @@ FILELOOP: for my $file (@files)
 	unless ($foundfile)
 	{
 		unless ($opt->no_create) {
-			print("*");
+			nprint("*");
 			my $targetdir = path($home)->child("bin");
 			my $targetfile = $targetdir->child($file);
-			say( "warning: no user binary folder (~/bin) i will use $initdir instead" ),
+			nsay(RED ON_BLUE, "warning: no user binary folder (~/bin) i will use $initdir instead", RESET ),
 				  , $targetfile = $initdir->child("bin") unless $targetdir->exists();					
 			push(@createfiles,$targetfile);
 			$execution_preferred = 1 unless $opt->no_execute_new;			
@@ -270,19 +321,40 @@ FILELOOP: for my $file (@files)
 	
 }
 
-my $elevator = $elevation_preferred ? "sudo" : "env";
-say "editing: " unless $opt->no_edit;
-say "\t$_" for @editfiles;
-say "\t(some unwritable)" if $elevation_preferred;
-say "\t(some unexecutable)" if $execution_preferred;
-say "\t<none found/specified>" unless @editfiles;
-say "creating";
-say "\t$_" for @createfiles;
-say "\t<none>" unless @createfiles;
-say scalar(scalar(@editfiles) + scalar(@createfiles)) . " file(s)";
-sleep(2), system($editorpath,@editfiles,@createfiles) unless $opt->dryrun;
-system($elevator,"chmod","a+x",@editfiles,@createfiles) unless $opt->dryrun;
-
-
+nsay RED,"looking (not editing): ",RESET if $opt->no_edit;
+nsay "editing: " unless $opt->no_edit;
+nsay "\t$_" for @editfiles;
+nsay RED, "\t(elevation ON due to some files needing extra permissions set)",RESET if $execution_preferred;
+nsay BLUE, "\thint: use -x if the file you are editing does not bear an executable permission!", RESET if @editfiles == 0 && $opt->hints eq ON;
+nsay "\t<none found/specified>" unless @editfiles;
+nsay "creating";
+nsay "\t$_" for @createfiles;
+nsay "\t<none>" unless @createfiles;
+nsay BLUE, "\thint: make sure you have not specified an already-existing, non-executable (you can use -x if this is the case)", RESET if @createfiles == 0 && @editfiles == 0 && $opt->hints eq ON;
+my $fcount = scalar(scalar(@editfiles) + scalar(@createfiles));
+die(WHITE ON_RED,"severe: file count is $fcount (should be at least zero or more) --- this should NEVER happen, please check for a corrupted file or other system instability!", RESET) if $fcount < 0;
+my $fspec = abs($fcount)==1?"file":"files";
+nsay "processed $fcount $fspec.";
+# see annotation above for how the waiting for user to read file listing is handled
+sleep( $fcount < $threshold_file_wait ? ceil(($threshold_time_wait/$threshold_file_wait) * $fcount):$threshold_time_wait );
+system($editorpath,@editfiles,@createfiles) unless $opt->dryrun;
+if ($fcount) 
+{
+	nsay "Checking permissions on the $fspec:";
+	for my $x (@editfiles, @createfiles) 
+	{
+		nprint RESET, "\t$x: ";
+		if ( -r $x && ( ! -x $x ) ) 
+		{ 
+			nsay GREEN, "changing to executable", RESET; 
+			path($x)->chmod("a+x");		
+			
+		}
+		else 
+		{ 
+			nsay CYAN, "needs no change", RESET; 
+		}
+	}
+}
 
 

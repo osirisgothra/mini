@@ -1,0 +1,25 @@
+#!/usr/bin/zsh
+
+declare -gx  DU_EXE=$(which du)
+declare -gxa DU_DEFAULTS=( "-hd1" )
+declare -gx  SORT_EXE=$(which sort)
+declare -gxa SORT_DEFAULTS=( "-h" )
+declare -gx  HI_EXE=$(which hi)
+declare -gxa HI_DEFAULTS=( '[\.0-9]+[kmMbBgG]' '[a-z]{2,}' '/' usr bin local share tmp etc var dev sys proc boot home lib x86_64-linux-gnu i386 i686 x86_64 x86 X Xorg bin sbin cache apt www '\.config' '\.cache' "$USER" "$UID" "$GID" "$GROUP" )
+declare -gx  EXISTCOUNT=0
+declare -gx  EXISTREQ=3
+declare -gx  ERR_MISSING=110
+declare -gx  ERR_NONE=0
+declare -gx  ERR_UNEXPECTED=111
+
+error()
+{
+	[[ $1 == 0 ]] && exit $1
+	echo "error(${1-127}): ${*: 2}"
+	exit ${1-127}
+}
+
+for x in DU_EXE SORT_EXE HI_EXE; do [[ -x "${(P)x}" ]] && let EXISTCOUNT++; done
+[[ "$EXISTCOUNT" == "$EXISTREQ" ]] || { error "$ERR_MISSING" "components missing"; }
+"$DU_EXE" "$DU_DEFAULTS" | "$SORT_EXE" "$SORT_DEFAULTS" | "$HI_EXE" "$HI_DEFAULTS"
+error "$ERR_NONE" "ok"

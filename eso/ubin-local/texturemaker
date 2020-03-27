@@ -1,0 +1,7 @@
+#!/bin/sh
+
+if which wine; then
+	exec "/b/way/opt/Texture Maker/texturemaker.exe"
+else
+	echo "no wine installed (or not in path)"
+fi

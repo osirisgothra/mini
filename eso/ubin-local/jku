@@ -1,0 +1,3 @@
+#!/bin/zsh
+
+echo "jku disabled and is being rewritten for dbus support"

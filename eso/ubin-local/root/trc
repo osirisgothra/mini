@@ -1,0 +1,118 @@
+Error detected while processing /home/osirisgothra/.vimrc:
+line   27:
+E319: Sorry, the command is not available in this version: let g:True = 1
+line   28:
+E319: Sorry, the command is not available in this version: let g:False = 0
+line   31:
+E319: Sorry, the command is not available in this version: let g:uselastcolors = 1
+line   32:
+E319: Sorry, the command is not available in this version: let g:usecmds = 1
+line   33:
+E319: Sorry, the command is not available in this version: let g:uselastcolors = 1
+line   34:
+E319: Sorry, the command is not available in this version: let g:usemaps = 1
+line   44:
+E518: Unknown option: fen
+line   45:
+E518: Unknown option: fcl=all
+line   46:
+E518: Unknown option: fdo=all
+line   47:
+E518: Unknown option: fdm=indent
+line   48:
+E518: Unknown option: foldlevel=2
+line   57:
+E538: No mouse support: mouse=a
+line   61:
+E319: Sorry, the command is not available in this version: augroup file_home_.vimrc
+line   62:
+E319: Sorry, the command is not available in this version:  au!
+line   63:
+E319: Sorry, the command is not available in this version:  au! BufWritePost *.vimrc :so ~/.vimrc
+line   64:
+E319: Sorry, the command is not available in this version:  au! BufReadPost *.vimrc silent! !cp % /tmp/lastedit.vim
+line   65:
+E319: Sorry, the command is not available in this version:  au! BufWritePost *i3* !i3 reload
+line   66:
+E319: Sorry, the command is not available in this version:  au! BufWritePost *.vimrc so ~/.vimrc
+line   67:
+E319: Sorry, the command is not available in this version:  au! BufWritePre *.vimrc !cp ~/.vimrc ~/.vimrc.previous
+line   68:
+E319: Sorry, the command is not available in this version:  au! BufWritePost * call BashLint()
+line   69:
+E319: Sorry, the command is not available in this version:  au! ColorScheme * call StaticColors()
+line   70:
+E319: Sorry, the command is not available in this version: augroup end
+line   72:
+E319: Sorry, the command is not available in this version: let g:useNerdTreeNow=1
+line   73:
+E319: Sorry, the command is not available in this version: let g:scanned=0
+line   74:
+E319: Sorry, the command is not available in this version: let g:cindex=-1
+line   75:
+E319: Sorry, the command is not available in this version: let g:schemes = [ "default" ]
+line   76:
+E319: Sorry, the command is not available in this version: let g:revision_code="0.831ggh032019001"
+line   79:
+E319: Sorry, the command is not available in this version: fu! Iff(expr1,truepart,falsepart)
+line   85:
+E319: Sorry, the command is not available in this version: endfu
+line   86:
+E319: Sorry, the command is not available in this version: fu! StaticColors()
+line   89:
+E319: Sorry, the command is not available in this version: endfu
+line   90:
+E319: Sorry, the command is not available in this version: fu! RescanColorSchemes()
+line   91:
+E319: Sorry, the command is not available in this version: ^Ilet g:schemes = expand($VIMRUNTIME."/colors/*.vim",0,1)
+line   92:
+E319: Sorry, the command is not available in this version: ^Ilet g:scanned=1
+line   93:
+E319: Sorry, the command is not available in this version: endfu
+line   94:
+E319: Sorry, the command is not available in this version: fu! NextColorScheme(directionflag,stepamt)
+line  100:
+E319: Sorry, the command is not available in this version: ^Ilet l:step = abs(a:stepamt)
+line  101:
+E319: Sorry, the command is not available in this version: ^Ilet l:direction = xor(a:directionflag,abs(a:stepamt) != l:step)
+line  126:
+E319: Sorry, the command is not available in this version: ^Ilet l:fbase = fnamemodify(g:schemes[g:cindex],":t:r")line  130:
+E319: Sorry, the command is not available in this version: ^I^Iconf echo "colo " . l:fbaseline  133:
+E319: Sorry, the command is not available in this version: endfu
+line  134:
+E319: Sorry, the command is not available in this version: fu! ShowNerdTree(force)
+line  151:
+E319: Sorry, the command is not available in this version: endfu
+line  152:
+E319: Sorry, the command is not available in this version: fu! ReinitColors()
+line  154:
+E319: Sorry, the command is not available in this version: ^Icall RescanColorSchemes()
+line  155:
+E319: Sorry, the command is not available in this version: endfu
+line  156:
+E319: Sorry, the command is not available in this version: fu! BashLint()
+line  167:
+E319: Sorry, the command is not available in this version: endfu
+line  168:
+E319: Sorry, the command is not available in this version: fu! SetMaps()
+line  187:
+E319: Sorry, the command is not available in this version: endfu
+line  188:
+E319: Sorry, the command is not available in this version: fu! LoadPlugins(byforce)
+line  213:
+E319: Sorry, the command is not available in this version: endfu
+line  214:
+E319: Sorry, the command is not available in this version: fu! SetCommands()
+line  215:
+E319: Sorry, the command is not available in this version: ^Icomma! Q :wqall!
+line  216:
+E319: Sorry, the command is not available in this version: endfu
+line  217:
+E319: Sorry, the command is not available in this version: fu! VimRcMain()
+line  218:
+E319: Sorry, the command is not available in this version: ^Icall LoadPlugins(g:False)
+line  229:
+E319: Sorry, the command is not available in this version: endfu
+line  231:
+E319: Sorry, the command is not available in this version: call VimRcMain()
+Press ENTER or type command to continue

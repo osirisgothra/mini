@@ -1,0 +1,8 @@
+#!/bin/bash
+if [[ $1 == -c ]]; then
+	last=column
+else
+	last=cat
+fi
+infocmp | grep '[^= ]+(?==)' -Po | tr '\n' ' ' | tr '\t' ' ' | tr -s ' ' | tr ' ' '\n' | $last
+

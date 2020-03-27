@@ -1,0 +1,59 @@
+#!/bin/zsh
+#
+#    pick-wallpaper-bycyc
+#    runs p-w periodically
+#    mini
+#    eso-bin/ubin-local
+#
+#    Copyright (C) 1995-2019 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository:
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Fri Apr  5 12:22:11 EDT 2019
+#            osirisgothra@larnica initially created this file
+#            with the original name, pick-wallpaper-bycyc
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+# CODE OF EXECUTION (COE)
+#
+# this program must adhere to these standards:
+#
+# 1) kept very small (<10 lines)      # 2) be very unintrusive (runs in idle tick)
+# 3) files, output, or storage space  #
+#    not to be required or consumed   # 4) run well in background, long-term situations
+#                                     # 5) resilient enough to recover/terminate if load is
+# (lines means CODE lines only!)      #    exceeded (CAP_LT_LOAD = cap for long-term load
+#                                     #    average - if ever exceeded it autoquits)
+exec 2>/dev/null
+exec 1>/dev/null
+declare -g CLASSDATA="idle"
+integer -g NICENESS=-17		CAP_LT_LOAD=3
+while [[ ${${$(cat /proc/loadavg)=}[3]} -le $CAP_LT_LOAD ]]; do
+	sleep 37s
+	ionice -c $CLASSDATA nice -n $NICENESS pick-wallpaper
+done

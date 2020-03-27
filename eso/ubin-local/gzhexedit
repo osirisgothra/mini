@@ -1,40 +1,22 @@
 #!/bin/bash
 
+# shelloptions
+
 shopt -s interactive_comments
 shopt -s expand_aliases			# let use comments like this one and expand aliases
 
-vecho()
-{
-	if [[ $_OPTIONS_VERBOSEMODE -eq 1 ]]; then
-		echo "$*"
-	fi
-}
+# notes
 
-_OPTIONS_VERBOSEMODE=1
-HEX_EDITOR="/usr/bin/hexeditor"
+# 	vecho delay: + dialog overhead of 0.8 sec, = 1.2+0.8 = 2 second delay approx avg
+#  				 (feel free to change this to your preferred time)
 
-# quick and dirty mode 
-# also coerced by 'env NO_SAFEBACKUP=1 gzhexedit ...'
+# 	HEX_*****: -b for hexeditor, enables buffer mode allowing changing of stream's length (files only)
+#  				 (quick and dirty mode and also coerced by 'env NO_SAFEBACKUP=1 gzhexedit ...'
 
-if [[ $NO_SAFEBACKUP -eq 1 ]]; then
-	vecho "skipped backup because NO_SAFEBACKUP is in the environment"
-else
-	read -sn1 -p "Make safe backup first?? [[y]/n]" QAD
-	if [[ $QAD =~ [nN] ]]; then
-		vecho "user skipping optional extra-safe backup.."
-		vecho "(a backup will still be made, but could be overwritten in the future runs of this program)"
-	else
-		vecho "making safety gzhe/qad backup first..."
-
-		[[ -d ".gzhexedit" ]] || ( ( mkdir ".gzhexedit" || let ERRORS++ ) && ( echo ".gzhexedit exists, using it..." ) )
-		cp "$1" ".gzhexedit/$1-$(date +'%M%d%Y-%H%M%S')-gzhe" || let ERRORS++
-		[[ $ERRORS -gt 0 ]] && { echo "too many errors($ERRORS)"; exit $[ 127 + $ERRORS ]; }
-	fi
-fi
 # functions
 
-	# extras [install|uninstall] -- used internally for extra features present in the OS
-	extras()
+extras()		# ( [install|uninstall] ) -- used internally for extra features present in the OS
+
 	{
 		case $1 in
 			install)
@@ -51,98 +33,176 @@ fi
 				unset -f printf
 			;;
 			*)
-				echo "FATAL: incorrect call (cl=$*) to $FUNCNAME $LINENO ${BASH_SOURCE[@]} $(callers)"
+				dialog --msgbox "FATAL: incorrect call (cl=$*) to $FUNCNAME $LINENO ${BASH_SOURCE[@]} $(callers)" 0 0
 				exit 125
 			;;
 		esac
-	}
-	# cleanup_exit [no params] -- automatically cleanup and exit from any point of the program
-	cleanup_exit()
-	{
+}
+cleanup_exit() #(void) -- automatically cleanup and exit from any point of the program
+{
 		# still try to remove tempfile, otherwise many tmpfiles could pile up if we are automated somehow
 		# this is also a security measure for DDoS protection on the filesystem level
-		rm -f "$TMPFILE"
+		rm -f "$TMPFILE" | dialog --progressbox "Removing Temporary File(s)" 0 0
 		extras uninstall
-		[[ $EXITS -gt 0 ]] && echo "too many errors ($EXITS), aborting!"
+		[[ $EXITS -gt 0 ]] && { dialog --infobox "Some Operations ($EXITS of them) Failed! Exiting..." 0 0 && sleep 4; }
+		dialog --colors --infobox "\Z2All Operations Completed (No Errors Reported)" 0 0 && sleep 2
 		exit $[ 127+$EXITS ]
-	}
-
+}
+vecho() #(string) -- show infobox and wait for no more than 2 seconds
+{
+	dialog --infobox "$*" 0 0
+	sleep $vecho_timeout
+}
 
 # aliases
 
 alias noargs='[[ $# -eq 0 ]]'
 alias wantshelp='[[ $* =~ --help ]] || [[ $* =~ -h ]]'
-alias exit_on_error='[[ $EXITS -gt 0 ]] && cleanup_exit'
+alias exit_on_error='[[ $EXITS -gt 0 ]] && { dialog --infobox "Some Operations Failed ($EXITS of them)" 0 0; sleep 3; cleanup_exit; }'
+alias help_exit='exit 122'
+alias user_exit='exit 125'
+alias flagarg='[[ $* == ^- ]]'
 
-# main
+# variables
 
-extras install
+HEX_EDITOR="/usr/bin/hexeditor"
+HEX_FLAGS="-b"
+vecho_timeout=1.2
 EXITS=0
 TARGET="$1"
 TMPFILE="$(mktemp -u)"
 TARGET_COPY="${1}.copy.gz"
 TARGET_EDIT="${1}.copy"
-cp "$TARGET" "$TARGET_COPY" || let EXITS++		# delegates own error messages
-cp "$TARGET" "$TMPFILE" || let EXITS++
+
+# program
+
+extras install
+
 if noargs || wantshelp; then
 	printf "\n"
 	printf "usage: $(basename "$BASH_SOURCE") [path[/..]/]target-file.ext\n"
 	printf "\n"
-	exit 127
+	# should return as error
+	# because some programs that incorrectly use another program by passing a -h or --help
+	# would need to know it wasnt supposed to be used for normal operation
+	# though technically it could be intentional redirection in which case the program should EXPECT
+	# a return value of 122 anyway.
+	help_exit
+elif flagarg; then
+	printf "flags are not supported, use -h or --help only"
+	help_exit
 fi
+
+# does not pass this point if no arguments are given or --help/-h is given
+
+if [[ $NO_SAFEBACKUP -eq 1 ]]; then
+	vecho "skipped backup because NO_SAFEBACKUP is in the environment"
+else
+	if dialog --yesno "Make Safe Backup of $TARGET first??" 0 0; then
+		vecho "Making safe backup..."
+		[[ -d ".gzhexedit" ]] || ( ( mkdir ".gzhexedit" || let ERRORS++ ) && ( vecho ".gzhexedit exists, using it..." ) )
+		cp "$1" ".gzhexedit/$1-$(date +'%M%d%Y-%H%M%S')-gzhe" || let ERRORS++
+		[[ $ERRORS -gt 0 ]] && { 
+			dialog --msgbox "Too Many Errors ($ERRORS), Exiting)" 0 0
+			exit $[ 127 + $ERRORS ]; 
+		}
+	else
+			vecho "User skipped safe backup, proceeding with edit..."
+	fi
+fi
+
+
+{
+cp "$TARGET" "$TARGET_COPY" || let EXITS++		# delegates own error messages
+cp "$TARGET" "$TMPFILE" || let EXITS++
+} | dialog --progressbox "Making Backups..." 0 0
+
 for CHECK_TARGET in "$TARGET" "$TMPFILE" "$TARGET_COPY"; do
-	printf "acquired target: $CHECK_TARGET -- checking sanity..."
+	dialog --infobox "acquired target: $CHECK_TARGET -- checking sanity..." 0 0; sleep 0.125
 	if ! [[ -r "$CHECK_TARGET" ]]; then
-		printf " **FAILED** - cannot read!!\n"
+		dialog --infobox " $CHECK_TARGET **FAILED** - cannot read!!" 0 0; sleep 2
 		let EXITS++
 	elif ! [[ -w "$CHECK_TARGET" ]]; then
-		echo "**FAILED** - cannot overwrite!!\n"
+		dialog --infobox " $CHECK_TARGET **FAILED** - cannot overwrite!!" 0 0; sleep 2
 	else
-		printf "ok!\n"
+		dialog --infobox "$CHECK_TARGET ok!" 0 0; sleep 0.125
 	fi
 done
 exit_on_error
 # at this point, no errors, all files are now in place
 # the BACKUP can be decompressed and edited in-place
 # source will be decompressed with .gz so we must use a suffix .gz
-gunzip "$TARGET_COPY"
-$HEX_EDITOR "$TARGET_EDIT"
+# -- but we need to make sure the copy isnt there yet
+
+TARGET_NOGZ="${TARGET_COPY%.gz}"
+if [[ -r "${TARGET_NOGZ}" ]]; then
+	if dialog --yesno "${TARGET_NOGZ} already exists, replace it?" 0 0; then
+		rm "${TARGET_NOGZ}" -f
+	else
+		dialog --infobox "${TARGET_NOGZ} must be re/moved before you can edit $TARGET_COPY !!" 0 0
+		sleep 1.25
+		user_exit
+	fi
+fi
+
+if ! gunzip "$TARGET_COPY"; then
+	# now we have a problem, the file:
+	# 1) was copied but is bad because (maybe) it is NOT in gzip format, inform the user and abort the program 
+	# 2) gunzip had an error of some kind or failed to access the file, expects interactive input*
+	# 3) permissions are not met for this file to perform operations
+	# 4) some files that should have been removed, are not (or were recreated by another user/process)
+	# 5) some other unknown error with gunzip
+	# *fails only when running in quiet mode
+	dialog --msgbox "Sorry, $TARGET_COPY (copy of $TARGET) is NOT in gzip format! (You dont need gzhexedit to edit binaries outright, just use hexedit for that!" 0 0
+	exit 134
+fi
+if ! [[ -r "$TARGET_EDIT" ]]; then
+	# bad news still, we have had a good status from gunzip, but we have
+	# no file in TARGET_EDIT which should have been populated
+	# inform the user and exit
+	dialog --msgbox "Internal Error: ($TARGET_COPY did not yeild an editable/readable file. (Is your filesystem full or erroneous, or lacking in permissions?)" 0 0
+	exit 135
+fi
+# at this time, all is good, and the file should be ready to edit
+$HEX_EDITOR ${HEX_FLAGS} "$TARGET_EDIT"
 gzip "$TARGET_EDIT"
 if [[ -r "${TARGET}.before-edit" ]]; then
-	echo "WARNING: a previous backup file before edit exists already, what do you wish to do with it?"
-	echo "1: delete OLD backup data and replace it with the NEW backup data from your most recent edit"
-	echo "   This means: you will not be able to undo the edit before this edit,"
-	echo "   but will still be able to undo THIS edit only. It is recommended only if you are"
-	echo "   certain that you will not need to undo more than just the most recent edit to the"
-	echo "   file being edited. (recommended for advanced users only)"
-	echo "2: cancel changes and quit and ***LOSE MOST RECENT EDITS*** (not recommended)"
-	echo "3: specify a new name for the backup (recommended for most users)"
-	echo -n "choose one: [s"
-	unset TODO
-	while ! [[ "$TODO" =~ [123] ]]; do
-        # BEEK if TODO is set, echo invalid choice, wait 3/4sec, clear up to end of line, and wait again
-		[[ -n "$TODO" ]] || { printf "INVALID CHOICE, TRY AGAIN"; sleep 0.75; printf "[u[Ku"; }
-		read -sn1 TODO
-	done
-	case $TODO in
-		1)	echo "proceeding overwriting data"
+	dialog --help-button --yes-label Overwrite --no-label Discard --help-label Rename --yesno "An old undo backup file exists, what do you want do do (note: Discarding will lose ALL changes!)" 0 0
+	case $? in
+		0)	vecho "Proceeding Overwriting Data"
 			NO_BACKUP=0
 			;;	#needs no intervention
-		2)	echo "cancelling edit..."
+		1)	vecho "cancelling edit..."
 			F=$(mktemp)
 			cp -f "${TARGET_COPY}" "$F"
-			echo "tried copying your edits anyway to $F in case you want it, will be delted by system at some time"
+			vecho "tried copying your edits anyway to $F in case you want it, will be delted by system at some time"
 			exit 141
 			;;
-		3)	read -p "enter new name, this is a one shot deal so type it in correctly:" NEWNAME
-			touch "$NEWNAME"
-			cp -f "${TARGET_COPY}" "$NEWNAME"
+		2)	NEWNAME=""
+			while true ; do
+				NEWNAME=$(dialog --output-fd 1 --inputbox "Pick a new filename (include extension, it is not automatically added!)" 0 0)
+				OK=0
+				if ! [[ -r $NEWNAME ]] && touch "$NEWNAME" && [[ -r "$NEWNAME" ]]; then
+					OK=1
+				else
+					OK=0
+				fi
+				if [[ $OK == 0 ]]; then
+					if	! dialog --yesno "$NEWNAME is not valid (either it exists or it couldnt be written, try again? (cancelling here will abort and lose ALL changes!" 0 0; then
+						vecho "Aborted upon user request, all changes discarded"
+						exit 142
+					fi
+				else
+					[[ $OK -eq 1 ]] && cp -f "${TARGET_COPY}" "$NEWNAME" && break
+				fi
+			done
 			NO_BACKUP=1
 			;;
 		*)	exit 142
 			;;
 	esac
 fi
-( [[ $NO_BACKUP -eq 1 ]] || mv --verbose "$TARGET" "${TARGET}.before-edit" ) && mv "$TARGET_COPY" "$TARGET" --verbose
+(( [[ $NO_BACKUP -eq 1 ]] || mv --verbose "$TARGET" "${TARGET}.before-edit" ) && mv "$TARGET_COPY" "$TARGET" --verbose) | dialog --progressbox "Applying All Settings" 0 0
 exit_on_error
+sleep 1
 cleanup_exit

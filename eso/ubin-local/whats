@@ -1,0 +1,51 @@
+#!/bin/zsh
+
+# whats
+# shorter whatis
+
+# could be /usr/local (self-installed man) or /usr/share (cross-installed man)
+# or depending on where man(1) is installed on this system.
+
+serr=/tmp/whats.log
+
+if apropos --version > $serr && whatis --version > $serr; then
+	echo "required programs verified!" > $serr
+else
+	echo "missing components, please check for them (aprops/whatis)(1)"
+	exit 1
+fi
+
+prefix="/usr"
+delegate="${PREFIX-$prefix}/bin/whatis"
+
+case "$*"
+{
+	--help)
+	{
+		$delegate --help
+		echo
+		echo " syntax: whats [package/manpage/binary/etc]"
+	  	echo "\n trims off the package name(s), usually for use in an adjoining script"
+	  	echo "the calling script should tell the user what the package is called, not"
+	  	echo "intended as a replacement for whatis(1), it delegates to $delegate, which"
+	  	echo "must be, along with apropos(1), installed on this system in the primary prefix."
+		echo "The assumed prefix is: $prefix"
+		echo "\n(C)2019-2020 osirisgothra@hotmail.com"
+		echo
+	};;
+
+	*-*)
+	{
+		echo "flags are passed to delegate: $delegate (nullified purpose, consider using whatis instead)"
+		$delegate "$@"
+	};;
+
+	*)
+	{
+		$delegate "$@" |
+		while { read recall } {
+			echo "${recall##* - }";
+		}
+	};;
+}
+

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 #
 #    nowrap
 #    re-echo output without linewrapping
@@ -37,17 +37,40 @@
 #            osirisgothra@larnica initially created this file
 #            with the original name, nowrap
 #
+#	FEATURES
+#
+#		- uses setterm(1) so any terminal type should be supported
+#		- turns linewrapping back on after finished, killed,
+#         or interrupted with CTRL+C, etc.
+#       - works as a pipe command or a command front end
+#		- when in pipe mode, a filter program can be set (like sed, zcat, etc)
+#
 #  (this header was created using the template generator by Gabriel T. Sharp)
 #
+#	HELP TEXT STARTS HERE
+#	syntax: nowrap [program(s)] ...
+#      or : program | nowrap
+#	END HELP TEXT
 #
+msgs=0
+msg() { echo -ne "$@" > /dev/stderr; }
+msgt() { echo -e "$@" > /dev/stderr; }
 
-setterm -linewrap off
-case $# in
- 	0) cat /dev/stdin
-	;;
-	*) cat "$@"
-	;;
-esac
-setterm -linewrap on
+TTY=$(tty)
+trap 'setterm -linewrap off' SIGINT
+trap 'echo -e "killed...deadly"; setterm -linewrap off > /dev/tty1' SIGKILL
 
-
+if [[ $TTY =~ (not a tty) ]]; then
+	#echo "operating in pipe mode" > /dev/stderr
+	setterm -linewrap off
+	case $# in
+	0)	cat;;
+	*)	"$@";;
+	esac
+	setterm -linewrap on
+else
+	#echo "operating in command mode" > /dev/stderr
+	setterm -linewrap off
+	"$@"
+	setterm -linewrap on
+fi

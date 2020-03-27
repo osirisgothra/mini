@@ -1,0 +1,9 @@
+#!/usr/bin/zsh
+
+pdtgt="/usr/bin/perldoc"
+
+if tty &> /dev/null; then
+	$pdtgt "$@"
+else
+	xterm -e $pdtgt "$@"
+fi

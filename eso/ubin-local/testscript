@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 #===============================================================================
 #
 #          FILE: testscript.sh
@@ -9,53 +9,50 @@
 # 
 #===============================================================================
 
-shopt -s interactive_comments
-shopt -s expand_aliases
-shopt -o -s nounset                              # Treat unset variables as an error
+setopt extendedglob
+setopt nullglob
+setopt kshglob
 
-exec 3>&1 4>&2				    # Allow unconditional access to STDOUT/STDERR (required for this example!)
-# now override the echo and return builtins so they work as expected (except for the value of $?)
-function echo() { builtin echo "$@" >&3; }
-function return() { builtin echo "$@"; } # you could add 'exit $1' to indicate a numeric value but unfortunately it wouldnt support >255
-function echo_err() { builtin echo "$@" >&4; }
-function return_err() { builtin echo "$@" >&2; } # result goes to fd/2, good if you wanted multiple return targets 
-alias ret='builtin return'  # access to the "original" return builtin, it must be an alias or it is useless
-function result2err() { [[ -v $1 ]] && (exit ${!1}); }   # convert return code to $? (only supports numeric codes up to 255, of course)
+setopt aliases
+disable hash
+disable true
+disable false
 
-function showsum()
-{
-	# demonstrates returning "nonstandard" values
-	if [[ $# -lt 2 ]]; then
-		# output to stderr instead
-		echo_err "Error #300: Missing some arguments, need 2!! (you gave me $#)" >&3		
-		return 300; ret
-	else
-		echo "Adding up $1 and $2 !! ..." >&3
-		echo "The result is.. $[ $1 + $2 ] !!"
-		return 400; ret 
-	fi
-	echo "THIS LINE SHOULD NOT EXECUTE!"
+alias die='echo "failed in: $zsh_context err=$? perr=${pipestatus-n/a}"; () { eval "exit die_error_$*"; }'
+alias char='typeset -gg'
+alias int='typeset -gi'
+alias array='typeset -ga'
+alias hash='typeset -gA'
+alias bool='typeset -gi'
+alias echo='print -P'
+alias necho='print -Pn'
+alias rint='typeset -gir'
+
+rint false=0
+rint true=1
+
+
+
+
+dadd() { dirs+=( $@ ); }
+fadd() { files+=( $@ ); }
+dmk() { for d ($dirs) { mkdir -p $d || die $0 }}
+fmk() { for f ($files) { touch $f || die $0 }}
+imakeall() { dmk; fmk; items=( $dirs $files )}
+
+dadd /tmp/tempdir/test_dir
+fadd /tmp/tempdir/existing.file
+dadd /tmp/tempdir/existing.dir
+imakeall "$0" "$?" "$@"
+
+for somefile ($items) {
+	echo "inline----"
+	echo "head of $somefile:" $somefile(:h)
+	echo "tail of $somefile:" $somefile(:t)
+	echo "coded----"
+	headfile=( $somefile(:h) )
+	tailfile=( $somefile(:t) )
+	echo "head reassigned: $headfile"
+	echo "tail reassigned: $tailfile"
+	[[ -d $somefile ]] && rmdir $somefile || { [[ -e $somefile ]] && rm -f $somefile; }
 }
-
-echo "### test the normal case ###"
-
-result=`showsum 1 2 3 4`
-echo "This function returned $result"
-
-echo "### test the error case [ERRORS ARE EXPECTED BELOW THIS LINE!] ###"
-
-result=`showsum 1`
-echo "This function returned $result"
-
-result2err result
-echo "The converted value is $?, which of course is not the same as $result"
-
-echo "### test result2err converts values below 255 okay ###"
-result=122
-
-result2err result
-
-echo "The new value of \$? is $?, which should be the same as $result (\$result)"
-
-echo "Testing completed"
-

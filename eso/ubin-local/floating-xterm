@@ -1,0 +1,8 @@
+#!/usr/bin/zsh
+
+if pgrep i3; then
+	xterm "$@" &
+	sleep 1
+	i3-msg floating enable
+fi
+%

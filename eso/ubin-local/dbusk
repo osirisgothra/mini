@@ -1,0 +1,11 @@
+#!/bin/zsh
+echo "disabled"
+exit 127
+for y; do
+	echo "also killing $y"
+done
+for x in $@ dbus-daemon dbus-launch dbus.socket dbus; do
+	sudo -H /usr/bin/killall -KILL "$x"
+done
+
+

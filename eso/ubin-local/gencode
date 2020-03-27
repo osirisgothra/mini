@@ -1,0 +1,93 @@
+#!/usr/bin/perl
+#
+#    gencode
+#    generate exit code to test programs that spawn processes
+#    mini
+#    eso-ubin-local
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  HISTORY
+#
+#    Sat Apr 20 10:20:19 EDT 2019
+#		osirisgothra@larnica.localnet.localhost.org created this file
+#		at this time, the file name is 'gencode'
+#					  the file's location is not relevant
+#					  the file's disposition is "resides in a system PATH, marked executable"
+#					  the file's originating permissions are "rwxr-x--x" ( hi-security )
+#															 "rwxrwxr-x" (low-security )
+#							optionally with presets:		 "r-xr-xr-x" (public use file)
+#
+#  SHORT
+#
+#    This is what i call a SHORT. A script that is less than 10 lines is a SHORT. These usually do
+#    not have a help section, or much documentation as they are self-explained via their code and
+#    the header^s description.
+#
+#  
+
+use v5.14;
+use strict;
+use warnings;
+no warnings "experimental";
+use vars qw{ $arg };
+
+package	exitor
+{
+	sub new
+	{
+		my $newobj = {};
+		bless($newobj);
+		$newobj->setcode(127);
+		return $newobj;
+	}
+	sub setcode
+	{
+		my $self = shift;
+		my $newcode = shift;
+		print("old code: $self->code\n");
+		$self{"code"} = $newcode;
+		print("new code: $self->code\n");
+	}
+
+
+
+}
+
+my $eo = new exitor();
+
+$eo->setcode(10);
+
+die("too many arguments! one only please! (@#ARGV)") if @ARGV != 1;
+my $arg = int($ARGV[0]);
+die("exit code out of range (0-65535)!") if ($arg < 0 || $arg > 65535);
+exit($arg);
+ 
+	
+	
+
+

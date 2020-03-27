@@ -34,7 +34,7 @@ fi
 
 case $# in
         0) for x in *; do
-                if file "$x" | grep -q executable; then
+                if file "$x" | grep -qP '(executable|LSB|script)'; then
                         sudo chmod a+x "$x"
                         echo "changed $x because it was executable filetype"
                 else

@@ -1,0 +1,22 @@
+#!/bin/zsh
+# requires xdg-launch to run properly
+
+# functions
+
+_fakefork() { ( ( "$@" &> /dev/null & disown ) &> /dev/null ) &> /dev/null; }
+
+# declarations
+
+declare -g targetdir="/usr/bin/qvlc"
+declare -g bgcmd="--bg"
+declare -gi forkit=0
+declare -gA msg=( 	forked "forked: "
+					target	"target to run:"	)
+
+# main program
+
+[[ $1 == $bgcmd ]] && { forkit=1; shift }
+print -P "$msg[target]%B%U$targetdir%u $@%b"
+((forkit)) || exec	xdg-launch "$targetdir" "$@"
+					_fakefork xdg-launch "$targetdir" "$@"
+echo "$msg[forked] `pidof xdg-launch`"

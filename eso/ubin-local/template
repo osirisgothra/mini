@@ -1,9 +1,11 @@
-#!/bin/bash
+#!/bin/zsh
 #
 #    template
 #    template generator
 #    template generator project
 #    a project for generating templates
+#
+#    NOTICE: this is NOT the template block, it is down below in the code!
 #
 #    Copyright (C) 1995-2018 Gabriel Thomas Sharp
 #
@@ -36,8 +38,10 @@
 #	 Sun Apr 22 12:22:01 EDT 2018
 #            osirisgothra@larnica initially added a template to this file
 #            with the original name, template*
+#  	 Sun 05 May 2019 11:09:39 AM EDT
+#   
 #
-#  * this file has existed well before this date (2-3 years at least), but is 
+#  * this file has existed well before this date (2-3 years at least), but is A
 #    now documented as being truly created at this date and time
 #
 #  (this header was created using the template generator by Gabriel T. Sharp)
@@ -58,23 +62,70 @@
 
 # defaults
 [[ $# -lt 1 ]] && FILENAME="<file>" || FILENAME="$1"
-[[ $# -lt 2 ]] && DESCRIPTION="A ${FILENAME^} Program" || DESCRIPTION="$2"
-[[ $# -lt 3 ]] && PROJECT_NAME="The ${FILENAME^} Project / eso-bin" || PROJECT_NAME="$3"
-[[ $# -lt 4 ]] && PROJECT_DESCRIPTION="A Project That Gloriously Houses ${FILENAME^} / esoteric projects and scripts" || PROJECT_DESCRIPTION="$4"
+[[ $# -lt 2 ]] && DESCRIPTION="A ${(U)FILENAME} Program" || DESCRIPTION="$2"
+[[ $# -lt 3 ]] && PROJECT_NAME="mini/eso" || PROJECT_NAME="$3"
+[[ $# -lt 4 ]] && PROJECT_DESCRIPTION="small projects and stand-alone programs or documents, esoteric or dependant" || PROJECT_DESCRIPTION="$4"
 [[ $# -lt 5 ]] && MYSHELL="/bin/bash" || MYSHELL="$5"
 [[ $# -lt 6 ]] && DATE_TIME="$(date)" || DATE_TIME="$6"
-
+ARG_USED=$#
+ARG_UNUSED=0
+CREATED_NOTES="template program under renovation"
+TARGET_NOTES="# TARGET NOTES
+#
+# 	EXECUTIVE STATE CHANGES
+#		marking single existing file executable
+#			- mode of '$FILENAME' changed to u+rwx/og+rx.. [$C]
+#		completed (0)
+# 	ARGUMENTUAL ANALYSIS
+#       remaining arguments:
+#			${REMARGS-no arguments to list}
+#       disposition:
+#			${ARG_USED-all} were used during execution of template
+#   		${ARG_UNUSED-none} were extra and/or unexpected
+# 	TEMPLATE SUMMARY OF GENERATION
+#	     outcome: ${OUTCOME-good}
+#	     errors: ${SERRORS-0}
+# 	FINAL NOTE
+#	     ${CREATED_NOTES-completed without any significant problems}
+#        you should REMOVE the TARGET NOTES section once youve reviewed this!
+#		 ($(date)): $(id -un) ignored the final note and left this behind for
+#		           the user(s) to see, how embarassed I am for the author!
+#"
 if ! [[ -r "$MYSHELL" ]]; then
 	if [[ -r "$(which "$MYSHELL")" ]]; then
 		# user specified a name in PATH, use it
 		MYSHELL="$(which "$MYSHELL")"
-	fi		
+	fi
 fi
 # base name of executable, for getting language specific data
 # in the default case, '/bin/bash' would be 'bash'
 # or '/usr/bin/perl' would be 'perl'
 # users can be
 MYLANG=$(basename $MYSHELL)
+
+critical() { echo "critical error ($caller): ${1-corrupted state}";  (( $# > 1 )) && shift; exit $1; }
+
+Z=$(( COLUMNS / 2 ))
+
+foundit=0
+item=${1}
+for x in $(echo ${PATH//~/$HOME} | sed 's/:/ /g' ); do 
+	nx="${x}/${item}"
+	if [[ -r "$nx" ]]; then		
+		copies+=( "$nx" )
+	fi
+done
+
+for ci in "${copies[@]}"; do
+	#if [[ -f "$ci" ]]; then
+		#echo -ne "#	"; sudo chmod -v a+x "$ci" | tr '\n' ',' && CMOK="SUCCEEDED" || CMOK="FAILED ON AT LEAST ONE OR MORE FILES"
+		#echo "#	"
+	#else
+	#	echo "#	file $ci didnt exist, skipped it"
+	#fi
+done
+
+
 
 cat <<MY_EXTREME_END_OF_FILE
 #!${MYSHELL}
@@ -116,96 +167,13 @@ cat <<MY_EXTREME_END_OF_FILE
 #            ${USER}@${HOSTNAME} initially created this file
 #            with the original name, $FILENAME
 #
-#  (this header was created using the template generator by Gabriel T. Sharp)
+$TARGET_NOTES
 #
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
 #
 MY_EXTREME_END_OF_FILE
 
-critical() { echo "critical error ($caller): ${1-corrupted state}";  (( $# > 1 )) && shift; exit $1; }
 
-Z=$(( COLUMNS / 2 ))
-echo "# TARGET NOTES"
-echo "#"
-
-foundit=0
-item=${1}
-for x in $(echo ${PATH//~/$HOME} | sed 's/:/ /g' ); do 
-	nx="${x}/${item}"
-	if [[ -r "$nx" ]]; then		
-		copies+=( "$nx" )
-	fi
-done
-case ${#copies[@]} in
-	1) copykind=single;;
-	0) copykind=new;;
-	*) echo "several copies found, make them all executable"
-       echo "${copies[@]}"
-	   select n in yes no abort/quit; do ((REPLY)) && break
-		   echo "incorrect choice!"
-		   echo "please enter a choice listed above."
-    	done	 
-		case $n in
-			1)	copykind=multi;;
-			2)  copykind=none;;
-			3)  exit 165;;
-			*)  critical 166;;
-		esac
-		;;
-esac
-case $copykind in
-	none) echo "not marking any files executable";;
-	new) echo "marking new file executable";;&
-	single) echo "marking single existing file executable";;&
-	multi) echo "marking all files executable";;&
-	*)	for ci in "${copies[@]}"; do sudo chmod -v a+x "$ci"; done;;
-esac	
-echo "completed ($?)"
+echo "#	template output completed (code=$([[ $? -ne 0 ]] && echo $? || echo 'OK(ERROR_NONE)' ))\n#\n#"
 
 
-#!/bin/bash
-
-# A small example program for using the new getopt(1) program.
-# This program will only work with bash(1)
-# An similar program using the tcsh(1) script language can be found
-# as parse.tcsh
-
-# Example input and output (from the bash prompt):
-# ./parse.bash -a par1 'another arg' --c-long 'wow!*\?' -cmore -b " very long "
-# Option a
-# Option c, no argument
-# Option c, argument `more'
-# Option b, argument ` very long '
-# Remaining arguments:
-# --> `par1'
-# --> `another arg'
-# --> `wow!*\?'
-
-# Note that we use `"$@"' to let each command-line parameter expand to a
-# separate word. The quotes around `$@' are essential!
-# We need TEMP as the `eval set --' would nuke the return value of getopt.
-TEMP=`getopt -o ab:c:: --long a-long,b-long:,c-long:: \
-     -n 'example.bash' -- "$@"`
-
-if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
-
-# Note the quotes around `$TEMP': they are essential!
-eval set -- "$TEMP"
-
-while true ; do
-	case "$1" in
-		-a|--a-long) echo "Option a" ; shift ;;
-		-b|--b-long) echo "Option b, argument \`$2'" ; shift 2 ;;
-		-c|--c-long)
-			# c has an optional argument. As we are in quoted mode,
-			# an empty parameter will be generated if its optional
-			# argument is not found.
-			case "$2" in
-				"") echo "Option c, no argument"; shift 2 ;;
-				*)  echo "Option c, argument \`$2'" ; shift 2 ;;
-			esac ;;
-		--) shift ; break ;;
-		*) echo "Internal error!" ; exit 1 ;;
-	esac
-done
-echo "Remaining arguments:"
-for arg do echo '--> '"\`$arg'" ; done

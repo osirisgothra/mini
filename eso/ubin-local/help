@@ -1,0 +1,2 @@
+#!/bin/zsh
+infoloc=`info -w "$1"`

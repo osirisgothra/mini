@@ -1,0 +1,51 @@
+#!/bin/zsh
+
+# TODO: make work later
+
+zu=gunzip
+zuflags=( -v )
+zp=gzip
+zuflags=( -v -9 )
+kitems=( )
+ukitems=( )
+akey="k"
+edit=/bin/nano
+editflags=( )
+integer kc=0
+
+for x; do
+	dir=$(dirname "$x")
+	if [[ $x =~ ^- ]]; then
+		flags+="$x"
+		echo "added flag to flaglist: $x"
+	else
+		if [[ -r "$x" && -f "$x" && -w "$x" && -w "$dir" && "$x" =~ \.gz$ ]]; then
+			echo "adding qualified read/write: $x"
+			kitems+="$x"
+		else
+			echo "rejecting $x, its not readable"
+		fi
+	fi
+done
+for k in $kitems; do
+	$zu $zuflags "$k"
+	newx="${k%%\.gz}"
+	if [[ -n $newx ]]; then
+		ukitems+="$newx"
+		let kc++
+	else
+		echo "rejecting $k (it didnt decompress)"
+	fi
+
+done
+if ((kc)); then
+	echo "editing $kc files.."
+	$edit $editflags -- $kc
+	echo "recompressing upon keypress [$akey[1]=abort]"
+	read -sk1
+	[[ $REPLY == $akey[1] ]] && { echo "abort all by user's request"; exit 127; }
+	for k in $ukitems; do
+		$zp $zpflags "$k"
+	done
+	echo "completed"
+fi

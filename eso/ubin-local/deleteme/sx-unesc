@@ -1,0 +1,6 @@
+#!/bin/bash
+if [[ $1 == --help ]]; then
+	xmlstarlet unesc --help | sed -r 's/xmlstarlet unesc/sx-unesc/g'
+else
+	xmlstarlet unesc "$@"
+fi

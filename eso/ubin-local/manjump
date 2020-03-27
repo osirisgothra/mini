@@ -1,0 +1,19 @@
+#!/bin/zsh
+# comment out when not debugging:
+set -x
+erridx=0 true=0  false=1
+bail() { (($1)) && return $?; shift; declare -i ecode=${1-959}; echo "Error #$ecode: ${2-Unexpected Failure During Execution}"; exit $ecode; }
+ierr() { let erridx++; echo $erridx; }
+isinteractive() { [[ $- =~ i ]] && echo $true || echo $false; }
+# syntax: manjump [pattern] [man-command-line]
+#
+bail $(isinteractive) $(ierr) "Cannot run interactively!"
+bail $# $(ierr) "Insufficient Parameters"
+topic="$1"
+shift
+export LESS="--pattern=$topic"
+bail $# $(ierr) "Nothing to start man(1) with!"
+export MANPAGER="/bin/less"
+/usr/bin/man "$@"
+unset LESS
+unset MANPAGER

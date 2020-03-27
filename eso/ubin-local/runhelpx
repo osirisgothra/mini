@@ -1,0 +1,13 @@
+#!/bin/zsh
+#
+# runhelpx: run-help manpage catcher
+#           todo: must somehow get run-help to 
+#                 give us an answer about re-redirecting items
+#
+possible_manpage=`run-help "$@" |& grep -Pio "(?<= in ).*(?=\([0-9]\)\.)"`
+possible_manfile=`man -w "$possible_manpage"`
+if [[ -r "$possible_manfile" ]]; then
+	man $possible_manpage
+else
+	run-help "$@"
+fi

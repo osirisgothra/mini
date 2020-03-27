@@ -1,0 +1,17 @@
+#!/usr/bin/perl
+
+# frn: a quick random number generator
+# args: min max
+
+use warnings;
+use v5.20;
+use strict;
+my $maxint = 0x0FFFFFFFF;	# a 32-bit integer, most often used numeric size range (and then 64)
+
+die("syntax: frn [max=0x0FFFFFF] [min=0x0] --- defaults shown on right side of equals sign --help was specified\nHelp at user request\n\n") 
+	if defined($ARGV[0]) and $ARGV[0] =~ /--help/;
+
+
+my ($min, $max) = ($ARGV[1] // "0", $ARGV[0] // $maxint);
+my $result = int((rand() * (($max+1)-$min))+$min);
+print "$result";

@@ -1,0 +1,7 @@
+--- vim: :filetype=lua:
+
+--- test lua file
+function f(item)
+	print("test")
+	return({ 0, "string"})
+end

@@ -1,5 +1,4 @@
 #!/bin/bash
-# vim:ft=sh
 if [[ $1 == -force ]]; then
 	shift
 else
@@ -16,6 +15,7 @@ shopt -s nullglob
 shopt -s extglob
   set +o nounset
   set +o histexpand
+
 # the color values are given in #, so we cant have interactive comments!
 shopt -u interactive_comments
 
@@ -25,6 +25,308 @@ declare -a PICK_WALLPAPER_REQUIREMENTS=( hsetroot sed perl identify.im6 grep )
 declare -a PICK_WALLPAPER_MISSING
 declare -i PICK_WALLPAPER_NODEPS=0
 declare -i PICK_WALLPAPER_IMAGE_CMD_RUNNING=0
+if [[ -v TRANSFORMATIONS ]] && [[ $TRANSFORMATIONS =~ : ]]; then
+	echo "skipping transformations, defined (properly) elsewhere: $TRANSFORMATIONS"
+	echo "becoming:"
+	IFS=":"
+	let r=0
+	declare -gxa TRANSFORMATIONS=( $TRANSFORMATIONS )
+	for x in $TRANSFORMATIONS; do
+		let r++
+		echo element:$r $x
+	done
+else
+
+# - IMAGEMAGICK TM POSSIBLE TRANSFORMATIONS -
+#
+# RASTERIZE OPERATIONS
+#  -affine matrix       affine transform matrix
+#  -alpha option        activate, deactivate, reset, or set the alpha channel
+#  -antialias           remove pixel-aliasing
+#  -attenuate value     lessen (or intensify) when adding noise to an image
+#  -background color    background color
+#  -bias value          add bias when convolving an image
+#  -black-point-compensation                       use black point compensation
+#  -blue-primary point  chromaticity blue primary point
+#  -bordercolor color   border color
+#  -caption string      assign a caption to an image
+#  -channel type        apply option to select image channels
+#  -clip-mask filename  associate a clip mask with the image
+#  -colors value        preferred number of colors in the image
+#  -colorspace type     alternate image colorspace
+#  -comment string      annotate image with comment
+#  -compose operator    set image composite operator
+#  -compress type       type of pixel compression when writing the image
+#  -delay value         display the next image after pausing
+#  -density geometry    horizontal and vertical density of the image
+#  -depth value         image depth
+#  -direction type      render text right-to-left or left-to-right
+#  -display server      get image or font from this X server
+#  -dispose method      layer disposal method
+#  -dither method       apply error diffusion to image
+#  -encoding type       text encoding type
+#  -endian type         endianness (MSB or LSB) of the image
+#  -family name         render text with this font family
+#  -fill color          color to use when filling a graphic primitive
+#  -filter type         use this filter when resizing an image
+#  -font name           render text with this font
+#  -format "string"     output formatted image characteristics
+#  -fuzz distance       colors within this distance are considered equal
+#  -gravity type        horizontal and vertical text placement
+#  -green-primary point chromaticity green primary point
+#  -intensity method    method to generate intensity value from pixel
+#  -intent type         type of rendering intent when managing the image color
+#  -interlace type      type of image interlacing scheme
+#  -interline-spacing value                       set the space between two text lines
+#  -interpolate method  pixel color interpolation method
+#  -interword-spacing value                       set the space between two words
+#  -kerning value       set the space between two letters
+#  -label string        assign a label to an image
+#  -limit type value    pixel cache resource limit
+#  -loop iterations     add Netscape loop extension to your GIF animation
+#  -mask filename       associate a mask with the image
+#  -matte               store matte channel if the image has one
+#  -mattecolor color    frame color
+#  -moments             report image moments
+#  -monitor             monitor progress
+#  -orient type         image orientation
+#  -page geometry       size and location of an image canvas (setting)
+#  -ping                efficiently determine image attributes
+#  -pointsize value     font point size
+#  -precision value     maximum number of significant digits to print
+#  -preview type        image preview type
+#  -quality value       JPEG/MIFF/PNG compression level
+#  -quiet               suppress all warning messages
+#  -red-primary point   chromaticity red primary point
+#  -regard-warnings     pay attention to warning messages
+#  -remap filename      transform image colors to match this set of colors
+#  -respect-parentheses settings remain in effect until parenthesis boundary
+#  -sampling-factor geometry                       horizontal and vertical sampling factor
+#  -scene value         image scene number
+#  -seed value          seed a new sequence of pseudo-random numbers
+#  -size geometry       width and height of image
+#  -stretch type        render text with this font stretch
+#  -stroke color        graphic primitive stroke color
+#  -strokewidth value   graphic primitive stroke width
+#  -style type          render text with this font style
+#  -support factor      resize support: > 1.0 is blurry, < 1.0 is sharp
+#  -synchronize         synchronize image to storage device
+#  -taint               declare the image as modified
+#  -texture filename    name of texture to tile onto the image background
+#  -tile-offset geometry                       tile offset
+#  -treedepth value     color tree depth
+#  -transparent-color color                       transparent color
+#  -undercolor color    annotation bounding box color
+#  -units type          the units of image resolution
+#  -verbose             print detailed information about the image
+#  -view                FlashPix viewing transforms
+#  -virtual-pixel method                       virtual pixel access method
+#  -weight type         render text with this font weight
+#  -white-point point   chromaticity white point
+# IMAGE OPERATORS
+#  -adaptive-blur geometry                       adaptively blur pixels; decrease effect near edges
+#  -adaptive-resize geometry                       adaptively resize image using 'mesh' interpolation
+#  -adaptive-sharpen geometry                       adaptively sharpen pixels; increase effect near edges
+#  -alpha option        on, activate, off, deactivate, set, opaque, copy transparent, extract, background, or shape
+#  -annotate geometry text                    annotate the image with text
+#  -auto-gamma          automagically adjust gamma level of image
+#  -auto-level          automagically adjust color levels of image
+#  -auto-orient         automagically orient (rotate) image
+#  -bench iterations    measure performance
+#  -black-threshold value                       force all pixels below the threshold into black
+#  -blue-shift factor   simulate a scene at nighttime in the moonlight
+#  -blur geometry       reduce image noise and reduce detail levels
+#  -border geometry     surround image with a border of color
+#  -bordercolor color   border color
+#  -brightness-contrast geometry			improve brightness / contrast of the image
+#  -canny geometry      detect edges in the image
+#  -cdl filename        color correct with a color decision list
+#  -charcoal radius     simulate a charcoal drawing
+#  -chop geometry       remove pixels from the image interior
+#  -clamp               keep pixel values in range (0-QuantumRange)
+#  -clip                clip along the first path from the 8BIM profile
+#  -clip-path id        clip along a named path from the 8BIM profile
+#  -colorize value      colorize the image with the fill color
+#  -color-matrix matrix apply color correction to the image
+#  -connected-components connectivity                       connected-components uniquely labeled  -contrast            enhance or reduce the image contrast
+#  -contrast-stretch geometry                       improve contrast by `stretching' the intensity range
+#  -convolve coefficients                       apply a convolution kernel to the image
+#  -cycle amount        cycle the image colormap
+#  -decipher filename   convert cipher pixels to plain pixels
+#  -deskew threshold    straighten an image
+#  -despeckle           reduce the speckles within an image
+#  -distort method args                       distort images according to given method ad args
+#  -draw string         annotate the image with a graphic primitive
+#  -edge radius         apply a filter to detect edges in the image
+#  -encipher filename   convert plain pixels to cipher pixels
+#  -emboss radius       emboss an image
+#  -enhance             apply a digital filter to enhance a noisy image
+#  -equalize            perform histogram equalization to an image
+#  -evaluate operator value                       evaluate an arithmetic, relational, or logical expression
+#  -extent geometry     set the image size
+#  -extract geometry    extract area from image
+#  -features distance   analyze image features (e.g. contrast, correlation)
+#  -fft                 implements the discrete Fourier transform (DFT)
+#  -flip                flip image vertically
+#  -floodfill geometry color                       floodfill the image with color
+#  -flop                flop image horizontally
+#  -frame geometry      surround image with an ornamental border
+#  -function name parameters                       apply function over image values
+#  -gamma value         level of gamma correction
+#  -gaussian-blur geometry                       reduce image noise and reduce detail levels
+#  -geometry geometry   preferred size or location of the image
+#  -grayscale method    convert image to grayscale
+#  -hough-lines geometry                       identify lines in the image
+#  -identify            identify the format and characteristics of the image
+#  -ift                 implements the inverse discrete Fourier transform (DFT)
+#  -implode amount      implode image pixels about the center
+#  -interpolative-resize geometry                       resize image using 'point sampled' interpolation
+#  -kuwahara geometry   edge preserving noise reduction filter
+#  -lat geometry        local adaptive thresholding
+#  -level value         adjust the level of image contrast
+#  -level-colors color,color                       level image with the given colors
+#  -linear-stretch geometry                       improve contrast by `stretching with saturation'
+#  -liquid-rescale geometry                       rescale image with seam-carving
+#  -magnify             double the size of the image with pixel art scaling
+#  -mean-shift geometry delineate arbitrarily shaped clusters in the image
+#  -median geometry     apply a median filter to the image
+#  -mode geometry       make each pixel the 'predominant color' of the                       neighborhood
+#  -modulate value      vary the brightness, saturation, and hue
+#  -monochrome          transform image to black and white
+#  -morphology method kernel                       apply a morphology method to the image
+#  -motion-blur geometry                       simulate motion blur
+#  -negate              replace every pixel with its complementary color 
+#  -noise geometry      add or reduce noise in an image
+#  -normalize           transform image to span the full range of colors
+#  -opaque color        change this color to the fill color
+#  -ordered-dither NxN                       add a noise pattern to the image with specific                       amplitudes
+#  -paint radius        simulate an oil painting
+#  -perceptible epsilon                       pixel value less than |epsilon| become epsilon or  -epsilon
+#  -polaroid angle      simulate a Polaroid picture
+#  -posterize levels    reduce the image to a limited number of color levels
+#  -profile filename    add, delete, or apply an image profile
+#  -quantize colorspace reduce colors in this colorspace
+#  -radial-blur angle   radial blur the image (deprecated use -rotational-blur
+#  -raise value         lighten/darken image edges to create a 3-D effect
+#  -random-threshold low,high                       random threshold the image
+#  -region geometry     apply options to a portion of the image
+#  -render              render vector graphics
+#  -repage geometry     size and location of an image canvas
+#  -resample geometry   change the resolution of an image
+#  -resize geometry     resize the image
+#  -roll geometry       roll an image vertically or horizontally
+#  -rotate degrees      apply Paeth rotation to the image
+#  -rotational-blur angle                       rotational blur the image
+#  -sample geometry     scale image with pixel sampling
+#  -scale geometry      scale the image
+#  -segment values      segment an image
+#  -selective-blur geometry                       selectively blur pixels within a contrast threshold
+#  -sepia-tone threshold                       simulate a sepia-toned photo
+#  -set property value  set an image property
+#  -shade degrees       shade the image using a distant light source
+#  -shadow geometry     simulate an image shadow
+#  -sharpen geometry    sharpen the image
+#  -shave geometry      shave pixels from the image edges
+#  -shear geometry      slide one edge of the image along the X or Y axis
+#  -sigmoidal-contrast geometry                       increase the contrast without saturating highlights or                       shadows
+#  -sketch geometry     simulate a pencil sketch
+#  -solarize threshold  negate all pixels above the threshold level
+#  -sparse-color method args                       fill in a image based on a few color points
+#  -splice geometry     splice the background color into the image
+#  -spread radius       displace image pixels by a random amount
+#  -statistic type geometry                       replace each pixel with corresponding statistic from the                       neighborhood
+#  -strip               strip image of all profiles and comments
+#  -swirl degrees       swirl image pixels about the center
+#  -threshold value     threshold the image
+#  -thumbnail geometry  create a thumbnail of the image
+#  -tile filename       tile image when filling a graphic primitive
+#  -tint value          tint the image with the fill color
+#  -transform           affine transform image
+#  -transparent color   make this color transparent within the image
+#  -transpose           flip image vertically and rotate 90 degrees
+#  -transverse          flop image horizontally and rotate 270 degrees
+#  -trim                trim image edges
+#  -type type           image type
+#  -unique-colors       discard all but one of any pixel color
+#  -unsharp geometry    sharpen the image
+#  -vignette geometry   soften the edges of the image in vignette style
+#  -wave geometry       alter an image along a sine wave
+#  -white-threshold value                       force all pixels above the threshold into white
+
+
+#
+# rand() -- fast sh-based random number generator
+# 
+# rand(max=255,min=1)	prints a random number between min and max to /dev/stdout
+# min	minimum value to print (will be this value or higher)
+# max	maximum value to print (will be this value or lower)
+# completely internal, does not use /dev/*rand* or external scripting languages
+# footnote: defaults are shown above after their parameters (min/max=[default])
+#           it is typical to just use the first parameter to get a 1-num unless zerobase_frand is set
+# footnote: moved this to perl program called 'frn(1)' see it for details
+# keeping this function for possible future use
+function frand()
+{
+	# defaults set here
+	local -i min=${2-0}
+	if (($zerobase_frand)); then
+		local -i min=${2-0}
+	fi
+	local -i max=${1-255}
+	local -i base=$RANDOM
+	local -i resultbase=$[ ((base*(max+min))/32768)+min ]
+	echo $resultbase
+}
+function rand_color()
+{
+	# generates 3 pairs
+	printf "%02x%02x%02x" $(frn 255) $(frn 255) $(frn 255)
+}
+function rand_geom()
+{
+	printf "%dx%d" $(frn 16) $(frn 16)
+}
+function rand_geom_neg()
+{
+	printf "%dx%d" $(frn 16 -16) $(frn 16 -16)
+}
+function rand_byte()
+{
+	printf "$(frn 255)"
+}
+function rand_angle()
+{
+	printf "$(frn 359)"
+}
+function rand_fpu()
+{
+	# generate a random pseudo-floatingpoint number
+	# based on generation of two decimal places:
+	# first: randomly give a negative sign
+	# second: ones place (0 or 1)
+	# third: hundredths place (0.01 to 0.99)
+	if [[ $(frn 2) -eq 2 ]]; then
+		printf "-"
+	fi
+	printf "%d.%02d" "$(frn 1)" "$(frn 99)"
+
+}
+
+# END TRANSFORMATIONS POSSIBLE
+	declare -gxa TRANSFORMATIONS=(
+			"-gamma $(rand_fpu)"
+			"-brightness-contrast $(rand_geom_neg)"
+			"-paint $(frn 2)"
+			"-fill \#$(rand_color)  -tint $(rand_byte)"
+			"-blur $(frn 6)"
+			)
+	declare -gxa RAND_TRANSFORMS=(
+			"-rotational-blur $(rand_byte)"
+			)
+
+
+fi
+
 
 # preliminary checks
 
@@ -56,10 +358,39 @@ if [[ $PICK_WALLPAPER_NODEPS == 0 ]]; then
 	}
 	function setwp()
 	{
+		local target="$1"; shift
+		local tmpfile="$(mktemp)"
+		if [[ -r $target ]] && [[ -w $tmpfile ]]; then
+			echo "readable"
+			echo "applying transformation(s)"
+			cp "$target" "$tmpfile" || { echo "failed to copy target, aborting"; exit 122; return 122; }
+			for xform in "${TRANSFORMATIONS[@]}"; do
+				echo "applying $xform ..."
+				eval im6-convert $xform "$tmpfile" "$tmpfile"
+			done
+			echo "finished, applying wallpaper+final blend..."
+			setwp_old "$tmpfile"
+			echo "removing tempfile.."
+			rm "$tmpfile" && echo ok || echo "failed---remove it manually because I cannot"
+		else
+			if [[ -r $target ]]; then
+				printf "%s unwrit" $tmpfile
+			else
+				echo "%s unread" $target
+			fi
+			echo "able...STOP"
+			exit 124
+			return 124
+		fi
+	}
+
+	function setwp_old()
+	{
 		local WP="$1"; shift
+		echo "selected: $WP"
 		PICK_WALLPAPER_IMAGE_CMD=( -cover "$WP" "$@" )
 		( identify.im6 "$WP" &&
-		  echo "Command Line: <program> ${PICK_WALLPAPER_IMAGE_CMD[@]}" &&
+		  echo "Command Line: hsetroot ${PICK_WALLPAPER_IMAGE_CMD[@]}" &&
 		  hsetroot "${PICK_WALLPAPER_IMAGE_CMD[@]}" &&
 		  return 1
 		) || return 0
@@ -95,7 +426,7 @@ if [[ $PICK_WALLPAPER_NODEPS == 0 ]]; then
 	[[ -r $PICK_WALLPAPER_FAILSAFE_EFFECT ]]	||	PICK_WALLPAPER_FAILSAFE_EFFECT=( "-add" "#808080" "-add" "#404040" "-gradient" "45" )
 	[[ -r $PICK_WALLPAPER_FAILSAFE_IMAGE ]]		||	PICK_WALLPAPER_FAILSAFE_IMAGE="/opt/tilebg.jpg"
 	[[ -x $PICK_WALLPAPER_BINARY ]] 			||	PICK_WALLPAPER_BINARY=hsetroot
-	[[ -n $PICK_WALLPAPER_DEFAULT_FLAGS ]] 		||	PICK_WALLPAPER_DEFAULT_FLAGS=( "-tint" "#$(perl -e 'printf("%06x", int(rand(16777215)))')" "-cover" )
+	[[ -n $PICK_WALLPAPER_DEFAULT_FLAGS ]] 		||	PICK_WALLPAPER_DEFAULT_FLAGS=( "-tint" "#$(perl -e 'printf("%06x", int(rand(16777215)))')" )
 	[[ -n $PICK_WALLPAPER_WALLPAPER_IMAGES ]]	||	PICK_WALLPAPER_WALLPAPER_IMAGES=( /usr/share/wallpapers/**/*.{png,gif,jpg,jpeg,bmp,xpm} )
 	[[ -n $PICK_WALLPAPER_FLAGS ]]              ||  PICK_WALLPAPER_FLAGS=( "${PICK_WALLPAPER_DEFAULT_FLAGS[@]}" )
 	[[ -n $PICK_WALLPAPER_WALLPAPER_COUNT ]]    ||  PICK_WALLPAPER_WALLPAPER_COUNT=${#PICK_WALLPAPER_WALLPAPER_IMAGES[@]}

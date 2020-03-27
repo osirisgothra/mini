@@ -1,17 +1,40 @@
 #!/usr/bin/perl
+# vim: cc=80:sw=2:ts=2:noet:more:nowrap:fdm=indent:fdl=999:siso=999:so=999
+# {begin config=debug} TODO: remove from release versions (should be installed in common dirs)
+#
+use lib "/src/perl";
+# {/begin}
 
 use warnings;
-use v5.18;
+use v5.20;
 use strict;
 use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
 use File::Slurp;
 use Path::Tiny;
+use Curses::UI;
+
+
+
+
+# uncomment when inifile is done
+use File::Config::INI qw( inifile );
+# comment this range out when inifile is done
+#sub inifile { return (); }
+# end comment out when range inifile done
+use feature qw ( switch );
+
+
+no warnings "experimental";
 
 # constants (compile time, do not precompile me)
 
 use constant HOME => $ENV{HOME};
 use constant PSF => ".logofrc";
 use constant PRESET => "<preset name>";
+
+# presets
+my $presets = inifile("~/.logofrc","/etc/logofrc","none");
+
 
 # command line options
 
@@ -27,50 +50,33 @@ my ($opt, $usage) = describe_options(
         [],
         [ 'verbose|v',  "print extra stuff"            ],
         [ 'help',       "print usage message and exit" ],
-      );
-
-say("\n" . $opt->presetfile . " = current presets default\n"), print($usage->text), exit if $opt->help;
-my %presets = ( -f -r $opt->presetfile ) ? $opt->presetfile->lines : qw( empty true ); 
-chomp for @presetlines;                                                                                                                   # note: removes start/end spaces and newlines
-s/\s+/ /g for @presetlines;	                                                                                                          # note: removes extra spaces within presets list
-my %presets = split(" ",@presetlines);	# 
-
-if ( $opt->list_presets )
+     );
+sub translate_logfile($)
 {
-	say("Preset(s)");
-	say("-" x ($ENV{COLUMNS} // 20) );
-	say for keys(%presets);
-	say("-" x ($ENV{COLUMNS} // 20) );	
-	exit;
-}
-
-sub logof
-{
-	my $file = shift;
-	my @args = ( $file );
-	
-	if ( -r $file )
-	{
-		print("found $file\n");
-		if ($opt->no_dialog)
-		{
-			system("tail",$file, 
-			$opt->no_follow ? () : ( "-f","-n","100" ) 
-				
-			);
-		}		
-		else
-		{
-
-			system("dialog", 
-			"--" . ($opt->no_follow ? "textbox" : "tailbox"), 
-			$file, "0","0" );
-			
-		}
-		
-		
+	my $log = shift;
+	given($log) {
+		say("unreadable $log") unless -r;
 	}
-	
+	return $log;
 }
 
-logof($_) for @ARGV;
+my @dialogcmd = qw! dialog --backtitle logof-v1.0 --tailbox !;
+my $uname=(getgrent())[3] // $ENV{'USERNAME'} // "nobody";
+my @dialogsize = qw! -1 -1 !;
+my $logfile = "/var/log/syslog";
+if (@ARGV == 1) {
+	$logfile = translate_logfile($ARGV[0]);
+	
+	die("$logfile is unreadable by effective user ($uname)!") unless -r $logfile;
+
+
+}
+elsif (@ARGV > 1) {
+	die("only 1 file should be specified to view");
+}
+system(@dialogcmd,$logfile,@dialogsize);
+say($logfile);
+
+
+
+

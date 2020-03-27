@@ -1,0 +1,54 @@
+#!/usr/bin/perl
+#
+# FILE
+#    path
+#    curses
+#
+# PROJECT
+#    mcedit.zsh
+#    starts mcedit for minecraft
+#
+# AUTHOR / COPYRIGHT
+#
+#    Copyright (C) 2019, mini
+#
+#    Written by mini, [osirisgothra@larnica.(none)]
+#    Latest versions of this and all of mini's projects can be
+#    obtained from:
+#
+#    <https://github.com/small projects collection>
+#
+#    Documentation Available At:
+#
+#    <https://small projects collection.github.io/mcedit.zsh/http://www.github.com/small projects collection/mcedit.zsh.git>
+#
+# LICENSE
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  HISTORY
+#
+#	 Sat Jun 15 01:23:33 2019
+#         small projects collection\@larnica.(none) created this file using perltemplate
+#         and named it path
+#
+#                    created with Text::Template::Alternative::Perl (or just 'perltemplate')
+#
+use warnings;
+use v5.18;
+use strict;
+no warnings "experimental";
+
+system('/src/mc/mcedit/mcedit.sh');

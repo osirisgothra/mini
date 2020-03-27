@@ -1,0 +1,19 @@
+#!/bin/zsh
+logs=( crash-$(date +"%Y-%m-%d")_*-(server|client).txt )
+echo "${#logs[@]} from today are found"
+shown=0
+# prevent "zsh: no matches found ... " messages on globs
+setopt nullglob
+for x in $logs; do
+	let shown++
+		echo "$x..."
+ 	less "$x" --
+ 	prompt="$x - page %P(%p)"
+done
+if [[ $shown -le 0 ]]; then
+	echo "Sorry, nothing available to show for $(date +"%m/%d/%Y")"
+	echo "make sure you start in a crash-reports dir!"
+else
+	[[ $shown -eq 1 ]] && s=\ has || s=s\ have
+	echo "$shown report$s been reviewed"
+fi

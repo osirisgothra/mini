@@ -1,0 +1,50 @@
+#!/usr/bin/perl
+
+use v5.20;
+use warnings;
+use strict;
+use File::Slurp;
+use Path::Tiny;
+use Getopt::Long::Descriptive;
+use File::Find;
+use vars qw[ $opt $usage ];
+no warnings 'experimental';
+
+
+sub parse_options {
+	($opt, $usage) = describe_options( "$0" . '%o <filename>',
+		[ 'file|f=s', "specify filename to find", { default => '^index.html?$' } ],
+    	[ 'verbose|v',  "print extra stuff"            ],
+    	[ 'help|h',     "print usage message and exit" ],  );
+	print($usage->text), return 1 if $opt->help;
+	return 0;
+}
+exit(1) if parse_options();
+my $target = qr/$opt->file/is;
+###################################################################################
+
+my $shortest = undef;
+say("filename: ".$opt->file);
+say("target: ".$target);
+
+
+sub wanted {
+	return unless /$target/; # /^index.html?$/
+	# say("ffn=$File::Find::dir + $_  === $File::Find::name"); 
+	my $newf = $File::Find::name;
+	my $newlen = length($newf);
+	my $oldlen = length($shortest);
+	if ( ! defined($shortest) || $newlen < $oldlen ) {
+		$shortest = $newf;
+		#say("found new shortest: $shortest");
+	}		
+}
+
+find(\&wanted, @ARGV);
+
+say($shortest);
+
+
+
+
+

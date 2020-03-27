@@ -1,0 +1,113 @@
+#!/usr/bin/perl
+#
+# FILE
+#    dbus-launch
+#    launch via dbus, frontended
+#
+# PROJECT
+#    mini, eso/ubin-local
+#    esoteric user scripts in varying languages
+#
+# AUTHOR / COPYRIGHT
+#
+#    Copyright (C) 2019, Gabriel Thomas Sharp
+#
+#    Written by Gabriel Thomas Sharp, [osirisgothra@larnica.(none)]
+#    Latest versions of this and all of Gabriel Thomas Sharp's projects can be
+#    obtained from:
+#
+#    <https://github.com/osirisgothra>
+#
+#    Documentation Available At:
+#
+#    <https://osirisgothra.github.io/mini, eso/ubin-local/http://www.github.com/osirisgothra/mini, eso/ubin-local.git>
+#
+# LICENSE
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  TODO
+#  
+#    A brief listing of features that have been planned or are partially completed
+#    and when they are projected to be completed (either specific or inspecific) 
+#    if such projections apply:
+#    
+#	Section/Subsection			Designator (shown in regex format)   				Example Use(s)*
+#	 
+#	 Planned
+#		Features				(FEATURE(ADD|(RE?M(OVE)?)):)						FEATUREADD:
+#		Bugfixes				(BUG(FIX)?:)										BUG: or BUGFIX:
+#		Changes					(CHANG(E[SDR]?|ING|UP)|MOD(IF((I(CATION|ED))|Y):)   CHANGEUP: MODIFY: 
+#		Unplanned 				(UN(K(NOWN)?)|PLAN(NED)|TEST(ED|ABLE))				UNPLANNED: UNTESTED: UNK:
+#		Planned					PLANNED:											n/a
+#		Nota Bene
+#
+#  HISTORY
+#
+#
+#	 Tue Jun 11 11:15:51 2019
+#         osirisgothra\@larnica.offline created this file using perltemplate
+#         and named it dbus-launch
+#
+#                    created with Text::Template::Alternative::Perl (or just 'perltemplate')
+#
+#    (SeeAlso: TODO for information on upcoming additions or changes that may be referred to here)
+#
+use warnings;
+use v5.18;
+use strict;
+no warnings "experimental";
+
+my $checker=1;
+my @ARGV2 = qw();
+my $skip=0;
+
+sub ssay { 1; }
+
+for (@ARGV) 
+{
+	ssay("doing $_");
+	if ($checker == 1)
+	{ 
+		ssay("checker->1");
+		if (/^--?/) 
+		{
+			ssay("param->flag->skipto1");
+			$skip=1;			
+		}
+		else
+		{
+			ssay("param->noflag");
+			$skip=0;
+			$checker=0;
+		}
+	}
+
+	if ($skip == 0) 
+	{
+		ssay("--noskip,pushit---");
+		push(@ARGV2,$_);
+	}
+	else
+	{
+		ssay("--skip,skip,resetskip0--");
+		$skip=0;
+	}
+}
+say("line: @ARGV");
+say("using these only:" );
+say("\t$_") for @ARGV2;
+say("total " . scalar(@ARGV2) . " item(s)\nexecuting...\n");
+exec(@ARGV2);

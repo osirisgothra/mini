@@ -1,0 +1,17 @@
+#!/usr/bin/zsh
+
+# isgvimfs
+#
+# - oneliner - public domain (original author: gabriel t. sharp <osirisgothra@hotmail.com>
+#
+# purpose: use xprop to detect if a window is fullscreen
+# date: created Apr 2, 2019 by original author (above)
+
+# its a oneliner retval program -- never ever needs output, we only care if it succeeds
+exec 2>/dev/null
+exec 1>&2
+
+# added exit to invert the result (i didnt want to call the program 'isgvimnotfs' or 'isnotgvimfs' that was akward
+xprop -root | grep '_NET_CLIENT_LIST\(WINDOW\)[^#]+#' -P | sed -r 's/^[^0]+//g' | tr ',' '\n' | while read r; do xprop -id "$r" | grep vim && xprop -id "$r" | grep WM_STATE; done | grep FULLSCREEN -q && exit 0
+# not using || after && to keep things clean as possible
+exit 1

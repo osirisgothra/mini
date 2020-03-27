@@ -1,0 +1,28 @@
+#!/bin/zsh
+integer amt=$(command df / --out=avail | sed -rn '2{s/(^ +| +$)//g;p}')
+
+case $# in
+	1) if [[ $1 =~ ^[+-][0-9]+$ ]]; then
+			case ${1: 0:1} in
+				"-") exit $(( ${1[2,-1]-0} > amt ));;
+				"+") exit $(( ${1[2,-1]-0} <= amt ));;
+			esac
+			return 127
+		else
+				echo "bad form!"
+ 		fi
+		;;
+	0)  echo "$amt"
+		;;
+	*)  cat <<-EOF
+		error: invalid command line
+		syntax: [dfroot] [+|-][size in bytes]
+		    or: dfroot
+		first form returns true or false depending on the
+		sign and number given.
+		second form just prints the amout in bytes
+		all input numbers must be in bytes as well
+EOF
+		;;
+esac
+return 126

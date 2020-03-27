@@ -1,0 +1,7 @@
+#!/bin/bash
+if [[ $1 == --help ]]; then
+	xmlstarlet c14n --help | sed 's/xmlstarlet c14n/sx-c14n/g'
+else
+	xmlstarlet c14n "$@"
+fi
+

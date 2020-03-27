@@ -1,1 +1,271 @@
-#!/usr/bin/python3
+#!/bin/zsh
+#      vim: ft=zsh:fdm=marker:fmr=###{,###}:et:ts=2:sw=2:mls=5:more:laststatus=2:foldclose=all:foldopen=all
+#    pwp
+#    as the mneomic suggests, picks a wallpaper
+#    github/osirisgothra/mini[dev]/eso/ubin-local
+#    small insignificant esoteric projects, usually only consisting of a single file
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository:
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# INTENDED RUNNING ENVIRONMENT
+#
+#	This script is meant to run in window managers that dont use a desktop
+#	manager of any kind and usually no session or background manager. There
+#	is support for icewm's background manager (icewmbg), but this is the only
+#	one so far that can be setup here without breaching restrictive protocol.
+#	I wrote this script for dwm, tinywm, evilwm, i3, icewm, blackbox, and a
+#	slew of other small window managers including my own personal gxdwm.
+#
+# ANNOTATIONS
+#
+#	Annotations take the form of 'SECTION:line'. Sections should broken down
+#	into no more than 2 pages (or 100 lines) long. Anthing longer than this
+#	should be sectioned further otherwise the reader will be counting lines
+#	until the cows come home.
+#
+#		PRE-RUN CHECKS:4
+#			Checking for the usage of XDG_CURRENT_DESKTOP is important to
+#			see if we even need to set wallpapers this way. Most Window
+#			managers using this (kde, gnome, xfce) wont have the root window
+#			visible anyway. Furthermore, most use compositing so it is just
+#			best to use their (however bad or good it may be) wallpaper selection
+#			method. You can of course, undefine XDG_CURRENT_DESKTOP and still
+#			use this program, and then use the ~/.config/pwp-last-wallpaper.jpg
+#			created by it, set it in your window managers desktop wallpaper
+#			selector, and then somehow refresh that (usually via dbus or a command)
+#			but this is cumbersome at best and insecure at worst. Since this
+#			is a restricted mode program, nothing like that is done here.
+#
+# HISTORY
+#
+#    Sat Aug 17 08:15:17 EDT 2019
+# 			osirisgothra@larnica fixed some things:
+#				- last of old redirection code is fixed (not allowed in rzsh!)
+#				- checking of dirs before sending them to find(1)
+#				- a spiffy new banner from tetradraw, now that i know about iconv(1)
+#				- ensure we are NOT in MSDOS line endings after appending any ansi text! (cough* hackers *cough)
+#	 Thu Jun 18 21:25:17 EDT 2019
+#            osirisgothra@larnica initially created this file
+#            with the original name, pwp
+#	 Sat Jun 22 11:17:25 EDT 2019
+#			 osirisgothra@larnica pretended to add this common template that is
+#			 used on all github/osirisgothra projects, but it isnt, and since
+#			 has decided that rah template (random-as-hell template) is the
+#			 best of all his templates in which to use!
+#
+# TARGET NOTES
+#
+#   WARNING -- WRITTEN FOR RESTRICTED SHELL MODE#
+#	read about  restricted (rzsh) shell modes in your zsh(1) or zshall(1)
+#	man pages
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+# PRE-RUN CHECKS
+
+[[ $options[restricted] == on ]] && { "fail: must not be run with rzsh or zsh in restricted mode"; exit 127; }
+[[ $options[interactive] == on ]] && { "fail: do not run interactivly using source or dot(.) instead run as an executable"; exit 126; }
+[[ $DISPLAY =~ ^:[0-9][0-9]?(.[0-9][0-9]?)?$ ]] || { "fail: cant find proper DISPLAY, needs to run in X"; exit 125; }
+[[ "$XDG_CURRENT_DESKTOP" == "" ]] || ( [[ $KDE_FULL_SESSION != true ]] &&  { "fail: x desktop manager present, you must use it instead to set wallpapers!"; exit 124; } )
+# SHELL OPTIONS
+zmodload zsh/mathfunc
+setopt interactivecomments
+setopt extendedglob
+setopt nobeep
+# VARIABLES
+declare -gx pwp_banner="\e[0,\e[11m\e[1;30m────────────────────────────────────────────────────────────\e[0;37m\n\e[A\e[79C\n┌┐   ┌┐       \e[1;30m┌──────────────────────┐\e[0;37m\n\e[A\e[79C\n\e[36m│┘└┴┘│┘\e[37m       \e[1;30m│\e[37mWall\e[0;36mpape\e[1;34mr P\e[0;36mi\e[1mck an\e[37md\e[36m \e[37mSet\e[30m│\e[0;37m\n\e[A\e[79C\np\e[1;36mi\e[0;36mc\e[1;34mk\e[0;37m          \e[1;30m│\e[37mSc\e[0;36mript\e[1;34m Fo\e[0;36mr I\e[1mce\e[37m/i/D/wm\e[0m \e[1;30m│\e[0;37m\n\e[A\e[79C\n \e[1;30m\_\e[0;37m \e[34mw\e[1;30mal\e[0;34ml\e[1;30m  \e[0;37m \e[1;30m_\e[0;37m  \e[1;30m│\e[37m(\e[0;36man\e[1;34md ma\e[0;36mn\e[1my ot\e[37mhers!)\e[0m    \e[1;30m│\e[0;37m\n\e[A\e[79C\n\e[1;30m  \e[0;37m    \e[1;34mp\e[0;36ma\e[1mpe\e[0;37mr \e[1;30m\\e[0;37m \e[1;30m└──────────────────────┘\e[0;37m\n\e[A\e[79C\n\e[1;30m────────────────────────────────────────────────────────────\e[0;37m\n\e[A\e[79C\n\e[1;31m(\e[0;37mC\e[1;31m)\e[30m2015\e[31m-\e[30m2019 Gabriel T\e[31m.\e[30m Sharp\e[0;37m\n\e[A\e[79C\n\e[1;30mLicense subjet to \e[0;37mPARADISIM LICENSE AGREEMENT\n\e[A\e[79C\n\e[1;30mWhich can be found on https\e[31m://\e[30mgithub\e[31m.\e[30mio\e[31m/\e[30mosirisgothra\e[31m/\e[30mmini\e[0;37m\n\e[A\e[79C\n\e[1;31m(\e[30mlicense or license\e[31m.\e[30mmd for markdown versions\e[31m)\e[0;37m\n\e[A\e[79C\n\e[1;30m────────────────────────────────────────────────────────────\e[0;37m\n\e[A\e[79C\n\e[0m\e[21m"
+declare -gx pwp_method="new"
+declare -gx pwp_process_age="newest"		# possible settings: n(ewest), o(ldest) only the first character is significant
+declare -gx pwp_hsr_binary="hsetroot"
+declare -gx pwp_icewm_binary="icewmbg"
+declare -gx pwp_pgrep_binary="pgrep"
+declare -gx pwp_icewmbg_pid="$(command $pwp_pgrep_binary -x${icewmbg_process_age: 0:1} icewmbg || echo '-1')"
+declare -gx pwp_image_dirs=( /usr/share/wallpapers /b/way/usr/share/wallpapers /b/usr/share/wallpapers )
+declare -gx pwp_images=( )
+declare -gA pwp_presets=(
+	'Havelock Blue' '#3399FF'										# 0
+	'Havelock Blue' '#65B2FF'          								# 1
+	'Dim Gray' '#5E5E5E'											# 2
+	'Havelock Blue Blend Node' '#3399FF'							# 3
+	'Havelock Blue 66 Blend 33 Havelock Blue' '#42A1FF'				# 4
+	'Havelock Blue 33 Blend 66 Havelock Blue' '#52A9FF'				# 5
+	'Havelock Blue Blend Node' '#65B2FF'							# 6
+	'Havelock Blue 66 Blend 33 Dim Gray' '#6393C0' #7
+	'Havelock Blue 33 Blend 66 Dim Gray' '#60778B' #8
+	'Dim Gray Blend Node' '#5E5E5E' #9
+	'Dim Gray' '#5E5E5E' #10
+	'Dim Gray Blend Node' '#5E5E5E' #11
+	'image map 1' '#191487' #12
+	'image map 2' '#120759' #13
+	'vdark' '#050506' #14
+	'vdark2' '#10100a' #15
+	'vdark3' '#151516' #16
+	'vdark4' '#1e1e1f' #16
+)
+
+# FUNCTIONS
+function getimages()
+{
+	if [[ -s /tmp/imgcache ]]; then
+		seecho "found cache, using it (remove it to refresh)"
+		#cat /tmp/imgcache | while read r; do
+		#	pwp_images+=( "$r" )
+		#done
+		#IFS=$'\n'
+		pwp_images=( )
+		#unset IFS
+	else
+		truncate -s0 /tmp/imgcache
+		local id fn
+		for id in $pwp_image_dirs; do
+			if [[ -d $id ]]; then
+				# echo "getting images in $id"
+				IFS=$'\n'
+				found=( `find -L "$id" -regextype posix-extended -iregex '.*\.(png|[gt]iff?|jpe?g|x[pb]m|bmp)'` )
+				for fn in "${found[@]}"; do
+					# echo "adding $fn..."
+					pwp_images+=( $fn )
+					# to list, and to cache
+					# zero length or nonexistent
+					echo "$fn" >> /tmp/imgcache
+				done
+			else
+				seecho "warning: configured directory, \"$id\" is currently not reachable by me"
+			fi
+		done
+	fi
+}
+
+function getimage()
+{
+	if [[ -s /tmp/imgcache ]]; then
+		maxi="${$(wc -l /tmp/imgcache)% *}"
+		iidx="$(( int(floor(rand48($SECONDS) * maxi)) ))"
+		sed -n "${iidx}p" /tmp/imgcache | tr -d '\n'
+	else
+	local -i imin=1 imax=$#pwp_images iidx=${1-1}
+	if [[ $1 == "rand" ]]; then
+		iidx=$(frn $imax $imin)
+	elif [[ $1 =~ "^[0-9]*$" ]]; then
+		iidx=${iidx}
+	else
+		secho "syntax: getimage [<number>|rand]"
+		secho "argument must be a number or 'rand'"
+	fi
+	iidx=$((iidx<imin?imin:iidx))
+	iidx=$((iidx>imax?imax:iidx))
+	printf "${pwp_images[iidx]}"
+	fi
+}
+
+function save_icewm_img()
+{
+	if (( pwp_icewm_pid > 0 )); then
+		printf "icewmbg(pid=$icewmbg_pid) detected, attempting to give it the new wallpaper..."
+		if [[ -r ~/.icewm/preferences ]]; then
+			if perl -i -wpe "s!^[# ]*DesktopBackgroundImage.*!DesktopBackgroundImage=\"$HOME/.config/pwp.jpg\"!g" ~/.icewm/preferences
+			then
+				printf "config=ok "
+				icewmbg -r | perl -wne "0;"
+			else
+				printf "config=fail\ncouldnt successfully write into settings file in ~/.icewm/preferences"
+			fi
+		else
+			printf "failed\n~/.icewm/preferences does not exist, it needs to be created first and have a DesktopBackgroundImage setting entry!\n"
+		fi
+	fi
+}
+seecho() { echo "$@" > /dev/stderr; }
+function get_image_name()
+{
+	case $pwp_method in
+		old)	printf ~/wall/1/$(frn 148 1).jpg
+				;;
+		new)	seecho "getting images..."
+				getimages
+				seecho "done, chosing..."
+				echo "$(getimage rand)"
+				seecho "done"
+			;;
+		*)	cat "$0" | grep pwp_method
+			echo "error: pwp_method must be either old or new, method '$pwp_method' is unknown! (corrupt file or newer version counterparts?)"
+			exit 122;
+			;;
+	esac
+}
+
+
+function translate_tint()
+{
+	# syntax: translate_tint #rrggbb | rrggbb | presetname
+	case ${(L)1} in
+		\#[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f])
+			printf "$1";; # leave alone
+		[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f])
+			printf "#$1";; # just add the hash
+		*)				# use a preset (from above)
+			case $1 in
+				[0-9]*) ci=0
+						for x in ${(k)pwp_presets}; do
+							if [[ $ci == $1 ]]; then
+								printf "$pwp_presets[$x]"
+								break
+							fi
+							let ci++
+						done
+						;;
+					*)	printf "$pwp_presets[$1]"
+						;;
+			esac
+	esac
+}
+function show_image()
+{
+	TINTCOLOR="$(translate_tint ${1-\#909090})"
+	echo "tint: $TINTCOLOR"
+	image_name="$(get_image_name)"
+	echo "image: $image_name"
+	hsetroot -cover "$image_name" -tint "$TINTCOLOR" -write ~/.config/pwp.jpg
+	if [[ $KDE_FULL_SESSION == true ]]; then
+		print -P "\n%F{27}%BRUNNING IN KDE COMPATIBILITY MODE (see NOTES: KDECOMPAT)\n%f%b"
+		rm /var/cache/pwp/^README
+		cp ~/.config/pwp.jpg /var/cache/pwp/$(mktemp -u pwpXXXXXXXXXXXXX.jpg) -f
+		echo "be sure to use /var/cache/pwp as your wallpaper slideshow to be compatible with kde!"
+	fi
+
+}
+
+##
+## MAIN SCRIPT
+##
+
+echo "${pwp_banner}"
+if show_image "$@"; then
+	# for icewmbg, even if we are not using it now
+	# can at least save it for later when we might
+	save_icewm_img
+fi

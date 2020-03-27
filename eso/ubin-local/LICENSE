@@ -1,0 +1,39 @@
+ ubin-local
+ local esoteric projects and scripts
+ 2013-2020
+ files that date before 2013 follow the GNU GPL v1
+ files that date prior to 2000 follow their own specific licenses
+ files that date prior to 1997 are considered to be private and are
+ not for reuse. if you come across anything like this, I need to be
+ notified (osirisgothra@hotmail.com) as I have been doing this archive
+ for quite a long time (from ~1992 on, 28 years give or take). I have
+ tried to keep the older files out but some may still be here. You can
+ find any of my PUBLIC older stuff on walnut creek which was managed by
+ UC Berkley but is now a private archive managed by companies such as
+ simtel, twbm, oldnet, funet, etc. Those sites have mirrored my work and
+ have on archive their own licenses that pertain to only that material,
+ not to my work in general. 
+
+ LICENSE
+
+ This submodule is '/mini/eso/ubin-local', which is meant for esoteric
+ scripts that are used personally by the author in day-to-day operations.
+ Also some entertainment stuff is rolled in there, you will most likely
+ not find most of this stuff useful as it is very specific in purpose however
+ I do try to make things portable (machine, not OS) whenever possible. As
+ a general rule, locations of files, user names, etc are not hardwired if
+ I can help it. If it CANT be helped, usually these values can simply be
+ changed inline with a text editor. However, I here and now declare that none
+ of the esoteric projects have any kind of guarentee of working for anyone
+ else regardless of use, intent, etc. Most of this code licenses under the
+ GNU GPL2 just for legal reasons. Individual files may have license restrictions
+ IF THEY CONTAIN THEIR OWN LICENSE TEXT.
+
+PLEASE NOTE THIS IS NOT A COMPLETE LICENSE AND YOU SHOULD READ THE
+GNU GPL2 YOURSELF ON THEIR WEBSITE AT: http://gpl.gnu.org
+
+THIS FILE COVERS ITEMS IN THIS BRANCH, OTHER BRANCHES MAY HAVE THEIR OWN
+LICENSE TEXTS, IF THEY DO YOU MUST READ THOSE FOR FURTHER INFORMATION!
+
+
+

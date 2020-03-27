@@ -1,4 +1,5 @@
-#!/bin/bash 
+#!/bin/zsh
+emulate zsh
 #
 #    stopservices
 #    stops some predefined annoying services
@@ -9,7 +10,7 @@
 #
 #    Written by Gabriel T. Sharp <21shariria@gmail.com>
 #    Latest versions of this and all of my projects can be
-#    obtained by visiting the repository: 
+#    obtained by visiting the repository at:
 #
 #    <https://github.com/osirisgothra>
 #
@@ -45,205 +46,527 @@
 #	 Sat Sep 15 09:45:13 EDT 2018
 #            osirisgothra@larnica added this license and header while still
 #            retaining it's original name, 'stopservices'.
+#	Sat Aug 17 07:51:24 EDT 2019 "big update"
+#			 []sirisgothra added (major) features:
+#				required services to run it
+#				services to never kill (aka 'keep')
+#				service->process kill mechanism
+#				error checking and reporting
+#				--fix mode (fixes dbus/polkit not running problem)
+#				--help screen
+#					with full explanation of any future added error codes
+#				--reinstate <- this effectively does an UNDO on the
+#								stopping of services (restarts them)
+#				most of script scrapped and rewritten
+#				with the four main components: require, keep, nokeep, execute
+#               __
+#               |_
+#				|_nabled incode aliases for debugging purposes
+#				added command 'debugbreak' which starts a debug prompt wherever
+#				it is dropped. It is due to be introduced into the standard
+#				paradisim zsh library (must add bash and sh equivalents).
+#              ___
+#				|his script is now 100% zsh, which is not a problem since it
+#				seems many systems now come with some form of zsh installed as
+#				to their programs that require it.
+#
+#				bash support removed
+#				ksh support removed
+#				sh support removed
 #
 #  (this header was created using the template generator by Gabriel T. Sharp)
 #
 #
 
-shopt -s extglob
-shopt -s interactive_comments
-shopt -s extdebug
-shopt -s globstar
+# options
 
-if [[ $# -gt 0 ]]; then
-	
-	if [[ $* =~ --help ]]; then
-		echo "usage: stopservices"
-		echo "   or: stopservices [sname, ...]"
-		echo "     : stopservices --help"
-		echo ""
-		echo "used to stop a predefined list of services (first form) or"
-		echo "services specified as an argument list (second form)."
-		echo ""
-		echo "option(s)"
-		echo "sname   any service name recognized by systemctl(1) or service(1)"
-		echo "        as delegated by systemctl(1). At any time, a name can be"
-		echo "        passed as --start to change this program over to starting"
-		echo "        services instead of stopping them. This applies to this"
-		echo "        list only and has no effect on the built-in service list"
+setopt interactive_comments
+setopt nobeep
+setopt extendedglob
+setopt dotglob
+setopt nozle
+setopt aliases	# required for debugging feature to work
+setopt nomonitor
 
-		echo "--help  show this help message"
-		echo ""
-		echo "LICENSE"
-		echo "subject to license (detailed in the scripts source $BASH_SOURCE)"
-		echo ""		
-	else
-		# operate on individual service name(s), each arg is a service name 
-		# passed on to systemctl
-		aspect=stop
-		for sname; do
-			if [[ $sname == --start ]]; then
-				aspect=start
-			else
-				case $UID in
-					0)	systemctl $aspect "$sname";;
-					*)  sudo systemctl $aspect "$sname";;
-				esac
-			fi
-		done
-	fi
-else
 
-	# normal operation, no arguments
-		
-	# functions
-	
-	#
-	# warn(str, [str...])
-	#
-	# emit a warning on stderr where 'str' is any string, multiple strings 
-	# are processed one at a time on separate lines with headings
-	# NOTES: will output in color if xterm or a linux console is detected
-	# however it uses the TERM variable and expects a color
-	# will output to /dev/stderr
-	# 
-	warn()
-	{
-		case $# in
-			0)	echo "usage: warn str [str...]"; return 127;;
-			1)	case $TERM in
-					linux|xterm*)
-						echo "[32;1mwarning[30m[[31m$(date +%x\ %X)[30m]:[0;1m $*[0m";;
-					*)
-						echo "[32;1mwarning: $*[0m"	;;
-				esac;;
-			*)	for arg; do	warn "$arg"; done;;
+# traps
+
+trap '[[ $stopservices_wantsdebug == 1 ]] && echo "$LINENO : $ARGV"' DEBUG
+
+# variables
+
+declare -gx servicelog="stopservices-log.tmp"
+declare -gxa postprogs=( 'sudo /home/osirisgothra/bin/dbusk' 'drop 3s2s1sf' 'sync' 'dbusk' 'sync' 'sudo /usr/bin/swapon -a' )
+declare -gA zret=( ok "0: no errors (known errors, that is)" autofix "124: ran in autofix mode (error values were shown in stderr, not in return code" badarg "126: an argument passed was not good or illegal in current state" alt "127: base error code for alternative program usage (may not be fully implemented)" help "125: returned when --help is displayed" requirefail "124: one or more required configured services were not running (you can use --fix to try to fix that)" unknown "123: some other really bad, unexpected error" )
+
+# user configuration area (users: set up your preferences here)
+
+___usrconf()
+{
+	require dbus
+	require	polkitd
+
+	keep init
+	keep systemd-journald
+	keep systemd-udevd
+	keep systemd-logind
+	keep accounts-daemon
+	keep login
+	keep agetty
+	keep polkit
+	keep polkitd
+	keep dbus
+	keep dbus-daemon
+
+	nokeep -p dbus_launch
+	nokeep ModemManager
+	nokeep NetworkManager
+	nokeep ntp
+	nokeep systemd-resolved
+	nokeep wpa_supplicant
+	nokeep postfix
+	nokeep vsftpd
+	nokeep cups
+	nokeep sshd
+	nokeep anacron
+	nokeep apport
+	nokeep cron
+	nokeep gpm
+	nokeep inetutils-inetd
+	nokeep lm-sensors
+	nokeep ondemand
+	nokeep pyro-nsd
+	nokeep speech-dispatcher
+	nokeep irqbalance
+	nokeep ufw
+	nokeep cups-browsed
+	nokeep apache2
+	nokeep syslog.socket
+	nokeep ibus
+	nokeep -p ibus-daemon ibus-dconf
+	nokeep upower
+	nokeep rtkit-daemon
+	nokeep colord
+	nokeep -p at-spi2-registryd at-spi-bus-launcher
+	nokeep rsyslog
+	nokeep -o cups.socket
+	nokeep -p kdeinit4
+	nokeep -p kdeinit5
+	nokeep -p kded
+	nokeep -p kded5
+
+}
+
+# functions
+
+function exit()
+{
+	local text=$zret[$1]
+	local code=${text%%:*}
+	echo exiting $zret[$1]
+	builtin exit $code
+}
+function sudo()
+{
+	if  ((UID)) command sudo "$@"				# (evaluates true unless user is 'root')
+	if ((!UID)) "$@"							#                             <-----+
+}
+function main()
+{
+	progname="$1"
+	shift
+	echo "errors are logging to: /tmp/$servicelog"
+	MODE=normal
+	TEMP=`getopt -o SbBqahflrF --long force,quiet,silent,autofix,help,fix,brute,bruteforce,superbrute,list,reinstate -n "$progname" -- "$@"`
+	if [ $? != 0 ] ; then echo "terminating" >&2 ; exit badarg ; fi
+	eval set -- "$TEMP"
+	while true ; do
+		echo "checking argument $1"
+		case "$1" in
+			-S|--superbrute)
+				echo "entering SUPERBRUTE mode, most all services will be terminated! [3sec delay to abort with CTL+C]"
+				sleep 3
+				typeset -gx SUPERBRUTE="SUPERBRUTE"
+				;;
+			-h|--help)
+				echo "[stopservices 1.0 by Gabriel Sharp (aka ss) licensed under the PARADISIM LICENSE agreement on https://github.io/osirisgothra/mini in license.md or license]"
+				echo "usage: stopservices OPTION"
+				echo ""
+				echo "OPTIONS"
+				echo ""
+				echo "--reinstate		reinstates all stopped services, that is, it restarts them"
+				echo "--fix             attempts to fix ss's required services, then exits"
+				echo "--help			do i have to tell you what this does?"
+				echo "--list			dumps the setup list from the script"
+				echo "--force			run even without dbus running"
+				echo "--brute			kill everything on require list"
+				echo "--bruteforce		like brute, except dont check for dbus"
+				echo ""
+				echo "return codes:\nname\tvalue: meaning\n----\t----\t----------------"
+				for kn in ${(k)zret}; do
+					echo "$kn $zret[$kn]"
+				done
+				echo ""
+				echo "note: configuring this script requires you to edit it, always make a backup of it before doing such edits as it can easily be disasterous"
+				echo "starting/stopping services on your system can be dangerous, do not use this tool unless you know full well what you are doing! (and at your OWN risk!)"
+				echo ""
+				exit help
+				;;
+			-a|--autofix)
+				echo "running in autofix mode, $progname will run two (2) times!"
+				# NOTE: code below is (obviously) simplifiable with a loop, however, the code is
+				# spaced and separated (not simplified into loop) for future expansion/control that
+				# is planned which will need them to be separate and not in a loop.
+				$progname --fix
+				r=$? ps=( $pipestatus )
+				echo "autofix pass 1 returned=$r (pipestatus=$ps), took $SECONDS seconds"
+				$progname
+				r=$? ps=( $pipestatus )
+				echo "autofix pass 2 returned=$r (pipestatus=$ps), took $SECONDS seconds"
+				# TODO: if loop can be used after final version, simplify it into a loop (otherwise leave as-is)
+				exit autofix
+				;;
+			-F|--fix)
+				MODE=fix
+				shift
+				;;
+			-b|--brute)
+				SUBMODE=brute
+				shift
+				;;
+			-B|--bruteforce)
+				MODE=forced
+				SUBMODE=brute
+				shift
+				;;
+			-f|--force)
+				echo "warning force (-f or --force) specified on command line, but is not recommended. Expect failures from systemctl!"
+				MODE=forced
+				shift
+				;;
+			-q|--silent|--quiet)
+				echo "entering all silent mode"
+				exec 2>/dev/null
+				exec 1>/dev/null
+				exec 0>/dev/null
+				shift
+				;;
+			-l|--list)
+				MODE=list
+				shift
+				;;
+			-r|--reinstate)
+				MODE=reinstate
+				shift
+				;;
+			--) echo "final decision on mode: $MODE"
+				shift
+				break
+				;;
+			*) echo "internal error (parsing unexpected argument $1) please use --help to get proper syntax information"
+			     exit badarg;;
 		esac
-	}
-
-	#
-	# service(name)
-	# service(take:name)
-	#
-	# kill/stop service "name" or "[take:]name"
-	# where "take" can be: ko: kill process only, so: stop service only
-	# example: service apache2:so
-	#          stops service apache2 but not kill the processes named "apache2"
-	#          service gnome-settings-daemon:ko
-	#          kills 'gnome-settings-daemon' process, but doesnt attempt to stop a service with the same name
-	# (these examples are real-world "default" examples, they are used since they 
-	# should make sense to most users)
-	service()
-	{
-		name="${1##*:}"
-		take="${1%%:*}"
-		[[ $take == $name ]] && take="normal"
-		shift
-		echo -ne "[34;1mstopping service \"$name\" (method=${take}):[31;1m "
-		local -i skip=0
-		if [[ $# -gt 0 ]]; then
-			warn "ignore extra params ($*)"
-		fi
-		if [[ $take == "so" ]] || [[ $take == "normal" ]]; then
-			if isserv "$name"; then
-				if sudo systemctl stop "$name"; then
-					echo -ne " [0mservice:[31mstopped[0m"
+	done
+	echo "Remaining arguments:"
+	for arg do echo '--> '"\`$arg'" ; done
+	################################################################################
+	case ${MODE-normal} in
+		list)
+			echo
+			echo "main categories" | sed -r 's/(.*)/\U\1/g'
+			echo
+			echo "keep services"
+			cat $progname | grep '^\s*[k]eep ' | sed 's/keep//g'
+			echo
+			echo "discard/stop services" 
+			cat $progname | grep '^\s*[n]okeep ' | sed 's/nokeep//g'
+			echo
+			echo "transitional categories"
+			echo
+			echo "gate inducting services" | sed -r 's/(.*)/\U\1/g'
+			cat $progname | grep '^\s*[r]equire '
+			;;
+		fix)
+			echo "attempting to fix dbus/polkit..."
+			sudo systemctl -q start dbus polkitd && echo "done (ok)" || echo "done (with status $?)"
+			exit $?;;
+		normal|forced)
+			# clear alias table, we use it only for debugging**
+			aliases=( debugbreak ' # starts a debug session inline at current context
+							echo "...entering debug mode, enter an empty line to exit...";
+							while true; do
+								typeset -a REP
+								read -A "REP?debug $progname>"
+								if [[ -n $REP ]]; then
+									echo "...exiting debug mode..."
+									break
+								fi
+								eval $REP
+							done' )
+			function require()
+			{
+				for kr; do
+					if [[ $SUBMODE == brute ]]; then
+						echo "warning: brute mode enabled, $kr will be killed also (though they may be required to run $progname)"
+						nokeep $kr
+					fi
+					if pgrep $kr; then
+						echo "verified required process/service: $kr"
+					else
+						echo -ne "FAIL: $kr is in require list, it is required to run stopservices"
+						if [[ $MODE == forced ]]; then
+							echo "[forced mode: proceeding anyway]"
+						else
+							exit requirefail
+						fi
+					fi
+				done
+				echo "$# required service/process item(s) were verified ok"
+				return 0
+			}
+			function keep()
+			{
+				for k {
+					if [[ $SUBMODE == brute ]]; then
+						echo "warning: brute mode enabled, the keep process '$k' will be moved to the nokeep list!"
+						killlist+=( "$k" )
+					else
+						echo "added $k to keeplist"
+						keeplist+=( "$k" )
+					fi
+				}
+			}
+			function nokeep()
+			{
+				case $# in
+					0) echo "fatal: nokeep needs parameters!!"; exit badarg;;
+					*) local PROC_MODE=0;;
+				esac
+				case $1 in
+					-p) PROC_MODE=1; shift;;
+					-o) PROC_MODE=2; shift;;
+				esac
+				if ((PROC_MODE == 1)); then
+					for nk; do
+						pkilllist+=( "$nk" )
+					done
+					return 0
+				elif ((PROC_MODE == 2)); then
+					for nks; do
+						echo -ne "early-kill-socket: $nks "
+						sudo systemctl stop $nks
+						echo "($? ${pipestatus-no pipe used})"
+					done
+					return 0
 				fi
-			else
-				let skip++
-			fi
-		fi
-
-		if [[ $take == "ko" ]] || [[ $take == "normal" ]]; then
-			if isproc "$name"; then
-			echo "PROCESS: $name exists!"
-				if sudo killall -KILL "$name" &> /dev/null; then
-					echo -ne "killed[0m"
+				for nk; do
+					additem=1
+					for k in $keeplist; do
+						if [[ $k == $nk ]]; then
+							( additem=0 )
+							echo "fail: in keep list, skipping item $*"
+						fi
+					done
+					if ((additem)); then
+						echo "added $nk to nokeeplist"
+						killlist+=( "$nk" );
+					fi
+				done
+			}
+			function execute()
+			{
+				if [[ $REINSTATE -eq 1 ]]; then
+					echo "re-activating..."
+					for ki in $killlist; do
+						echo "$ki..."
+						sudo systemctl start $ki
+					done
+					return 0
 				else
-					warn "fail: kill process $name"
+					echo "de-activating $#killlist service/process item(s)..."
+					typeset -i ke=0
+					typeset -i kc=0
+					for kp in $pkilllist; do
+						if pgrep -f $kp &> /dev/null; then
+							echo -ne "killing standalone process $kp..."
+							if sudo killall -KILL $kp; then
+								echo "Ok (ec=0)"
+								let kc++
+							else
+								echo "[31;1mFAILED (exit code(s): ${?} ${pipestatus-no pipe status available}"
+								beep; sleep 0.5
+								let ke++
+							fi
+						else
+							echo "skipping $kp because it is not running..."
+						fi
+					done
+					for ki in $killlist; do
+						let kc++
+						echo -ne "stopping service $ki..."
+						sudo systemctl stop "$ki" &>> /tmp/$servicelog || let ke++
+						echo "done ($?)"
+						if pgrep $ki; then
+							# note: ESC[2m == dimmed text (ignored by unsupporting terminals)
+							echo "[2m|[0m"
+							echo -ne "[2m+-[0m killing lingering process of $ki... "
+							sudo killall -KILL "$ki" &>> /tmp/$servicelog || let ke++
+							echo "done ($?)"
+						fi
+					done
+					echo "processed: $kc services / tasks / processes"
+					echo "           $ke actions were given an error status return"
 				fi
-			else
-				let skip++
-			fi
-		fi
+				for x in $postprogs; do
+					echo "post-process runprog: $x"
+					eval $x
+					echo "..$x's retv=$?"
+				done
+			}
 
-		if [[ $skip -ge 1 ]]; then
-			echo " process:[33mSKIPPED[0m"
-		else
-			printf "\n"
-		fi
-	}
+			[[ -r ~/.stopservicesrc ]] && source ~/.stopservicesrc			
+			echo "begin parsing main config:"
+			___usrconf "$@"
+			echo "end parsing"
 
-	# 
-	# isserv(servicename)
-	#
-	# self-explanitory, allows multiple names to be passed
-	# returning TRUE (0) when ALL services exist and are enabled
-	# by the systemd run-time manager as either services or sockets
-	# does not detect not-enough-arguments, however, systemctl will
-	# return false because no arguments equals an error.
-	#
-	isserv()
-	{
-		# do not need a grabloop because systemctl supports multiple names
-		# which means we dont have to evaluate them 1x1
-		if sudo systemctl -q is-enabled "$@" &>/dev/null; then
-			return 0
-		else
-			return 1
-		fi
-	}
-
-
-	#
-	# isproc(procname, [...])
-	#
-	# like isserv, takes one or more names, if more than one name specified, 
-	# unlike isserv, each argument passed back into isproc(name) one at a 
-	# time, and returns false(1) on the first process not found. if the loop
-	# completes, that means all processes were found, and therefore it returns
-	# true. The loop only is executed if there are more than one arguments. A
-	# single argument will be tested and return true(0) if it is present, or
-	# false(1) if it is not present. If no arguments are given, the function will
-	# return false, since "nothing" cannot possibly be considered as something that
-	# exists.
-	# TODO: make this work, but for now its this
-	isproc()
-	{
-		if pgrep "$*"; then
-			return 0
-		else
-			return 1
-		fi
-	}
-
-	# main program for normal mode
-
-	# to use, you can:
-	# 	1) specify your own via SERVICES_TO_STOP (exported and global, and of course, prior to running)
-	#   2) specify your own via arguments, these override SERVICES_TO_STOP so be careful!
-	#   3) add/remove values directly to SERVICES_TO_STOP below this comment block
-	#   4) just run without arguments to use the defaults (or your new defaults if you used steps 1 or 3)
-	# do not forget that each service is in the format of '[take:]name' where 'take' is optional, name is not
-	# for more info on what that means, please read the header for the 'service' function above!
-	[[ -v POST_RUN ]] || declare -ga POST_RUN=( 'drop bs312bs1sb' 'free -h' 'swapon -a' 'xbindkeys' )
-	[[ -v SERVICES_TO_STOP ]] || declare -ga SERVICES_TO_STOP=( vsftp urandom so:cups.socket cups sshd anacron apport apparmor cron gpm inetutils-inetd lm-sensors ondemand pyro-nsd speech-dispatcher irqbalance ufw cups-browsed apache2 ko:gnome-settings-daemon )
-
-	for nametake in "${SERVICES_TO_STOP[@]}"; do
-		service "$nametake"
-	done
-	for post in "${POST_RUN}"; do
-		if pgrep "$post"; then
-			echo "skipping $post"
-		else
-			echo "running $post"
-		fi
-	done
-	if [[ -r ~/morestopservices ]]; then
-			echo "found extra stop script in home, executing..."
-			source ~/morestopservices
+			execute
+			;; # end case "normal)"
+		reinstate)	# reversed from normal
+					has_service()
+					{
+						items=( $(find /lib/systemd -regextype posix-extended -iregex "${1}\.(service|socket|mount)" 2>&1 ) )
+						if [[ $#items -gt 0 ]]; then
+							return 0
+						else
+							return 1
+						fi
+					}
+					svcstart()
+					{
+						for x; do
+							if has_service "$x"; then
+					 			systemctl start "$x" &;
+					 		fi
+						done
+					}
+					keep()
+					{
+						echo "kept item(s), force reinstate first: $# $@";
+						svcstart "$@"
+					}
+					require()
+					{
+						echo "require item(s), force reinstate"
+						echo "(these arent actually required for this run)"
+						svcstart "$@"
+					}
+					nokeep()
+					{ 	echo "nonkept items: $# $@";
+					   	case $1 in
+							-*) echo "discarding flag: $1"; shift;;
+					   	esac
+					   	svcstart "$@"
+					}
+					execute()
+					{
+						echo "execute complete, waiting for pids to finish\n\e[s";
+						while [[ $#jobs -gt 0 ]]; do
+							echo "\eu"
+							for ((n=0;n<$#jobstates;n++)); do
+								case $n in
+								0)
+									jpid="PID" state="STATE" mark="+"
+									name="JOB NAME/IDENTITY" reason="TRIGGER REASON"
+									;;
+								*)
+									jpid="${${jobstates[n]##*:}%=*}"
+									state="${jobstates[n]%%:*}"
+									mark="${${${jobstates[n]}#*:}%:*}"
+									name=$jobtexts[$n]
+									[[ $mark =~ ^\s*$ ]] && mark="n/a"
+									reason="${${jobstates[n]##*\(}%%\)*}"
+									[[ $reason =~ ^\s*$ ]] && reason="n/a"
+									;;
+								esac
+								((n)) && nf="%05d" || nf="%5s"
+								echo "%-4s $nf %-12s %32s %s" $mark $jpid $state $name -- $reason
+								((n)) || { repeat $[COLUMNS-1]: printf "-"; }
+							done
+							sleep 0.5
+						done
+					}
+			echo "adding user config"
+			[[ -r ~/.stopservicesrc ]] && source ~/.stopservicesrc
+			echo "adding script config"
+			___usrconf "$@"
+			echo "ended"
+			execute
+			;;
+		*)
+			echo "error: unexpected mode: ${MODE-<missing value>}"
+			;;
+	esac
+	if [[ $SUPERBRUTE == "SUPERBRUTE" ]]; then
+		function superbrutekill()
+		{
+			local tmpfile=$(mktemp)
+			echo -ne "${1}...(before=$(pgrep $1 | wc -l) "
+			sudo systemctl stop "$1" &>> $tmpfile
+			echo "..after=$(pgrep $1 | wc -l))"
+		}
+		echo "beginning superbrute mode kills..."
+		superbrutekill getty@tty2
+		superbrutekill polkitd
+		superbrutekill systemd-dbus
+		superbrutekill dbus
+		superbrutekill dbus.socket
+		superbrutekill systemd-journald
+		superbrutekill systemd-journald.socket
+		superbrutekill systemd-journald-dev-log.socket
+		superbrutekill systemd-journald-audit.socket
+		echo "($(wc -l < $tmpfile) messages dumped from systemctl during sbk mode)"
+		rm $tmpfile
 	fi
-	
-	
-fi
 
+}
+
+main "$0" "$@"
+exit $?
+# end "emulate zsh"
+# not needed
+#   704 ?        Ssl    0:00 /usr/bin/ibus-daemon
+#   909 ?        Sl     0:00  \_ /usr/lib/ibus/ibus-dconf
+#   749 ?        Ssl    0:00 /usr/lib/upower/upowerd
+#   802 ?        SNsl   0:00 /usr/lib/rtkit/rtkit-daemon
+#   915 ?        Ssl    0:02 /usr/lib/colord/colord
+#  8257 pts/0    S<     0:00 dbus-launch --autolaunch 17fbdeb60d2449e9bc00c5d8c080c85e --binary-syntax --close-stderr
+#  8258 ?        S<s    0:00 /usr/bin/dbus-daemon --fork --print-pid 5 --print-address 7 --session
+#  8260 ?        S<l    0:00 /usr/lib/at-spi2-core/at-spi-bus-launcher
+#  8265 ?        S<     0:00  \_ /usr/bin/dbus-daemon --config-file=/etc/at-spi2/accessibility.conf --nofork --print-address 3
+#  8267 ?        S<l    0:00 /usr/lib/at-spi2-core/at-spi2-registryd --use-gnome-session
+#
+#
+# unwanted but needed
+#   721 ?        Ss     0:00 /usr/sbin/acpid
+#   422 ?        Ss     0:00 /lib/systemd/systemd-networkd
+#   803 ?        Ss     0:00 /lib/systemd/systemd-resolved
+#   811 ?        Ss     0:00 /usr/bin/dbus-daemon --system --address=systemd: --nofork --nopidfile --systemd-activation
+#
+# needed always
+#   856 ?        Ssl    0:00 /usr/lib/policykit-1/polkitd --no-debug
+#   272 ?        Ss     0:00 /lib/systemd/systemd-journald
+#   280 ?        Ss     0:01 /lib/systemd/systemd-udevd
+#   709 ?        Ssl    0:00 /usr/lib/accountsservice/accounts-daemon
+#   770 ?        Ss     0:00 /usr/sbin/kerneloops
+#   810 ?        Ss     0:00 /lib/systemd/systemd-logind
+#  1112 ?        Ss     0:00 /lib/systemd/systemd --user
+#
+# derived lists:
+#  nokeep ibus
+#  nokeep -p ibus-daemon ibus-dconf
+#  nokeep upower
+#  nokeep rtkit-daemon
+#  nokeep colord
+#  nokeep -p at-spi-bus-launcher at-spi2-registryd
+
+trap -- DEBUG

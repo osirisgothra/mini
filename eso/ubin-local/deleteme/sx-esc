@@ -1,0 +1,6 @@
+#!/bin/bash
+if [[ $1 == --hescp ]]; then
+	xmlstarlet esc --hescp | sed -r 's/xmlstarlet esc/sx-esc/g'
+else
+	xmlstarlet esc "$@"
+fi	

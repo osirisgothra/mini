@@ -1,0 +1,126 @@
+#!/bin/zsh
+# colors
+# color explorer for CLI/curses/terminals alike
+# see LICENSE distributed within the repository for details
+# this program adheres to the same license as it's exseq counterpart, which is a GNU LGPL v3 license
+# see the file 'LICENSE' distributed with this project or if you are a contributor, the LICENSE that is on
+# the 'mini/eso-ubinlocal' branch of the github.com/osirisgothra/mini repository.
+# warning: this program requires exseq unless you are using the 'old' parameter
+# which is why this check is not made (both are distributed in the same repository, so no checks will be made)
+# if the license cannot be located, it falls back to being GNU LGPL v3 license for this and any dependency file(s).
+
+# table values are
+# RBG palette is calculated from: 16-230 = 0-224 (224 color palette)
+# R = 36*r
+# G = 6*g
+# B = b
+# RGB = (36r)+(6g)+b
+flash() { beep; }
+zmodload zsh/mathfunc
+zmodload zsh/termcap
+zmodload zsh/terminfo
+
+case $1 in
+# hard-coded, no need for any nonstandard program installed, moderately faster but ugly as sin :(
+	old)
+			echo "showing table.."
+			cat <<EOF
+256-color table (default palette)
+
+[48;5;18m[38;5;0m      18 [2mDIM[0m[0;0m [48;5;19m[38;5;0m      19 [2mDIM[0m[0;0m [48;5;20m[38;5;231m      20 [2mDIM[0m[0;0m [48;5;21m[38;5;0m      21 [2mDIM[0m[0;0m [48;5;22m[38;5;0m      22 [2mDIM[0m[0;0m [48;5;23m[38;5;231m      23 [2mDIM[0m[0;0m [48;5;24m[38;5;0m      24 [2mDIM[0m[0;0m [48;5;25m[38;5;231m      25 [2mDIM[0m[0;0m [48;5;26m[38;5;231m      26 [2mDIM[0m[0;0m [48;5;27m[38;5;0m      27 [2mDIM[0m[0;0m 
+[48;5;28m[38;5;231m      28 [2mDIM[0m[0;0m [48;5;29m[38;5;0m      29 [2mDIM[0m[0;0m [48;5;30m[38;5;0m      30 [2mDIM[0m[0;0m [48;5;31m[38;5;231m      31 [2mDIM[0m[0;0m [48;5;32m[38;5;0m      32 [2mDIM[0m[0;0m [48;5;33m[38;5;0m      33 [2mDIM[0m[0;0m [48;5;34m[38;5;231m      34 [2mDIM[0m[0;0m [48;5;35m[38;5;0m      35 [2mDIM[0m[0;0m [48;5;36m[38;5;231m      36 [2mDIM[0m[0;0m [48;5;37m[38;5;231m      37 [2mDIM[0m[0;0m [48;5;38m[38;5;0m      38 [2mDIM[0m[0;0m 
+[48;5;39m[38;5;231m      39 [2mDIM[0m[0;0m [48;5;40m[38;5;0m      40 [2mDIM[0m[0;0m [48;5;41m[38;5;0m      41 [2mDIM[0m[0;0m [48;5;42m[38;5;231m      42 [2mDIM[0m[0;0m [48;5;43m[38;5;0m      43 [2mDIM[0m[0;0m [48;5;44m[38;5;0m      44 [2mDIM[0m[0;0m [48;5;45m[38;5;231m      45 [2mDIM[0m[0;0m [48;5;46m[38;5;0m      46 [2mDIM[0m[0;0m [48;5;47m[38;5;231m      47 [2mDIM[0m[0;0m [48;5;48m[38;5;231m      48 [2mDIM[0m[0;0m [48;5;49m[38;5;0m      49 [2mDIM[0m[0;0m 
+[48;5;50m[38;5;231m      50 [2mDIM[0m[0;0m [48;5;51m[38;5;0m      51 [2mDIM[0m[0;0m [48;5;52m[38;5;0m      52 [2mDIM[0m[0;0m [48;5;53m[38;5;231m      53 [2mDIM[0m[0;0m [48;5;54m[38;5;0m      54 [2mDIM[0m[0;0m [48;5;55m[38;5;0m      55 [2mDIM[0m[0;0m [48;5;56m[38;5;231m      56 [2mDIM[0m[0;0m [48;5;57m[38;5;0m      57 [2mDIM[0m[0;0m [48;5;58m[38;5;231m      58 [2mDIM[0m[0;0m [48;5;59m[38;5;231m      59 [2mDIM[0m[0;0m [48;5;60m[38;5;0m      60 [2mDIM[0m[0;0m 
+[48;5;61m[38;5;231m      61 [2mDIM[0m[0;0m [48;5;62m[38;5;0m      62 [2mDIM[0m[0;0m [48;5;63m[38;5;0m      63 [2mDIM[0m[0;0m [48;5;64m[38;5;231m      64 [2mDIM[0m[0;0m [48;5;65m[38;5;0m      65 [2mDIM[0m[0;0m [48;5;66m[38;5;0m      66 [2mDIM[0m[0;0m [48;5;67m[38;5;231m      67 [2mDIM[0m[0;0m [48;5;68m[38;5;0m      68 [2mDIM[0m[0;0m [48;5;69m[38;5;231m      69 [2mDIM[0m[0;0m [48;5;70m[38;5;231m      70 [2mDIM[0m[0;0m [48;5;71m[38;5;0m      71 [2mDIM[0m[0;0m 
+[48;5;72m[38;5;231m      72 [2mDIM[0m[0;0m [48;5;73m[38;5;0m      73 [2mDIM[0m[0;0m [48;5;74m[38;5;0m      74 [2mDIM[0m[0;0m [48;5;75m[38;5;231m      75 [2mDIM[0m[0;0m [48;5;76m[38;5;0m      76 [2mDIM[0m[0;0m [48;5;77m[38;5;0m      77 [2mDIM[0m[0;0m [48;5;78m[38;5;231m      78 [2mDIM[0m[0;0m [48;5;79m[38;5;0m      79 [2mDIM[0m[0;0m [48;5;80m[38;5;231m      80 [2mDIM[0m[0;0m [48;5;81m[38;5;231m      81 [2mDIM[0m[0;0m [48;5;82m[38;5;0m      82 [2mDIM[0m[0;0m 
+[48;5;83m[38;5;231m      83 [2mDIM[0m[0;0m [48;5;84m[38;5;0m      84 [2mDIM[0m[0;0m [48;5;85m[38;5;0m      85 [2mDIM[0m[0;0m [48;5;86m[38;5;231m      86 [2mDIM[0m[0;0m [48;5;87m[38;5;0m      87 [2mDIM[0m[0;0m [48;5;88m[38;5;0m      88 [2mDIM[0m[0;0m [48;5;89m[38;5;231m      89 [2mDIM[0m[0;0m [48;5;90m[38;5;0m      90 [2mDIM[0m[0;0m [48;5;91m[38;5;231m      91 [2mDIM[0m[0;0m [48;5;92m[38;5;231m      92 [2mDIM[0m[0;0m [48;5;93m[38;5;0m      93 [2mDIM[0m[0;0m 
+[48;5;94m[38;5;231m      94 [2mDIM[0m[0;0m [48;5;95m[38;5;0m      95 [2mDIM[0m[0;0m [48;5;96m[38;5;0m      96 [2mDIM[0m[0;0m [48;5;97m[38;5;231m      97 [2mDIM[0m[0;0m [48;5;98m[38;5;0m      98 [2mDIM[0m[0;0m [48;5;99m[38;5;0m      99 [2mDIM[0m[0;0m [48;5;100m[38;5;231m     100 [2mDIM[0m[0;0m [48;5;101m[38;5;0m     101 [2mDIM[0m[0;0m [48;5;102m[38;5;231m     102 [2mDIM[0m[0;0m [48;5;103m[38;5;231m     103 [2mDIM[0m[0;0m [48;5;104m[38;5;0m     104 [2mDIM[0m[0;0m 
+[48;5;105m[38;5;231m     105 [2mDIM[0m[0;0m [48;5;106m[38;5;0m     106 [2mDIM[0m[0;0m [48;5;107m[38;5;0m     107 [2mDIM[0m[0;0m [48;5;108m[38;5;231m     108 [2mDIM[0m[0;0m [48;5;109m[38;5;0m     109 [2mDIM[0m[0;0m [48;5;110m[38;5;0m     110 [2mDIM[0m[0;0m [48;5;111m[38;5;231m     111 [2mDIM[0m[0;0m [48;5;112m[38;5;0m     112 [2mDIM[0m[0;0m [48;5;113m[38;5;231m     113 [2mDIM[0m[0;0m [48;5;114m[38;5;231m     114 [2mDIM[0m[0;0m [48;5;115m[38;5;0m     115 [2mDIM[0m[0;0m 
+[48;5;116m[38;5;231m     116 [2mDIM[0m[0;0m [48;5;117m[38;5;0m     117 [2mDIM[0m[0;0m [48;5;118m[38;5;0m     118 [2mDIM[0m[0;0m [48;5;119m[38;5;231m     119 [2mDIM[0m[0;0m [48;5;120m[38;5;0m     120 [2mDIM[0m[0;0m [48;5;121m[38;5;0m     121 [2mDIM[0m[0;0m [48;5;122m[38;5;231m     122 [2mDIM[0m[0;0m [48;5;123m[38;5;0m     123 [2mDIM[0m[0;0m [48;5;124m[38;5;231m     124 [2mDIM[0m[0;0m [48;5;125m[38;5;231m     125 [2mDIM[0m[0;0m [48;5;126m[38;5;0m     126 [2mDIM[0m[0;0m 
+[48;5;127m[38;5;231m     127 [2mDIM[0m[0;0m [48;5;128m[38;5;0m     128 [2mDIM[0m[0;0m [48;5;129m[38;5;0m     129 [2mDIM[0m[0;0m [48;5;130m[38;5;231m     130 [2mDIM[0m[0;0m [48;5;131m[38;5;0m     131 [2mDIM[0m[0;0m [48;5;132m[38;5;0m     132 [2mDIM[0m[0;0m [48;5;133m[38;5;231m     133 [2mDIM[0m[0;0m [48;5;134m[38;5;0m     134 [2mDIM[0m[0;0m [48;5;135m[38;5;231m     135 [2mDIM[0m[0;0m [48;5;136m[38;5;231m     136 [2mDIM[0m[0;0m [48;5;137m[38;5;0m     137 [2mDIM[0m[0;0m 
+[48;5;138m[38;5;231m     138 [2mDIM[0m[0;0m [48;5;139m[38;5;0m     139 [2mDIM[0m[0;0m [48;5;140m[38;5;0m     140 [2mDIM[0m[0;0m [48;5;141m[38;5;231m     141 [2mDIM[0m[0;0m [48;5;142m[38;5;0m     142 [2mDIM[0m[0;0m [48;5;143m[38;5;0m     143 [2mDIM[0m[0;0m [48;5;144m[38;5;231m     144 [2mDIM[0m[0;0m [48;5;145m[38;5;0m     145 [2mDIM[0m[0;0m [48;5;146m[38;5;231m     146 [2mDIM[0m[0;0m [48;5;147m[38;5;231m     147 [2mDIM[0m[0;0m [48;5;148m[38;5;0m     148 [2mDIM[0m[0;0m 
+[48;5;149m[38;5;231m     149 [2mDIM[0m[0;0m [48;5;150m[38;5;0m     150 [2mDIM[0m[0;0m [48;5;151m[38;5;0m     151 [2mDIM[0m[0;0m [48;5;152m[38;5;231m     152 [2mDIM[0m[0;0m [48;5;153m[38;5;0m     153 [2mDIM[0m[0;0m [48;5;154m[38;5;0m     154 [2mDIM[0m[0;0m [48;5;155m[38;5;231m     155 [2mDIM[0m[0;0m [48;5;156m[38;5;0m     156 [2mDIM[0m[0;0m [48;5;157m[38;5;231m     157 [2mDIM[0m[0;0m [48;5;158m[38;5;231m     158 [2mDIM[0m[0;0m [48;5;159m[38;5;0m     159 [2mDIM[0m[0;0m 
+[48;5;160m[38;5;231m     160 [2mDIM[0m[0;0m [48;5;161m[38;5;0m     161 [2mDIM[0m[0;0m [48;5;162m[38;5;0m     162 [2mDIM[0m[0;0m [48;5;163m[38;5;231m     163 [2mDIM[0m[0;0m [48;5;164m[38;5;0m     164 [2mDIM[0m[0;0m [48;5;165m[38;5;0m     165 [2mDIM[0m[0;0m [48;5;166m[38;5;231m     166 [2mDIM[0m[0;0m [48;5;167m[38;5;0m     167 [2mDIM[0m[0;0m [48;5;168m[38;5;231m     168 [2mDIM[0m[0;0m [48;5;169m[38;5;231m     169 [2mDIM[0m[0;0m [48;5;170m[38;5;0m     170 [2mDIM[0m[0;0m 
+[48;5;171m[38;5;231m     171 [2mDIM[0m[0;0m [48;5;172m[38;5;0m     172 [2mDIM[0m[0;0m [48;5;173m[38;5;0m     173 [2mDIM[0m[0;0m [48;5;174m[38;5;231m     174 [2mDIM[0m[0;0m [48;5;175m[38;5;0m     175 [2mDIM[0m[0;0m [48;5;176m[38;5;0m     176 [2mDIM[0m[0;0m [48;5;177m[38;5;231m     177 [2mDIM[0m[0;0m [48;5;178m[38;5;0m     178 [2mDIM[0m[0;0m [48;5;179m[38;5;231m     179 [2mDIM[0m[0;0m [48;5;180m[38;5;231m     180 [2mDIM[0m[0;0m [48;5;181m[38;5;0m     181 [2mDIM[0m[0;0m 
+[48;5;182m[38;5;231m     182 [2mDIM[0m[0;0m [48;5;183m[38;5;231m     183 [2mDIM[0m[0;0m [48;5;184m[38;5;0m     184 [2mDIM[0m[0;0m [48;5;185m[38;5;231m     185 [2mDIM[0m[0;0m [48;5;186m[38;5;0m     186 [2mDIM[0m[0;0m [48;5;187m[38;5;0m     187 [2mDIM[0m[0;0m [48;5;188m[38;5;231m     188 [2mDIM[0m[0;0m [48;5;189m[38;5;0m     189 [2mDIM[0m[0;0m [48;5;190m[38;5;231m     190 [2mDIM[0m[0;0m [48;5;191m[38;5;231m     191 [2mDIM[0m[0;0m [48;5;192m[38;5;0m     192 [2mDIM[0m[0;0m 
+[48;5;193m[38;5;231m     193 [2mDIM[0m[0;0m [48;5;194m[38;5;231m     194 [2mDIM[0m[0;0m [48;5;195m[38;5;0m     195 [2mDIM[0m[0;0m [48;5;196m[38;5;231m     196 [2mDIM[0m[0;0m [48;5;197m[38;5;0m     197 [2mDIM[0m[0;0m [48;5;198m[38;5;0m     198 [2mDIM[0m[0;0m [48;5;199m[38;5;231m     199 [2mDIM[0m[0;0m [48;5;200m[38;5;0m     200 [2mDIM[0m[0;0m [48;5;201m[38;5;231m     201 [2mDIM[0m[0;0m [48;5;202m[38;5;231m     202 [2mDIM[0m[0;0m [48;5;203m[38;5;0m     203 [2mDIM[0m[0;0m 
+[48;5;204m[38;5;231m     204 [2mDIM[0m[0;0m [48;5;205m[38;5;231m     205 [2mDIM[0m[0;0m [48;5;206m[38;5;0m     206 [2mDIM[0m[0;0m [48;5;207m[38;5;231m     207 [2mDIM[0m[0;0m [48;5;208m[38;5;0m     208 [2mDIM[0m[0;0m [48;5;209m[38;5;0m     209 [2mDIM[0m[0;0m [48;5;210m[38;5;231m     210 [2mDIM[0m[0;0m [48;5;211m[38;5;0m     211 [2mDIM[0m[0;0m [48;5;212m[38;5;231m     212 [2mDIM[0m[0;0m [48;5;213m[38;5;231m     213 [2mDIM[0m[0;0m [48;5;214m[38;5;0m     214 [2mDIM[0m[0;0m 
+[48;5;215m[38;5;231m     215 [2mDIM[0m[0;0m [48;5;216m[38;5;231m     216 [2mDIM[0m[0;0m [48;5;217m[38;5;0m     217 [2mDIM[0m[0;0m [48;5;218m[38;5;231m     218 [2mDIM[0m[0;0m [48;5;219m[38;5;0m     219 [2mDIM[0m[0;0m [48;5;220m[38;5;0m     220 [2mDIM[0m[0;0m [48;5;221m[38;5;231m     221 [2mDIM[0m[0;0m [48;5;222m[38;5;0m     222 [2mDIM[0m[0;0m [48;5;223m[38;5;231m     223 [2mDIM[0m[0;0m [48;5;224m[38;5;231m     224 [2mDIM[0m[0;0m [48;5;225m[38;5;0m     225 [2mDIM[0m[0;0m 
+[48;5;226m[38;5;231m     226 [2mDIM[0m[0;0m [48;5;227m[38;5;231m     227 [2mDIM[0m[0;0m [48;5;228m[38;5;0m     228 [2mDIM[0m[0;0m [48;5;229m[38;5;231m     229 [2mDIM[0m[0;0m [48;5;230m[38;5;0m     230 [2mDIM[0m[0;0m [48;5;231m[38;5;0m     231 [2mDIM[0m[0;0m [48;5;232m[38;5;231m     232 [2mDIM[0m[0;0m [48;5;233m[38;5;0m     233 [2mDIM[0m[0;0m [48;5;234m[38;5;231m     234 [2mDIM[0m[0;0m [48;5;235m[38;5;231m     235 [2mDIM[0m[0;0m [48;5;236m[38;5;0m     236 [2mDIM[0m[0;0m 
+[48;5;237m[38;5;231m     237 [2mDIM[0m[0;0m [48;5;238m[38;5;231m     238 [2mDIM[0m[0;0m [48;5;239m[38;5;0m     239 [2mDIM[0m[0;0m [48;5;240m[38;5;231m     240 [2mDIM[0m[0;0m [48;5;241m[38;5;0m     241 [2mDIM[0m[0;0m [48;5;242m[38;5;0m     242 [2mDIM[0m[0;0m [48;5;243m[38;5;231m     243 [2mDIM[0m[0;0m [48;5;244m[38;5;0m     244 [2mDIM[0m[0;0m [48;5;245m[38;5;231m     245 [2mDIM[0m[0;0m [48;5;246m[38;5;231m     246 [2mDIM[0m[0;0m [48;5;247m[38;5;0m     247 [2mDIM[0m[0;0m 
+[48;5;248m[38;5;231m     248 [2mDIM[0m[0;0m [48;5;249m[38;5;231m     249 [2mDIM[0m[0;0m [48;5;250m[38;5;0m     250 [2mDIM[0m[0;0m [48;5;251m[38;5;231m     251 [2mDIM[0m[0;0m [48;5;252m[38;5;0m     252 [2mDIM[0m[0;0m [48;5;253m[38;5;0m     253 [2mDIM[0m[0;0m [48;5;254m[38;5;231m     254 [2mDIM[0m[0;0m [48;5;255m[38;5;0m     255 [2mDIM[0m[0;0m 
+
+FG: 38;5;Nm BG: 38;5;Nm esc[38;{;R;G;Bm (kde)
+
+EOF
+		;;
+	# this just passes the rest of the arguments to exseq
+	s) shift
+		exseq "$@"
+		;;
+
+	*)
+	# this is the MUCH prettier, beautiful version
+	# if you just want a dump, you can use exseq by itself, this one is interactive (or use 's' as the first param)
+
+	a=${1-1} b=${2-255} c=${3-1} d=${4-4} e=${5-1} f=${6-0} g=${7-2}
+	while true; do
+		eval `resize`
+		if [[ $COLUMNS -lt 20 ]] || [[ $LINES -lt 9 ]]; then
+			clear
+			echo "..Terminal Too Small, Need 20x9 at least!\nResize Your Terminal or CTRL-C to exit, if this is a console terminal you will need to use setfont(1) to change the size!..."
+		else
+			apptitle="Color Sequence Explorer v0.1-extreme-alpha by Gabriel Sharp <osirisgothra@hotmail.com>"
+			[[ -n $DISPLAY ]] && xtitle "$apptitle"
+			adjmsg="adjust keys: (modifier: [Shift]=10 [None]=1) start[q/a]=$a end[w/s]=$b interval[e/d]=$c blockwidth[r/f]=$d spacing[t/g]=$e firstofs[y/h]=$f mode[u/j]=$g"
+			echo -ne "[40;37;0m[2J"
+			# adjmsg must fit to screen
+			# but we dont care if apptitle
+			# fits because if thats the case i must be in X terminal
+			# and its titlebar will be used as well
+			echo -e "\e[1;1H\e[2J\e[44;1m ${apptitle: 0:$[COLUMNS-1]}\e[K"
+			echo -e "\e[2;1H\e[44;1m exseq $a $b $c $d $e 0 2 \e[K[0m\n\n"
+			exseq $a $b $c $d $e $f $g
+			rem=";1H\e[44;1m\e[2K$adjmsg \e[0m"
+			remlen=$(( $#rem - $( echo -ne "$rem" | grep -o '\[[;0-9][^;0-9]' | wc -c ) ))
+			rlines=$[ int(ceil(${remlen}.0 / COLUMNS)) ]
+			echo -ne "\n\e[$[LINES+1-rlines]$rem"
+			read -sk1
+		fi
+		case $REPLY in
+			Q) let a+=10;;
+			A) let a-=10;;
+			W) let b+=10;;
+			S) let b-=10;;
+			E) let c+=10;;
+			D) let c-=10;;
+			R) let d+=10;;
+			F) let d-=10;;
+			T) let e+=10;;
+			G) let e-=10;;
+			Y) let f+=10;;
+			H) let f-=10;;
+			U) let g+=10;;
+			J) let g-=10;;
+			q) let a++;;
+			a) let a--;;
+			w) let b++;;
+			s) let b--;;
+			e) let c++;;
+			d) let c--;;
+			r) let d++;;
+			f) [[ $d -gt 0 ]] && let d-- || flash;;
+			t) let e++;;
+			g) let e--;;
+			y) let f++;;
+			h) let f--;;
+			u) let g++;;
+			j) let g--;;
+			x) clear
+				echo "Thank you for using \e[1mcolors \e[0mand\e[1m exseq\e[0m!"
+				break;;
+			*) echo "\e[2;2H\e[41;1m *** BAD OPTION: $REPLY -- PLEASE TRY AGAIN (x EXITS PROGRAM) ***\e[0m"
+			   sleep 0.5;;
+		esac
+	done
+esac

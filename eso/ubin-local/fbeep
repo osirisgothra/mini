@@ -1,0 +1,148 @@
+#!/bin/zsh
+emulate zsh
+#
+#    fbeep
+#    force a beep via beep(1) and modprobe(8)
+#    mini
+#    eso/ubin-local:localsingle filed projects
+#
+#    Copyright (C) 1995-2020 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#     Fri Dec 27 19:17:43 EST 2019
+#            osirisgothra@ initially created this file
+#            with the original name, fbeep
+#
+#
+#  (template created using the template generator by Gabriel T. Sharp)
+#
+#________________________________________________________
+#                                                        \
+# getopts optstring name [ arg ... ] [--]                 \
+#__________________________________________________________\___________________
+#_OPTIONS____|required|____[optional]__________________________________________
+#   |optstring|    letters that getopts recognizes as legal arguments, a letter
+#                can have a ':' after it to signal a required -o=value or
+#                -o value suffix (or -ovalue, no other arguments can follow it
+#                so new arguments must have a space plus the + or - initiater).
+#                in which case 'value' would be placed into OPTARG (see below)
+#    |name|        variable to hold current option and state, also
+#                uniquely identifies the getopts session when reporting errors
+#     [arg]        arguments to check (uses positionals ($@) if none)
+# __[--]________signals_end_of_arguments_to_be_scanned_(if_none,_added_to_end)_
+# |_OUTPUT_______|
+# _invoke_same_command_each_time,_then...______________________________________
+#  $<name> set to letter of option scanned (prefixed /w '+' if it was used)
+#		   or '?' if not a valid argument, see OPTARG for argument part.
+#              |_.- note: getopts shows an error when '?' value is assigned.
+#  $OPTIND next argument to scan (functions: 1 initially, restored@exit)
+#	 |	   this can be set explicitly if scanning manually.
+#  $OPTARG contains the option's argument part (-o on == -oon => 'on')
+#    | |   it will contain ':' if argument part is required and missing
+#	 |_|___.- warning: unsetting either of these forces manual mode and
+#__________            they will never be used by the shell again in the
+# RETURNS  \___________current_scope_($<name>_will_only_be_set_in_later_calls)_
+# 1. name set to option, zero returned = all ok
+# 2. name set to '?', nonzero returned = error option
+# 3. OPTARG set to ':', nonzero returned = error argument
+# 4. nothing changed, OPTIND at $#args or $#, nonzero returned, no more
+#    options (done status)
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# example output table
+# opts: [ hvn:o:fe:a:r: ]
+# OPT: VAL=h IND=[1] ARG=[] ERR=[0]
+# OPT: VAL=o IND=[2] ARG=[v] ERR=[0]
+#				^ ind internal when in auto mode
+# OPT: VAL=f IND=[2] ARG=[] ERR=[0]
+#  `---> main:6: argument expected after -r option
+# OPT: VAL=: IND=[2] ARG=[] ERR=[0]
+#				^ since it not always properly reflective
+# OPT: VAL=: IND=[3] ARG=[] ERR=[1]
+#   `---> signals end because of ^- ERR=1
+#
+
+setopt aliases
+setopt interactivecomments
+
+alias evl='lve "$_ returns $?"'
+
+main()
+{
+	echo "opts: [ $prog[opts] ]"
+	while true; do
+		getopts $prog[opts] OPTVAL && OPTERR=0 || OPTERR=1
+		[[ $OPTERR == 1 ]] && break
+		case $OPTVAL in
+			h)	echo "syntax: fbeep -hv [-l logfile] [beep options]"; exit;;
+			v)  prog[verbose]=on
+				echo "verbose mode on"
+				;;
+			l)  prog[logging]=on
+				prog[logfile]="$OPTARG"
+				echo "logging enabled to $prog[logfile]"
+				;;
+			*)	echo "unexpected argument, terminating..."
+				exit 127
+				;;
+		esac
+	done
+	lve "ended at argument $OPTIND"; 						evl
+	lve "begun processing normal options: ${@: $OPTIND}"; 	evl
+	lve $(sudo modprobe pcspkr); 							evl
+	lve $(sudo beep ${@: $OPTIND}); 						evl
+	lve $(sudo modprobe -r pcspkr);							evl
+}
+lve()
+{
+	declare -a outputs=( )
+	[[ $prog[logging] == on ]] && outputs+=( "$prog[logfile]" )
+	[[ $prog[verbose] == on ]] && outputs+=( "/dev/stdout" )
+	for dest in $outputs; do
+		echo "$(date +%c) $USER at $HOST: $*" >> $dest
+	done
+}
+
+lve program setup begins
+
+declare -gxA prog=(	name 	"$0"
+					logging "off"
+					logfile "/dev/null"
+					opts	"hvl:"
+					tty 	"$TTY"
+					level 	"$SHLVL"
+					flags 	"$-"
+					entry 	"$PWD"
+					pid 	"$$"
+					ppid 	"$PPID"
+					uuid 	"324b1c92-2d6b-4589-b4b2-ae836cbf5bf0"
+                 )
+
+lve "program setup ends...main about to be called with: $@ ($# argument(s))"
+main "$@"
+lve finished run of $prog[name] with settings of: $(declare -p prog)
+

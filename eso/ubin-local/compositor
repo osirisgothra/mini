@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/bin/zsh
+emulate zsh
 #
 #    compositor
 #    A Compositor Program
@@ -40,11 +41,37 @@
 #  (this header was created using the template generator by Gabriel T. Sharp)
 #
 #
-shopt -s extglob
+setopt interactivecomments
+setopt 	extendedglob
 
+declare -gi com_lasterr=250
+declare -gi com_firsterr=128
+declare -gi com_no_error=0
+declare -gx com_binary="compton"
+declare -gxa errors=( unreachable	'cannot locate compositor $com_binary'
+						generic		'generic error'	 )
+
+
+fail()
+{
+	(($#)) || { echo "fatal; no arguments"; exit $com_lasterr; }
+	kind="$*"
+	local -i ecode=1
+	for ekind emsg in $errors; do
+		if [[ $ekind == $kind ]]; then
+			printf "error(%s::%04X): %s" "$ekind" "$ecode" "$emsg"
+			exit $ecode
+		fi
+	done
+	echo "fatal: unknown action=$kind message=$emsg"
+	echo "        check code and try again or notify if it is a bug."
+	exit 255
+}
+
+com_binary=`which $com_binary`
 while [[ $# -gt 0 ]]; do
 	declare nextarg="${1}"; shift
-	case ${nextarg,,} in
+	case ${(L)nextarg} in
 		on|1|true|yes|y|enable?(d)|start|create|begin|go|birth) 	mode=on;;
 		off|0|false|no|n|disable?(d)|stop|kill|end|finish|destroy)	mode=off;;
 		*)	echo "unknown argument: $nextarg"; exit $(( 127 + ${#nextarg} ));;

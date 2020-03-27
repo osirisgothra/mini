@@ -3,7 +3,7 @@
 import sys
 import os
 import os.path
-
+su
 class Command:
 	commandlistitems = []
 	def new(_self, commandList):

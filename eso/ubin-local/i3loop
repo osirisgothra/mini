@@ -1,0 +1,8 @@
+#!/bin/sh
+
+[ -n $DISPLAY ] && { echo 'failed:'; exit 12; }
+
+while true; do
+	sleep 1
+	/usr/bin/i3
+done

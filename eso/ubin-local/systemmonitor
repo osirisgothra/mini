@@ -1,0 +1,13 @@
+#!/bin/zsh
+
+postrun=( -dbusk @dbus-daemon @dbus-launch %dbus  )
+/usr/share/bin/systemmonitor "$@"
+for x in $postrun; do
+	cmdline=${x: 1}
+	case ${x: 0:1} in
+		-)	eval "$cmdline";;
+		%)  eval "systemctl stop $cmdline";;
+		@)	eval "killall -KILL $cmdline";;
+		*)	echo "prefix invalid for postrun item: $x, skipping it";;
+	esac
+done

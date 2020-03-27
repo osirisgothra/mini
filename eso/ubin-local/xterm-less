@@ -1,0 +1,43 @@
+#!/bin/zsh
+case $# in
+0)
+rm /tmp/tmpcmd -f
+mkfifo /tmp/tmpcmd
+( xterm -e 'while [[ -e /tmp/tmpcmd ]]; do cat /tmp/tmpcmd; done' ) &
+while read r; do
+	echo "$r" > /tmp/tmpcmd
+	echo "local copy: $r"
+done
+
+1)	case $1 in
+		stop|end|off|0|close|exit|cleanup)
+			rm /tmp/tmpcmd
+			exit 0
+			;;
+		--help)
+			echo "syntax: $0 [close | --help]"
+			echo "    or: [program with output] | $0"
+			echo ""
+			echo " first form:"
+			echo ""
+			echo " --help this help text"
+			echo " close  -subcommand to end forcefully, all open $0 sessions"
+			echo "         (also accepts 'end', 'stop', and many other terms that mean the same thing"
+			echo " second form (common form):"
+			echo ""
+			echo " handles a pipe in another window"
+			echo ""
+			exit 127
+			;;
+		*)	echo "$1: unknown subcommand (try --help)"
+			exit 128
+			;;
+	esac
+	echo "($*) fatal error - file may be corrupted or relocated (disk space or transfer errors most likely)"
+	exit 129
+	;;
+*)
+	echo "too many arguments (try --help)"
+	exit 130
+	;;
+esac

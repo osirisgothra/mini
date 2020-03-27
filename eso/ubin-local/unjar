@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 #
 # unjar
 #
@@ -21,15 +21,45 @@
 # This program is Public Domain.
 #
 #
+function emptydir()
+{
+	if [[ -d "$*" ]]; then
+		for x in $*/*; do
+			let itemcount++
+		done
+	fi
+	if ((itemcount > 0)); then
+		return 1
+	else
+		return 0
+	fi
+}
+setopt nullglob
 case $# in
 	0)
-		echo "syntax: unjar [file1] [{file2 ...}]"
+		echo "syntax: unjar [dest] [file1] [{file2 ...}]"
 		(exit 127);;
 	*)	echo "processing $# file(s)..."
-		sleep 1.25
+	#	sleep 1.25
 		;;
 esac
+if [[ -d "$1" ]]; then
+	if emptydir "$1"; then
+		echo "$1 is empty, great"
+		destination="$1"
+	fi
+else
+	echo "You did not give a destination on the command line"
+	echo "if you need a specific destination please specify it"
+	echo "on the command line (see --help for details)."
+	echo ""
+	echo "please pick destination:"
+	select opt in "Subfolder With Same Basename (popular!)" "Subfolder With Same Basename in /tmp (recommended!)" "Your Home Folder" "Root Directory (NOT recommended!)" "into /tmp (usually not a good idea)" "Cancel"; do
+		echo "$opt or $REPLY"
+	done
+fi
 
+exit
 for i in "$@"; do
 	x=`readlink -m "$i"`
 	if [[ -r $x ]] &&  ! [[ -d $x ]]; then

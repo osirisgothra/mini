@@ -1,0 +1,14 @@
+#!/bin/zsh
+case $STAYON_IN_BACKGROUND in
+	1)	while true; do
+			sleep ${RANDOM: 0:1}
+			xset s off
+			xset s noblank
+			xset -dpms
+		done
+		;;
+	*)	export STAYON_IN_BACKGROUND=1
+		"$0" &> /dev/null & disown
+		(($? == 0 )) && echo "forked process from $$" || echo "fork failed on $0"
+		;;
+esac

@@ -13,22 +13,27 @@ fi
 # -a GRGB=( "r" "g" "b" )
 eval $(echo -ne "GRGB=( "; xgamma |& tr -Cd '[0-9. ]' | tr -s ' ' | tr ' ' ',' | grep -P '[0-9.]+,?' -o | tr ',\n' ' ' | tr -s ' '; echo -ne ")\n")
 
-if [[ $# -eq 0 ]]; then
+if [[ $# -eq 0 ]] || [[ $1 == 'oneshot' ]]; then
 	while true; do
-		clear
 		[[ $XGAMMA_ADDING -eq 1 ]] && echo "warning: --add does not influence randomgen, ignoring..."
-		echo "keep pressing enter until you see a gamma you like and"
-		echo "then press [Y]..."
+		if [[ $1 != oneshot ]]; then
+			echo "keep pressing enter until you see a gamma you like and"
+			echo "then press [Y]..."
+		fi
 		MAJOR=$[ ${RANDOM:1:1} / 3 ]
 		MINOR=$[ ${RANDOM:1:2} ]
 		CMDLINE=( /usr/bin/xgamma -gamma "${MAJOR}.${MINOR}" )
-		echo "Command: ${CMDLINE[@]}"
+		echo "${CMDLINE[@]}"
 		eval "${CMDLINE[@]}"
-		read -sn1
-		if [[ $REPLY == Y ]]; then
+		if [[ $1 != oneshot ]]; then
+			read -sn1
+			if [[ $REPLY == Y ]]; then
+				exit 0
+			fi
+		else
 			exit 0
 		fi
-		done
+	done
 else
 	if [[ "$*" =~ ^(-?[0-9.\ ]+)+$ ]]; then
 		echo "digit(s) only, sending as gamma value...$*"
@@ -58,4 +63,7 @@ else
 		echo "nondigit parameters detected, delegating to xgamma..."
 		xgamma "$@"
 	fi
+	exit $?
 fi
+echo "abnormal termination"
+exit 127

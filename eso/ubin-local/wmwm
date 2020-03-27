@@ -1,0 +1,68 @@
+#!/usr/bin/python3
+"""
+"""    wmwm
+"""    window manager of window managers - prevents the i-want-to-change-my-wm-but-not-kill-my-applications paradigm
+"""    mini/eso/ubin-local
+"""    personal or esoteric programs
+"""
+"""    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+"""
+"""    Written by Gabriel T. Sharp <21shariria@gmail.com>
+"""    Latest versions of this and all of my projects can be
+"""    obtained by visiting the repository: 
+"""
+"""    <https://github.com/osirisgothra>
+"""
+"""    Because of the global availability of github at this point, hosting
+"""    any additional servers for public use no longer serves a purpose. All
+"""    content is available 24/7 through github. (Thanks to GITHUB!).
+"""
+"""    This program is free software; you can redistribute it and/or modify
+"""    it under the terms of the GNU General Public License as published by
+"""    the Free Software Foundation; either version 2 of the License, or
+"""    (at your option) any later version.
+"""
+"""    This program is distributed in the hope that it will be useful,
+"""    but WITHOUT ANY WARRANTY; without even the implied warranty of
+"""    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+"""    GNU General Public License for more details.
+"""
+"""    You should have received a copy of the GNU General Public License along
+"""    with this program; if not, write to the Free Software Foundation, Inc.,
+"""    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+"""
+"""    HISTORY
+"""
+"""	 Sun Sep 15 10:32:17 EDT 2019
+"""            osirisgothra@ initially created this file
+"""            with the original name, wmwm
+"""
+""" TARGET NOTES
+"""
+""" 	EXECUTIVE STATE CHANGES
+""" 	    marking single existing file executable
+"""			mode of ‘/home/osirisgothra/bin/banish’ changed from 0664 (rw-rw-r--) to 0775 (rwxrwxr-x)
+""" 	    completed (0)
+""" 	ARGUMENTUAL ANALYSIS
+"""       remaining arguments:
+"""			no arguments to list
+"""       disposition:
+"""			all were used during execution of template
+"""   		none were extra and/or unexpected
+""" 	TEMPLATE SUMMARY OF GENERATION
+"""	     outcome: good
+"""	     errors: 0
+""" 	FINAL NOTE
+"""	     completed without any significant problems
+"""        you should REMOVE the TARGET NOTES section once youve reviewed this!
+"""		 (Sun Sep 15 10:32:17 EDT 2019): osirisgothra ignored the final note and left this behind for
+"""		           the user(s) to see, how embarassed I am for the author!
+"""
+"""  (this template+header was created using the template generator by Gabriel T. Sharp)
+"""
+""" TARGET NOTES
+"""
+	marking single existing file executable
+	mode of ‘/home/osirisgothra/bin/wmwm’ changed from 0664 (rw-rw-r--) to 0775 (rwxrwxr-x)
+	completed (0)
+""

@@ -53,7 +53,8 @@
 #
 # dialog <options> { --and-widget <options> }
 #   [--create-rc "file"]
-#   [--ascii-lines] [--aspect <ratio>] [--backtitle <backtitle>] [--beep] [--beep-after] [--begin <y> <x>] [--cancel-label <str>] 
+#   [--ascii-lines] 
+#   [--aspect <ratio>] [--backtitle <backtitle>] [--beep] [--beep-after] [--begin <y> <x>] [--cancel-label <str>] 
 #   [--clear] [--colors] [--column-separator <str>] [--cr-wrap] [--date-format <str>] [--default-button <str>] [--default-item <str>] [--defaultno]
 #   [--exit-label <str>] [--extra-button] [--extra-label <str>]
 #   [--help-button] [--help-label <str>] [--help-status] [--help-tags]
@@ -71,9 +72,9 @@
 #   [--yes-label <str>]
 #{ Box options:
 #   --buildlist    <text> <height> <width> <tag1> <item1> <status1>...
+
 #   --calendar     <text> <height> <width> <day> <month> <year>
-#   --checklist    <text> <height> <width> <list height> <tag1> <item1> <status1>...
-#   --dselect      <directory> <height> <width>
+#   --checklist    <text> <height> <width> <list height> <tag1> <item1> <status1>...#   --dselect      <directory> <height> <width>
 #   --editbox      <file> <height> <width>
 #   --form         <text> <height> <width> <form height> <label1> <l_y1> <l_x1> <item1> <i_y1> <i_x1> <flen1> <ilen1>...
 #   --fselect      <filepath> <height> <width>
@@ -98,201 +99,41 @@
 #   --textbox      <file> <height> <width>
 #   --timebox      <text> <height> <width> <hour> <minute> <second>
 #   --treeview     <text> <height> <width> <list-height> <tag1> <item1> <status1> <depth1>...
-#   --yesno        <text> <height> <width>
-#} 
+#   --yesno        <text> <height> <width
+#
 # Auto-size with height and width = 0. Maximize with height and width = -1.
 # Global-auto-size if also menu_height/list_height = 0.
 #
 
-# syntax: menu [kind] [title] [item(s)]
+# syntax: menu <prompt> <item1> <item2> ...
+integer menu_error=127
+integer menu_help_request=126
+integer menu_ok=0
+integer menu_severe=-1
+integer menu_cancel=1
+function isdef() { while(#) [[ ${1-nil} == nil ]]; }
 
-#mnu_setopts [item] [value]
-#item:
-#  
-function mnu_setopts()
-{
-	local item=${1-none}
-	local value=${2-empty}
+typeset -g menu_self="$0"
 
-}
-
-#yn [text] | 0=yes 1=no brk=>2
-function mnu_yn()
-{
-	${DEP[@]} $(xlatargs yn)
-}
-
-#buildlist    <text> <height> <width> <tag1> <item1> <status1>...                                                               
-function mnu_buildlist()
-{
-	${DEP[@]} $(xlatargs buildlist) 
-}
-
-#calendar     <text> <height> <width> <day> <month> <year>                                                                      
-function mnu_calendar()
-{
-	${DEP[@]} $(xlatargs calendar)
-}
-
-#checklist    <text> <height> <width> <list height> <tag1> <item1> <status1>...                                                 
-function mnu_checklist()
-{
-	${DEP[@]} $(xlatargs checklist)
-}
-
-#dselect      <directory> <height> <width>                                                                                      
-function mnu_dselect()
-{
-	${DEP[@]} $(xlatargs dselect)
-}
-
-#editbox      <file> <height> <width>                                                                                           
-function mnu_editbox()
-{
-	${DEP[@]} $(xlatargs editbox)
-}
-
-#form         <text> <height> <width> <form height> <label1> <l_y1> <l_x1> <item1> <i_y1> <i_x1> <flen1> <ilen1>...             
-function mnu_form()
-{
-	${DEP[@]} $(xlatargs form)
-}
-
-#fselect      <filepath> <height> <width>   
-function mnu_fselect()
-{
-	${DEP[@]} $(xlatargs fselect)
-}
-
-#gauge        <text> <height> <width> [<percent>]                                                                               
-function mnu_gauge()
-{
-	${DEP[@]} $(xlatargs gauge)
-}
-
-#infobox      <text> <height> <width>                                                                                           
-function mnu_infobox()
-{
-	${DEP[@]} $(xlatargs infobox)
-}
-
-#inputbox     <text> <height> <width> [<init>]                                                                                  
-function mnu_inputbox()
-{
-	${DEP[@]} $(xlatargs inputbox)
-}
-
-#inputmenu    <text> <height> <width> <menu height> <tag1> <item1>...                                                           
-function mnu_inputmenu()
-{
-	${DEP[@]} $(xlatargs inputmenu)
-}
-
-#menu         <text> <height> <width> <menu height> <tag1> <item1>...                                                           
-function mnu_menu()
-{
-	${DEP[@]} $(xlatargs menu)
-}
-
-#mixedform    <text> <height> <width> <form height> <label1> <l_y1> <l_x1> <item1> <i_y1> <i_x1> <flen1> <ilen1> <itype>...     
-function mnu_mixedform()
-{
-	${DEP[@]} $(xlatargs mixedform)
-}
-
-#mixedgauge   <text> <height> <width> <percent> <tag1> <item1>...                                                               
-function mnu_mixedgauge()
-{
-	${DEP[@]} $(xlatargs mixedgauge)
-}
-
-#msgbox       <text> <height> <width>                                                                                           
-function mnu_msgbox()
-{
-	${DEP[@]} $(xlatargs msgbox)
-}
-
-#passwordbox  <text> <height> <width> [<init>]                                                                                  
-function mnu_passwordbox()
-{
-	${DEP[@]} $(xlatargs passwordbox)
-}
-
-#passwordform <text> <height> <width> <form height> <label1> <l_y1> <l_x1> <item1> <i_y1> <i_x1> <flen1> <ilen1>...             
-function mnu_passwordform()
-{
-	${DEP[@]} $(xlatargs passwordform)
-}
-
-#pause        <text> <height> <width> <seconds>                                                                                 
-function mnu_pause()
-{
-	${DEP[@]} $(xlatargs pause)
-}
-
-#prgbox       <text> <command> <height> <width>                                                                                 
-function mnu_prgbox()
-{
-	${DEP[@]} $(xlatargs prgbox)
-}
-
-#programbox   <text> <height> <width>                                                                                           
-function mnu_programbox()
-{
-	${DEP[@]} $(xlatargs programbox)
-}
-
-#progressbox  <text> <height> <width>                                                                                           
-function mnu_progressbox()
-{
-	${DEP[@]} $(xlatargs progressbox)
-}
-
-#radiolist    <text> <height> <width> <list height> <tag1> <item1> <status1>...                                                 
-function mnu_radiolist()
-{
-	${DEP[@]} $(xlatargs radiolist)
-}
-
-#rangebox     <text> <height> <width> <min-value> <max-value> <default-value>                                                   
-function mnu_rangebox()
-{
-	${DEP[@]} $(xlatargs rangebox)
-}
-
-#tailbox      <file> <height> <width>                                                                                           
-function mnu_tailbox()
-{
-	${DEP[@]} $(xlatargs tailbox)
-}
-
-#tailboxbg    <file> <height> <width>                                                                                           
-function mnu_tailboxbg()
-{
-	${DEP[@]} $(xlatargs tailboxbg)
-}
-
-#textbox      <file> <height> <width>                                                                                           
-function mnu_textbox()
-{
-	${DEP[@]} $(xlatargs textbox)
-}
-
-#timebox      <text> <height> <width> <hour> <minute> <second>                                                                  
-function mnu_timebox()
-{
-	${DEP[@]} $(xlatargs timebox)
-}
-
-#treeview     <text> <height> <width> <list-height> <tag1> <item1> <status1> <depth1>...                                        
-function mnu_treeview()
-{
-	${DEP[@]} $(xlatargs treeview)
-}
-
-#yesno        <text> <height> <width>                                                                                           
-function mnu_yesno()
-{
-	${DEP[@]} $(xlatargs yesno)
-}
+case $# in
+	1)	echo "not enough arguments!!";&
+	0)  cat "$menu_self" | perl -wne 'print "${1}\n" if /^#\s*(syntax:.*)$/'
+		exit $menu_help_request
+		;;
+	*)	typeset -g _prompt=$1; shift
+		typeset -a items=( `for n { echo "$n" "$n" }` )
+		
+		h=$((${LINES-25}-2)) w=$(( ${COLUMNS-80}-4 )) mh=$(( ${LINES-25} / 2 ))
+		r=$(dialog --menu --output-fd 1 "$_prompt" $h $w $mh $items || exit $menu_error)
+		if (( ? == 127 )); then
+			echo ok=$menu_cancel item=nil
+			exit $menu_cancel
+		else
+			echo ok=$menu_ok item="\"$r\""
+			exit $menu_ok
+		fi
+		;;
+esac
+# should never get here
+echo ok=$menu_severe item="\"fatal: end-of-code reached, should not happen (corruption??)\""
 

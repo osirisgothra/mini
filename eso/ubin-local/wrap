@@ -60,7 +60,7 @@ die("$usage->text\n\nERROR: exactly 1 argument needed!\n\n") if $#ARGV != 0;
 die("must be on, off, or toggle, and not ambiguous") unless ($ARGV[0] =~ m/(on|off|tog(gle)?)/s);
 
 given($ARGV[0]) {
-	when(/text/) { print "toggling"; }
+	when(/toggle/) { print "toggling"; }
 	when(/on/)   { print "enable"; }
 	when(/off/)  { print "disable"; }
 }

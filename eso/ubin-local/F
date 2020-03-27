@@ -1,0 +1,61 @@
+#!/usr/bin/env sh
+#
+#    F
+#    FIELD isolator
+#    mini/eso/ubin-local
+#    esoteric content/executives
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sat Jun 29 11:17:16 EDT 2019
+#            osirisgothra@larnica initially created this file
+#            with the original name, F
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+#
+errexit() { echo "error ${1}: bad use of parameter or missing a parameter/s"; exit $1; }
+fnum=1
+fsep=" "
+case $# in
+	0) fnum=1;;
+	1) if [ $1 -gt 9 ] || [ $1 -lt 1 ]; then
+		fsep=$1
+		else fnum=$1; fi;;
+	2) fnum=$1; fsep=$2;;
+	*) errexit 1
+esac
+
+if [ $fnum -lt 1 ]; then
+	errexit 2
+fi
+
+set -x
+eval "awk -F \"$fsep\" \"{ print \\\$${fnum}; }\""
+set +x

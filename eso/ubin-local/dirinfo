@@ -1,0 +1,110 @@
+#!/bin/zsh
+setopt aliases interactivecomments
+TEMP=`getopt -o h:t:l:r:b --long left:,right:,head:,tail:,brief,help -n 'dirinfo' -- "$@"`
+if [ $? != 0 ] ; then echo "STOP" >&2 ; exit 1 ; fi
+eval set -- "$TEMP"
+alias global='declare -gx'
+
+global t=""
+global h=""
+global l=""
+global r=""
+integer didebug=0
+integer dh=1
+integer dt=1
+integer dl=0
+integer dr=-1
+integer br=0
+integer hlp=0
+integer iter=0
+integer maxiter=1024
+
+
+iecho()
+{
+	echo "${dl}${@}${dr}"
+}
+_hili()
+{
+	for ((i=0;i<dh;i++)); do echo ""; done
+	while read v; do
+		local rdr=$(( dr < 1 ? $#v : dr ))
+		eval echo \"${l}\$\{v: 0:$rdr\}\"
+	done
+	for ((i=0;i<dt;i++)); do echo; done
+}
+
+__dirinfo()
+{
+	pushd .
+	cd "$1"
+	(
+		stat "$PWD" --format="Directory %n (%N), owned by %U(%u)/%G(%g) (inode %i)"
+		stat "$PWD" --format="Residing on %m (hardlinked by %h locations)"
+		stat "$PWD" --format="Accessible to %A (%a), Type \"%F\""
+	) | _hili;
+	popd
+}
+
+[[ $didebug -ne 0 ]] && set -x
+
+while true ; do
+	let iter++
+	if [[ $iter -gt $maxiter ]]; then
+		echo "near-infinite loop detected ($iter)"
+		echo "STOP"
+		exit 127
+	fi
+	case "$1" in
+		-h|--head)
+				[[ "$2" != "" ]] && { dh=$2; shift;}
+				h="$(for ((x=0;x<dh;x++)); do echo; done)"
+				shift
+				;;
+		-t|--tail)
+				[[ "$2" != "" ]] && { dt=$2; shift; }
+				t="$(for ((x=0;x<dt;x++)); do printf "\n"; done)"
+				shift
+				;;
+		-l|--left)
+				[[ "$2" != "" ]] && { dl=$2; shift; }
+				l="$(for ((x=0;x<dl;x++)); do printf ' '; done)"
+				shift
+				;;
+		-r|--right)
+				[[ "$2" != "" ]] && { dr=$2; shift; }
+				r="$(for ((x=0;x<dr;x++)); do printf ' '; done)"
+				shift
+				;;
+		-b|--brief)
+				br=1
+				shift
+				;;
+		--help)
+				hlp=1
+				shift
+				;;
+		       --)
+				shift
+				break
+				;;
+		*)
+		        echo "Internal error!"
+		        exit 1
+		        ;;
+	esac
+done
+
+
+case $# in
+	0)	__dirinfo "$PWD"
+		;;
+	*)
+		for arg do
+			if [[ -r "$arg" && -d "$arg" ]]; then
+				__dirinfo "$arg"
+			else
+				echo "($arg is unreadable)"
+			fi
+		done
+esac

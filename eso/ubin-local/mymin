@@ -1,0 +1,6 @@
+#!/bin/sh
+# mymin - or xinitrc
+# minimal mym
+nvidia-tweak
+exec /usr/bin/java -jar /home/osirisgothra/MyM-Launcher.jar
+# end

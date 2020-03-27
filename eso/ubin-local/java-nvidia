@@ -1,0 +1,3 @@
+#!/bin/bash
+
+exec env LD_LIBRARY_PATH="/usr/lib/nvidia-352-updates" /usr/local/lib/java "$@"

@@ -1,0 +1,71 @@
+#!/bin/zsh
+emulate zsh
+#
+#    jku_kill-launcher
+#    kill java that launched a Launcher
+#    mini
+#    eso/ubin-local
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository:
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Thu Feb 20 07:18:54 EST 2020
+#            osirisgothra@ initially created this file
+#            with the original name, jku_kill-launcher
+#
+#
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#
+#	template output completed (code=OK(ERROR_NONE))
+#
+#
+setopt aliases
+alias echo='print -P'
+
+function tskhere() { pgrep -f "$spec" 2> /dev/null && return 0 || return 1; }
+function killtsk() {
+						for tsk; do
+							echo "${I}trying${i} to end $tsk..."
+							if tskhere "$tsk"; then
+								( kill -KILL  `pgrep -f "$spec"` 2> /dev/null ) 2> /dev/null
+								tskhere "$tsk" && echo "%F{2}%Bkilled%b%f" || echo "%F{1}%B%Ufailed, still running%f%b%u"
+							else
+								echo "%F{3}%Bfailed, was not running in the first place%b%f"
+							fi
+						done
+					}
+
+killtsk 'java.*Launcher*'
+killtsk 'java.*-jar.*.jar'
+#( kill -KILL  `pgrep -f 'java.*Launcher.*' 2> /dev/null` ) 2> /dev/null ## <-old way
+
+
+
+
+

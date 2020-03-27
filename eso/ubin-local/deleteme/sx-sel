@@ -1,0 +1,6 @@
+#!/bin/bash
+if [[ $1 == --help ]]; then
+	xmlstarlet sel --help | sed -r 's/xmlstarlet sel/sx-sel/g'
+else
+	xmlstarlet sel "$@"
+fi

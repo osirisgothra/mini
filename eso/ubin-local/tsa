@@ -315,6 +315,18 @@ echo -e "$msg" | perl -wpe 'BEGIN {our $z=20+int(rand()*235);}; $z=$z+1; s/((?<!
 
 if [[ $1 == --help ]]; then
         shopt -s xpg_echo
+		echo "syntax: $0 < --help | URL >"
+		echo ""
+		echo "options"
+		echo "  --help		this help you are reading now"
+		echo "  URL			the universal reference link to the page you want to view"
+		echo ""
+		echo "explanation"
+		echo "  URL			URLs can be local or network, in the form of resourcetype://"
+		echo "              Resource types can be files (file:///usr/home for example"
+		echo "				or webpages (http://mypage.com or https://mysecure.com) or another textual/data resource type"
+		echo "				such as (ftp://), (gopher://), (\\windowsnetworkhostid/sharename|\$DEFAULTSHARENAME), etc"
+		echo "				without the parentheses () of course."
         echo ""
         echo "\e[30;1minternal configuration status\e[0m"
         echo

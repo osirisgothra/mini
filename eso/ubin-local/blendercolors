@@ -1,0 +1,36 @@
+#!/bin/zsh
+selector()
+{
+        item="$1"
+        grep -P 'Theme[A-Za-z0-9]+' -o $item
+        shift
+        [[ $# -gt 0 ]] && {
+        	echo "warning: we need only one item"
+		 	echo "ignoring $# other item(s): $@" > /dev/stderr
+        }
+}
+sorter()
+{
+        sort | uniq
+}
+parser()
+{
+        parser.picker()
+        {
+        #
+        	cat "$1" | between '\<'"$2" '\>'
+        }
+        while read r; do
+        	echo "Colors for $r:"
+        	parser.picker "$1" "$r"
+        done
+        #
+        unset -f parser.picker
+}
+case $# in
+        0) echo "syntax: $0 FILENAME(S)";;
+		# first $f -> file to get fields from
+		# second $f-> file to get values from --- these both are usually the same, change if you like
+        *) for f { selector "$f" | sorter | parser "$f" };;
+esac
+

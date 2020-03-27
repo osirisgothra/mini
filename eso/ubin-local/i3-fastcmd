@@ -1,0 +1,17 @@
+#!/bin/bash
+
+if [[ "$1" == "--wait" ]]; then
+	shift
+	"$@" `i3-input | grep -Po '(?<=command = ).*'`
+	eval `resize`
+	if [[ $COLUMNS -ge 35 ]]; then
+	echo -ne "[${LINES};1H[37;44;1m Program Exited (Return Status=[$?] Pipe Status=[$PIPESTATUS])[K[999C[35DPress Any Key to Close This Window[K[0m"
+	else
+		echo "(Exited:$?,$PIPESTATUS)"
+		echo "Press any key to close window..."
+	fi
+	read -sn1
+else
+#	eval dbus-launch "$@" 
+	"$@" `i3-input | grep -Po '(?<=command = ).*'`
+fi

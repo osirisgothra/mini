@@ -1,0 +1,190 @@
+#!/usr/bin/env perl
+#
+#    indulge
+#    transform a linked file/dir into a physical, non-linked file/dir
+#    mini/eso
+#    small projects and stand-alone programs or documents, esoteric or dependant
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+# USAGE
+#
+#     indulge OPTIONS [file]
+#
+#   forces file* or directory* to 'be' where it is**
+#
+#	OPTIONS
+#		--help		this help text
+#	PLANNED OPTIONS (NOT AVAILABLE IN PRIVATE ALPHA 1.0)
+#       -i			also indulge sublinks (does not modify relative link locations)***
+#		-I			same as -I but attempt to keep relative links valid***
+#
+#   Makes the directory not linked, but physically present.
+#   In other words, copy its contents over itself and possibly its subdirectories it contains.**
+#
+# FOOTNOTES
+#
+# *source files and directories and their contents will NEVER be written in, even for tempfiles, unless
+#  these sources lie within the acting tempdir (ie; /tmp or /var/tmp just to name a few).
+#
+# **further explanation of the one-line usage explanation:
+#
+# consider the source physical contents:
+#
+#   b
+#   |_ realdir
+#         |_@anotherdir
+#         |_file1
+#         |-file2
+#         |_file3
+#
+# and the target where the source is referred:
+#
+#   a
+#   +---exampledir -> /b/realdir    <- is on a link so its contents are not here on this device
+#   |
+#   +---normaldir
+#          |_normalfile
+#          |-morefile
+#		   |_andmore
+#
+# if you execute the command
+#
+#  	> indulge /a/linkdir
+#
+# it will cause this behavior:
+#
+#   a                                                           _____
+#   +---exampledir 					[creates directory]			\T\F \
+#   |      |_@anotherdir										 \A\I \
+#   |      |_file1												 /R/L /
+#   |      |-file2                                              /G/E /
+#   |      |_file3                                             /E/S /
+#   |                                                         /T/<-/
+#   +---normaldir                                             ``````
+#          |_normalfile
+#          |-morefile
+#		   |_andmore
+#
+#  please note that if @anotherdir is a link too, it will also be indulged if the -i flag is supplied
+#  otherwise the link will be preserved as best as possible (relative links could be broken however
+#  unless you use -I which is the same except relative links become absolute links)***
+#
+#  *** the -i and -I options are PLANNED options, they are not yet available as this is a private alpha version
+#
+#	NOTES ON AVAILABILITY
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Thu Mar  5 11:32:40 EST 2020
+#            osirisgothra@ initially created this file
+#            with the original name, indulge
+#
+#		 (Thu Mar  5 11:32:40 EST 2020): osirisgothra ignored the final note and left this behind for
+#		           the user(s) to see so they would know THIS IS PRIVATE ALPHA and not in anyway fit
+#				   for use by anyone as long as this message is here in this file (filename subject to change)!
+#
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#
+#
+
+# absolutize
+
+use warnings;
+use v5.20.2;
+use strict;
+use Path::Tiny qw( path );
+use Term::ANSIColor qw( color :pushpop :constants colored );
+use Cwd;
+use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
+
+#### option parsing begins ####
+
+my ($opt, $usage) = describe_options(
+    '$0 %o <some-arg> file',
+    [],
+    [ 'quiet|q',  "do not print extra stuff*"            ],	
+    [ 'help',       "print usage message and exit" ],
+);
+say($usage->text), exit if $opt->help;
+say("getopt: arguments processed: $#ARGV (use -q to disable these messages)") unless $opt->quiet;
+
+
+
+#### end of option parsing
+
+my $prefix="";
+
+sub csay { return if $opt->quiet; printf colored [shift], shift . "\n", @_; }				# csay(color,[ fmtstr,fmtchars | str ])
+sub bsay { return if $opt->quiet; printf colored [ shift, shift ], shift . "\n", @_; }		# bsay(fcolor, bcolor, [ fmtstr,fmtchars | str ])
+
+sub cdo {
+	my $col = shift;
+	my $msg = shift;
+	my $prog = shift;
+   #args = @_
+   csay($col,"$msg: $prog @_");
+   # stop if commands return error this is a bad thing
+   die("system error $?, $! - stopping to prevent any extra losses") if system($prog,@_)!=0;
+   
+}	
+
+
+die( ($#ARGV<0?"Not enough arguments":"Too many arguments") . "-- Need ONE argument! (empty strings do not count, neither do spaces) argument, the filename to indulge.") if $#ARGV != 0 or $ARGV[0] =~ /^\s*\z/;
+my $target = $ARGV[0]; # this will need to exist alone b/c we are in the directory as the calling user is
+die("Target '$target' cannot be accessed, it MUST exist!!") unless path($target)->exists();
+my $src = path($target)->realpath();
+my $dest = path($target)->absolute();
+die("File must be a link and of course, exist.") unless $src->exists and $dest->exists;
+die("The source and target are the same (its not a link!)") if $src eq $dest;
+die("It is not (and never will be) possible to merge the '.', '..', or '/' targets!") if $target =~ /^(\.?\.|\/)\z/g;
+
+# --- here and now
+#  $target exists (relative or absolute is unknown)
+#  $src	exists (is absolute physical path) -- source where files are to be copied -- never write in here!
+#  $dest exists (is a symlink (aka not same name as) to $src) -- source files will be copied to here ONLY!
+#
+my ($start,$end) = (0, $ENV{COLUMNS} // 80);
+my $starget = substr($target,$start,$end);
+my $ssrc = substr($src,$start,$end);
+my $sdest = substr($dest,$start,$end);
+csay "GREEN"	,"Filename Provided by User: $target";# (target)";
+csay "CYAN"		," Read Source File(s) From: $src";# (the read-only origin)";
+csay "MAGENTA"  ," Write Source File(s) To: $dest";# (the destination, should be same device as target and MUST be a link)";
+
+
+cdo qw! YELLOW msg_removing_file 	rm ! , $dest	;
+cdo qw! GREEN  msg_copying_target	cp -R -v --no-clobber ! ,  $src, $dest ;
+
+
+
+
+
+
+
+

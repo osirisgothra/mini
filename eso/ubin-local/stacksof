@@ -1,0 +1,59 @@
+#!/bin/zsh
+showhelp() { echo "syntax: stacksof [debug] [material, count, [ material2, ... ] ]"
+	echo "material: string identifier of count (string)"
+	echo "			count of item (integer)"
+	echo "repeatable forever"
+	echo "debug: enable extra messages from calc and this script"
+	echo "author: osirisgothra@hotmail.com"
+	echo "licensed under my github gnu gpl 3 license"
+}
+if [[ $1 == 'debug' ]]; then
+	additional_arguments=""
+	decho() { echo "debug: $*"; }
+	shift
+elif [[ $1 == "--help" ]]; then
+	showhelp
+	exit
+elif [[ $1 == ss ]]; then
+	stacksize=${2-64}
+	shift 2
+else
+	additional_arguments="d"
+	# shows up in xtrace or -x
+	decho() { true "trace-debug-only-$*"; }
+fi
+case $# in
+	0) 	echo "not enough (even) arguments!"; showhelp; exit
+		;;
+	*)	case $(( $# % 2 )) in
+			1) echo "parameters must be in pairs, an even list"; showhelp; exit;;
+		esac
+		;;
+esac
+
+
+lst=( )
+i=0
+for x; do
+	let i++
+	if (( i % 2 != 0 )); then
+		# force to string
+		decho "forcing $x to string"
+		lst+=( \"$x\" )
+	else
+		# force to number or zero if 0 or noninteger
+		integer y=$x
+		decho "forcing $x to integer $y"
+		lst+=( $y )
+	fi
+done
+unset n
+unset y
+
+set -- "${lst[@]}"
+
+decho ${(j:,:)@}
+
+calc -${additional_arguments}m1 -- 'define stacksof(tgt) { global ni=0; global o=0; for (ni=0;ni<size(tgt);ni+=2) { local what=tgt[ni]; local f=tgt[ni+1]; o=strprintf("%d(x'$stacksize') + %d (= %d)",floor(f/64), (((f/64)-floor(f/64))*64),f); print("Stack(+Partial) of "+ what + ": " + o); }; }; stacksof(list('"${(j:,:)@}"'))'
+
+

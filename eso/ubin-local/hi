@@ -1,11 +1,84 @@
 #!/usr/bin/perl
+#!/bin/bash
 #
-# "hi"
-# $INSTALLPREFIX/bin/hi
-# script for highlighting things
-# it supports 1 to 5 highlight groups, each on its own argument as a regex:
+#    hi
+#    script for highlighting things
+#    mini
+#    eso/ubin-local -- executable scripts and other exotic or xenographic works
 #
-# syntax: hi [group1 regex] [group2 regex] [...] [group 5 regex]
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Mon Jan 15 10:13:22 EDT 2019
+#            + osirisgothra@larnica initially created this file
+#              with the original name, hi
+# 			 + hi(1) supports 1 to 5 highlight groups, each on its own argument as a regex:
+#	 Sun Apr  7 00:25:18 EDT 2019
+#			 + this template was added
+#            + changes not logged since Jan 15:
+#				= changed group limits, allows as many groups as the perl will allow for integers 
+#                 this has been tested up to 4k groups!
+#               = dealt with color of groups, instead we use a randomly generated "palette" to
+#                 ensure that 256-colors are not next to each other (some chroma bleeding causes
+#                 colors to run together because they are so simmilar.
+#               = changed calculated palette to be defined before execution, for dynamic matching
+#               = color table now starts with the 16 standard colors, for more consistent group matches
+#               + added backgrounds to facilitate use of more than 256*256 groups!
+#				+ added better error checking
+#				+ added command line options: 
+#				   + show only matching lines (like grep -C0) or just the words (like grep -o) 
+#			       + scan limiter (scans only range n<->m)
+#				   + added mono and none for color modes (none only useful for isolated matches!)
+#			
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+#   hi [-clnvw] [long options...] [perlregex] ...
+#	                        
+#	output options          
+#	                        
+#	-n INT --charcount INT    numerical value to limit each line to
+#	                          number of characters from start, negative
+#	                          measures from end
+#	-c STR --color STR        colorized output mode: color(default) none,
+#	                          or mono
+#	-l --l-isolate            show only lines that have highligts on them
+#	-w --w-isolate            show only highligted text/words
+#	                        
+#	miscellaneous           
+#	                        
+#	-v --verbose              print extra stuff
+#	--help                    print usage message and exit
+#	
+#	highlight groups ( [group] ... )
+#	see below for string explaining groups		
+#	                        
+# (regenerate above using ins->file->cmd->hi->--help
 #
 
 use warnings;
@@ -13,52 +86,177 @@ use v5.20;
 use strict;
 use Getopt::Long::Descriptive;
 use Path::Tiny qw( path );
+sub amatch 
+{
+	my $src = shift;
+	my @items = @_;
+	my @rets = ();
+	for (@items) {
+		unshift(@rets,$_) if /^$src/;
+	}
+	return @rets;
+}
 
 my $progname = path($0)->basename();
+my $groups_desc = <<FEOF
 
+	highlight groups ( [group] ... )
+		
+		a list of perl regular expressions must be given 
+		on the command line for highlighting if output of
+		the pipe is to be displayed. Input text is expected
+		to be piped in, but, if it is not, lines will be
+		read directly from stdin.  This usually means that
+		the program will accept lines being typed on the
+		keyboard, until an EOF is typed. Using CTRL+C or
+		CTRL+BREAK (CTRL+FN+BREAK on laptops) will cause the
+		program to stop immidiately and produces no further
+		output. The exit code in this case is usually >=254
+		depending on your operating system.    
 
-my ($opt, $usage) = describe_options( 
-                                      "$progname %o [group(s)]",
+	typing an EOF
+
+		You can type an EOF by pressing CTRL+D on most 
+		nix-based systems. On more exotic operating 
+		systems like Windows, you will need to use CTRL+C
+		or CTRL+BREAK (on laptops CTRL+FN+BREAK). However,
+		output would be interrupted instead of an EOF being
+		inserted. On command windows you can enter an actual
+		EOF sometimes by pressing ALT+026. This feature must
+		be entered on the numeric keypad and is not always
+		supported. It is recommended to use cygwin since it
+		allows use of CTRL+D. Use a native linux shell like 
+		bash if you are able. This program was tested with 
+		zsh, sh, and bash under Linux Ubuntu 15.10, 17.04.
+
+	flags
+
+		Allowed flags are 'egorms'. This is subject to change.
+		Please read 'perldoc perlre' for more on this. Most
+		users will find that the default, 'g' is just fine.
+		Most of the other flags are only useful for those who
+		are customizing this program from within (developers).
+		Any not-allowed flags or ones that just dont exist
+		are removed from the string at startup, so if you put
+		a string like 'ihateyou' it will become 'eo' because
+		the other characters are not allowed. Use this feature
+		with caution if you are a regular user.
+	
+			
+
+FEOF
+;
+my ($opt, $usage) = describe_options( "$progname %o [group(s)]",
+									  [], ["output options"], [],
+									  ['colorseed|S=i',"seed to use for the random color generator, use same value if you want to get the same random color sequence every time (default is -1 which picks a random seed)", { default => -1 } ],
+									  ['charcount|n=i',"numerical value to limit each line to number of characters from start, negative measures from end", { default => 0 } ],
 									  ['color|c=s',"colorized output mode: color(default) none, or mono", { default => 'color' }, ],
 									  ['l-isolate|l', "show only lines that have highligts on them"],
 									  ['w-isolate|w', "show only highligted text/words"],
-                                      [],
+									  ['substitute|s', "strings are substituted in the form: 'org_expr/replacement_text'"],
+									  ['flags|f=s', "flags to send to regex parser (egomrs)", { default => 'g' }],									 
+    								  [], ["miscellaneous"], [],
 									  ['verbose|v', "print extra stuff"],
                                       ['help', "print usage message and exit"],
-									  ["\n\tgroups\n\n\ta list of perl regular expressions must be given on the command line for \n\thighlighting and output of the pipe to be displayed. Input text is expected\n\t to be piped in, but, if it is not, lines will be read directly from stdin.\n\t This usually means that the program will accept lines being typed on the keyboard, until\n\tan EOF is typed. You can type an EOF by pressing CTRL+D on most linux/bsd systems. On exotic operating systems like Windows,\n\tyou would need to use CTRL+C or CTRL+BREAK however output would be interrupted. It is recommended to use \n\tcygwin since it allows use of CTRL+D eof insertions and a native linux shell like bash can run under it in a\n\tcommand-console (text-only) window like cmd.exe. There must be at least one of these given on the command line. \n\tIf there is no expressions given on the command line, an error message will result. The one flag that can be given that allows omission of regular expressions is the help flag (--help or -h) which\n\tyou are viewing right now.\n\n\tSee perlreref(3) for more about \n\tperl regular expressions."],
-									  [],		
+									  ["$groups_desc"], [], 
                                     );
 
-print($usage->text), exit if $opt->help;
-die("color must be set to 'color', 'mono', or 'none'\n") unless $color =~ m/(color|mono|none)/;
+print($usage->text), exit if $opt->help;				# show --help content and exit when --help is specified on the CLI
+srand($opt->colorseed) unless $opt->colorseed == -1;	# seed for color randomizer: gets randomized seed if not touched here
+print("$opt->flags became...");
+my $flags = $opt->flags;
+$flags =~ s/[^egomrs]//g;							# remove forbidden characters from
+($opt->flags) = $flags;
+print("$opt->flags\n");
 
+
+my $grouplimiter = 1;
 my $groups = $#ARGV+1;
 my $grouplimit = 40000;
 my @group = @ARGV;
+my $color = $opt->color;
+my $show_matching_line_only = $opt->l_isolate // 0;
+my $show_matching_word_only = $opt->w_isolate // 0;
+my @colortbl = qw( 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 );
 
-die("too many groups specified, limit is $grouplimit.\nnote: if you need more than that, use the pipeline to call the program multiple times (the limit is really high so the chances of this happening without some error being the cause is pretty unlikely, check your source code to be sure: passed arguments were: $0 @ARGV") if $groups > $grouplimit;
-die("needs at least one search group (regular expression) to proceed!!") if $groups < 1;
+sub errdef { my $a = int(shift) // 127; my $msg = shift // "unspecified error";  print("error($a): $msg\n"); exit($a); }
+errdef(122,"color (or -c) must contain unique enough characters to match against 'color', 'mono', or 'none'\n") unless scalar(amatch($opt->color,"color","mono","none")) > 0;
+errdef(121,"too many arguments (> $grouplimit)") if $groups > $grouplimit && $grouplimiter == 1;
+errdef(120,"nothing to highlight") if $groups < 1;
+errdef(119,"l-isolate and w-isolate are mutually exclusive, please use one or the other") if $show_matching_line_only && $show_matching_word_only;
+
+# TODO: use Term::Cap to do this /IF/ it ends up being needed (at this time its not)
+my $term_colors=`tput colors`;
+if (  ($term_colors-16) > $groups )	# enough colorful colors to facilitate a good color table?
+{
+	my $start=17;                                   
+	my $stop=$term_colors if $term_colors < 230;	#\ clamp hi limit to 230 because
+	$stop=230 if $term_colors > 230;				#/ we do not want the greys that live there
+	$stop=$term_colors if $term_colors > 512;	# true color terminal override
+	
+	my @colortbl=();
+	for (my $x=0; $x < $groups; $x++)
+	{
+		$colortbl[$x] = ( ((rand() * 230-17) + 17) ) ;	 # 17 - 230 range (colorful colors only)
+	}
+}
+
 
 while (<STDIN>)
 {
 	my $i = 0;
+	my $mcolor = undef;
+	my $matched = 0;
+	my $matchtext = "";
+	my $ccolor = "";
+	my $creset = "[0m";		 
+	my $orgline = $_;
+	my $restline = $_;
+	if ($opt->charcount > 0)
+	{
+		#positive: pos(0),count
+		$_ = substr($orgline,0,$opt->charcount);
+		$orgline = substr($orgline,$opt->charcount);
+	}
+	elsif ($opt->charcount <= 0)
+	{
+		$_ = substr($orgline,$opt->charcount);
+		$orgline = substr($orgline,0,$opt->charcount);
+	}
 
 	while ($i < $groups) 
 	{
 		#say "using number: $i";
 		my $cgroup = $group[$i];
 		#say($cgroup);
-		my $j = ( $i + 50 ) & 255;	
-		my $ccolor = "[38;5;${j}m";
+		$ccolor = "[38;5;${colortbl[$i]}m";
+		$mcolor //= $ccolor;
 		if ($i > 200) {
-			$j = int($i / 200);	
+			my $j = $colortbl[$i / 200];	
 			$ccolor .= "[48;5;${j}m";
 		}
-
-		my $creset = "[0m";
-		s/($cgroup)/${ccolor}${1}${creset}/g;
+		$ccolor = $mcolor if $color =~ /mono/;
+		$ccolor = "" if $color =~ /none/;
+		$ccolor = $ccolor if $color =~ /color/;	# gfcs
+		$matched = ( s/($cgroup)/${ccolor}${1}${creset}/g );
+		$matchtext .= (length($matchtext) > 0 ? " " : "") . "${ccolor}${1}${creset}" if defined($1);
 		$i++;
 	}	
 	#exit(1);
-	print($_);
+	if ($show_matching_word_only) 	# $show_matching_word_only -> show matches from groups only (invalidates $show_matching_line_only)
+		{ print("$matchtext\n") unless length($matchtext) <= 0; }
+	else  # $show_matching_line_only -> show matching lines only
+	{ 
+		unless ($matched == 0 && $show_matching_line_only == 1)
+		{
+			if ($opt->charcount > 0)	# [matchtext]remainder
+			{
+				print($_); print($orgline);
+			}
+			else
+			{
+				print($orgline,$_);
+			}
+		}
+	}
 }

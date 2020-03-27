@@ -1,0 +1,252 @@
+#!/bin/zsh
+emulate zsh
+#
+# SUMMARY
+#
+# jku_gamedir
+#
+# tool used by jku to get the currently running gamedir by accessing
+# the process' commandline and extracting the gameDir= argument from
+# it.
+#
+# JKU is part of the osirisgothra/mini project group.
+# (http://github.com/osirisgothra/mini.git)
+
+#
+# version: this program uses an experimental dynamic versioning system
+# the version number can be retrieved via the -v argument and be modified
+# by using the -V argument on the command line. It is stored in the
+# jkg_v variable within the program's declarations, the main program (read
+# below for more about that).
+#
+# IMPORTANT
+#
+# this program is written in the DECLARATIVE style of programming,
+# so most of the functionality will be found here
+# in the declarations, not in the actual code.
+
+
+setopt interactivecomments
+setopt localoptions
+setopt noerrexit			# keep going even with errors
+setopt kshglob				# allow +() @() !() etc
+setopt aliases				# used for void lookalike
+setopt noxtrace				# set to 'notrace' when not tracing
+setopt extendedglob			# allow use of ${(expr)var} expansions
+setopt promptsubst
+
+disable hash				#\  these sometimes get in the way
+disable integer				# > disabled as precaution only
+disable pushln				#/  in case other commands (sub) misbehave
+
+# TODO: incorporate cmdlinehash
+
+cleanup()
+{
+	echo "cleanup initiated..."
+	{
+		: ; # place cleanup code here
+	}
+	echo "done."
+	unset -f cleanup
+}
+trap cleanup SIGINT SIGCHLD SIGSTOP SIGTSTP
+
+# TYPESETS
+
+typeset -a jkg_v=( 11 11 13 )
+
+
+# TYPEDEFS
+
+alias global='typeset -gg'
+alias array='typeset -ga'
+alias hash='typeset -gA'
+alias int='typeset -gi'
+alias integer='typeset -gi'
+alias echo='print -P'
+alias bool='typeset -gi'
+alias const='typeset -gir'
+
+# DECLARATIONS
+
+const jkg_err_ok=0
+const jkg_err_fatal=127
+const jkg_err_help=126
+const jkg_false=1
+const jkg_true=0
+
+# prefix (current location of system root & binaries under it) *
+global jkg_prefix_sys='/'
+global jkg_prefix="${jkg_prefix_sys%/}/bin"
+global jkg_prefix_usr="/usr$jkg_prefix"
+
+# proc(5) (location of running processes filesystem and its command line file)**
+global jkg_proc_cmdline_filename='cmdline'
+global jkg_proc_dir="${jkg_prefix_sys%/}/proc"
+
+# pgrep (used to narrow down the list of processes to search through)***
+# _binary = location of pgrep
+# _flags = flags passed to pgrep (for getting query)
+# _countpass_flags = flags used for the count pass (so we know we even have a match, or too many matches)
+# _expr = expression used to validate the string as a positive match
+# _cmd = compiled command, ready for execution (text pass)
+# _countpass_cmd = compiled command, ready for execution (count pass)
+# *** all passes are usually preformed anyway, so do not assume that one pass will cause another to not execute. For this reason, keep things as legal and fluid as possible when writing out expressions.
+global jkg_pgrep_binary="$jkg_prefix_usr/pgrep"
+ array jkg_pgrep_flags=( -f -- )
+ array jkg_pgrep_countpass_flags=( -fc )
+global jkg_pgrep_expr='java.*gameDir'
+ array jkg_pgrep_cmd=( "$jkg_pgrep_binary" $jkg_pgrep_flags $jkg_pgrep_expr )
+ array jkg_pgrep_countpass_cmd=( "$jkg_pgrep_binary" $jkg_pgrep_countpass_flags $jkg_pgrep_expr )
+array jkg_pgrep_cond=( "$($jkg_pgrep_countpass_cmd)" "-eq" "1" )
+array jkg_pgrep_cond_fail_cmd=( "print" "-P" "%F{120}%BERROR: There must be exactly one instance with a gamedir, this is currently not the case. Cannot return a game directory" ">" "/dev/stderr" )
+
+
+# grep (used to traverse binary 'cmdline' files in proc(5) to find most qualified target)
+# _binary = path to system 'grep' command
+# _flags  = flags passed to 'grep' command
+# _expr = expression used to evaluate the command line for the desired values (in this case, the --gameDir argument, plus its value which is the very next argument)
+# _grep = compiled command (command + flags) to use
+# _grep_cmd = compiled entire command line, ready to be executed
+global jkg_grep_binary="$jkg_prefix/grep"
+ array jkg_grep_flags=( -a -o -P )
+global jkg_grep_expr='(?<=--gameDir\0)[^\0]+'
+ array jkg_grep=( "$jkg_grep_binary" $jkg_grep_flags )
+ array jkg_grep_cmd=( $jkg_grep $jkg_grep_expr $jkg_proc_dir/`$jkg_pgrep_cmd`/$jkg_proc_cmdline_filename )
+
+# game directory and retval
+# jkg_gamedir - the game directory (if jkg_retval == 0)
+#               the error text (if jkg_retval == 1)
+# jkg_retval  - error value, determines the above meaning
+#				1 = error, 0 = valid directory
+global jkg_gamedir="$( eval "[[ $jkg_pgrep_cond ]]" && ${jkg_grep_cmd[@]} || ${jkg_pgrep_cond_fail_cmd} )"
+   int jkg_retval="$( [[ -d $jkg_gamedir ]] && echo 0 || echo 1 )"
+
+# internal metrics (informative variables that describe this script)
+int	jkg_vmajor=$jkg_v[1]
+int jkg_vminor=$jkg_v[2]
+int jkg_vrev=$jkg_v[3]
+global jkg_stage=$jkg_v[4]
+
+global jkg_progname="$0"
+   int jkg_revision_autoinc=2
+  hash  jkg_version=(   major ${jkg_vmajor-0}
+                        minor ${jkg_vminor-0}
+                        revision ${jkg_vrev-0}  )
+  hash jkg=( name	"$(basename $jkg_progname)"		version "$jkg_version" )
+
+function increment_version()
+{
+	local majinc=0
+	local mininc=0
+	local revinc=0
+	local doit=1
+
+	while [[ $# -gt 0 ]]; do
+		local part=$1
+		shift
+		case $part in
+			+(-)help|-h)
+				echo "syntax: jku_gamedir --version_up (at least one or more of: -major [amt] -minor [amt] -rev [amt])"
+				exit err_help;;
+			-major|-M)	majinc=$2; shift;;
+			-minor|-m)	mininc=$2; shift;;
+			-rev|-r)	revinc=$2; shift;;
+			*)
+				echo "nonrecognized parameter: $part"
+				echo "the ($@) remaining cmdline wont be parsed and"
+				echo "the program will now abort changes..."
+				doit=0;;
+		esac
+	done
+	if ((doit)); then
+		newval="$(echo `grep jkg_v= ~/bin/jku_gamedir` | awk '{ print $1" "$2" "$3" "$4+'$majinc'" "$5+'$mininc'" "$6+'$revinc'" )"; }')"; 
+		perl -i.bak -wpe 's/jkg_v=.*/'$newval'/g;' ~/bin/jku_gamedir
+		echo "note: updated version, old version saved under $0.bak"
+	else
+		echo "aborted -- no version changes made"
+	fi
+
+}
+
+function main()
+{
+	integer retval=0
+	if f=( `getopt -o hvVLanN -n "$(basename "$jkg_progname")" -- "$@"` ); then
+		while [[ $f[1] != '--' ]]; do
+			case $f[1] in
+				-L)	ln -s $( "$0" -n ) "$f[2]"
+					case $rv in
+						0) shift 2;;
+						*) echo "could not link directory" > /dev/stderr; shift 2;;
+					esac
+					exit $rv ;;
+				-n|-N)
+					if ! [[ $jkg_gamedir =~ ERROR ]]; then
+						if [[ $f[1] == '-N' ]]; then
+							echo "$HOME/.minecraft"
+						else
+							echo "/dev/null"
+						fi
+						return 1
+					else
+						echo "$jkg_gamedir"
+						return 0
+					fi
+					;;
+				-V)	 increment_version "$@"
+					 [[ $- =~ i ]] && return $?
+					 exit $?;;
+           -h) out=( "\nsyntax: jku_gamedir -h"
+					 "      or: jku_gamedir -v"
+					 "      or: jku_gamedir -N"
+					 "      or: jku_gamedir -n"
+					 "      or: jku_gamedir -L DIRECTORY"
+					 "                                                                        "
+					 " -n   fallback to $HOME/.minecraft when no game is running"
+					 " -N   fallback to /dev/null when no game is running (useful for linking)"
+					 " -L   link DIRECTORY to running gamedir, or /dev/null if none is running"
+					 " -V	update version in-place (devs only)"
+					 "      (use -V --help for more on this argument)"
+					 " -h   this help message"
+					 " -v   print version and exit"
+					 ""
+					 "by itself, returns the currently playing directory for javaku context"
+					 "it is used by jku(1) to get the currently running context for javaku(1)"
+					 "" )
+					outp="${(j:\n:)out}"
+					b=27 i=6 n=$b	# palette, winter candy (generated with eul-colors by osirisgothra(2019-20 (C))
+					outpp=""
+					for ((x=1;x<$#outp;x++)) {
+					 	# colorize each character...
+					 	let n+=$i
+					 	[[ $n -gt 255 ]] && n=$b
+					 	if [[ $outp[$x,$x+1] == '\n' ]] || [[ $outp[$x-1,$x] == '\n' ]]; then
+					 		# ..but not if we are 'inside' of the vertical whitespace (aka \n)
+					 		outpp+="$outp[$x]"
+					 	else
+					 		outpp+="%F{$n}$outp[$x]"
+					 	fi
+					}
+					echo "$outpp"
+					exit 126
+					;;
+				-v)	echo "%U$jkg[name]%u %Bv${jkg[version]// /.}%b (c)2020 Gabriel Sharp (osirisgothra@hotmail.com) %Uhttp://github.com/osirisgothra%u"
+					exit 125
+					;;
+				*)	echo "%B%F{124}$jkg[name]: unhandled option surpassed filtering (corrupted state), please check file permissions and perform a disk check%f"
+					exit 128
+					;;
+			esac
+		done
+		echo $jkg_gamedir
+		retval=$jkg_errval
+	else
+		glob echo ${jkg_progname}(:t)" -- fatal, option list is erroneous."
+		retval=127
+	fi
+	return $retval
+}
+
+main "$@"

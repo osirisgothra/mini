@@ -19,7 +19,7 @@
 # xmacro - Record / Play keystrokes and mouse movements in X displays
 # bash - GNU bourne-again shell
 #
-# command-help
+# begin-command-help
 #
 # xmacroplay 0.3)
 #     Usage: xmacroplay [options] remote_display
@@ -62,6 +62,10 @@
 # and are subject to change without any notice to the author, or from the author. These names/desc are valid
 # as of June 18, 2016 and are guarenteed for at least 2.5 years beyond. Separate licenses apply. See files for that.
 #
+# please read the warnings in this script's file before using!
+#
+# end-command-help
+#
 # BEGIN WARNING ABOUT ZERO LIABILITY AND KEY EVENT MISROUTING
 #
 # WARNING: when bound to a keyboard key, you MUST flush the buffer first, by using Key[lastshortcut]Release and the modifiers
@@ -83,13 +87,24 @@ PROLOGUE_DELAY=0.15
 CLIMATIC_DELAY=0.05
 EPILOGUE_DELAY=0.05
 
+if [[ $* =~ --help ]]; then
+	# NB: keep [b] instead of 'b'
+	#	  in order to not get this line included in the help text
+	cat "$0" | perl -wne 's/^\s*#//g;print if /[b]egin-command-help/ .. /[e]nd-command-help/'
+	exit 0
+	echo "naughty-passed end-of-routine possible corruption..."
+	return 127
+fi
 
 sleep $PROLOGUE_DELAY
+
 sudo nice -n $NICENESS xmacroplay -d $KEY_DELAY_MSEC $DISPLAY <<EOF
 KeyStrPress slash
 KeyStrRelease slash
 EOF
+
 sleep $CLIMATIC_DELAY
+
 sudo nice -n $NICENESS xmacroplay -d $KEY_DELAY_MSEC $DISPLAY <<EOF
 KeyStrPress i
 KeyStrRelease i
@@ -114,9 +129,10 @@ KeyStrRelease s
 KeyStrPress i
 KeyStrRelease i
 EOF
+
 sleep $EPILOGUE_DELAY
+
 sudo nice -n $NICENESS xmacroplay -d $KEY_DELAY_MSEC $DISPLAY <<EOF
 KeyStrPress Return
 KeyStrRelease Return
-EOF 
-
+EOF

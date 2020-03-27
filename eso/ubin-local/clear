@@ -1,2 +1,108 @@
-#!/bin/zsh
-printf "%s" "[40;37;27;25;24;23;22;21;0m[2J[1;1H"
+#!/bin/sh
+if [ -n "$ZSH_VERSION" ]; then
+	echo "running in emulated sh mode"
+	emulate sh
+fi
+#
+#    clear
+#    clear the screen securely, and reset the terminal
+#    eso-bin
+#    mini
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#	 IMPORTANT
+#
+#	 as with all esoteric same-name scripts, do NOT put this script in any
+#    system directories with the binary of its same name. This is because most
+#	 of these scripts RELY on the binary and act as a shim.
+#
+#    HISTORY
+#
+#	 Sat Feb 15 11:48:00 EST 2020
+#            osirisgothra@ initially created the template for the file
+#            with the original name, clear under an esoteric binary directory
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#
+#	template output completed (code=OK(ERROR_NONE))
+#
+#	DECLARATIONS
+#
+#		VARIABLES
+#    		most of these wont need to be changed on a local system where standard tools are installed into /usr/bin)
+#	        custom built tools compiled on-machine might need to change cls_binary_path to '/usr/local/bin' 
+#     	    check with your administrator first before doing this!
+#			 extra features (cls_feature_[featurename])
+#			  stty				[ yes | no ]  use the stty sane command first (default=yes)
+#			  stty_sanestr		string to pass to stty binary to execute sane command (default="sane")
+#			 binary locations (cls_[binaryname]_binary
+#			  tput  			secure path to tput (default="$cls_binary_path/tput")
+#			  stty  			secure path to stty (default $cls_binary_path/stty)
+#			  env				secure path to env (default="$cls_binary_path/env")
+#			  setterm			secure path to setterm (default="$cls_binary_path/setterm")
+#			 directory locations (cls_[dirname]_path)
+#			  binary			default secure path (if only path differs, use this, default="/usr/bin")
+#			 argument items (cls_[itemname])
+#			  console_term		termcap terminal name for the linux console (default="linux")
+#			  call_method      [ sudo | command | exec ] method used to run the final screen clearing program (default="exec")
+#			  tput_cmd			[ clear | sgr0 | <other> ] command sent to tput to clear the terminal's screen
+#			  setterm_clearcmd	[ -reset | -init | <other setterm flag> ] flag used with setterm to clear the terminal's screen
+#
+#
+
+if [ "$CLS_FAST_UNSECURE_MODE" = "1" ]; then
+	local cls_fmtstr='\e[%dJ\e[%d;%dH'
+	local cls_clear=2 cls_posx=1 cls_posy=1
+	printf $cls_fmtstr $cls_clear $cls_posx $cls_posy
+else
+	cls_prefix="/"
+	cls_bin="bin"
+	cls_binary_path="${prefix%/}/usr/$cls_bin"
+	cls_binary_path_system="${prefix%/}/$cls_bin"
+	cls_binary_path_local="${prefix%/}/usr/local/$cls_bin"
+	cls_feature_stty=yes
+	cls_feature_stty_sanestr="sane"
+	cls_feature_stty_binary="${cls_binary_path_system%/}/stty"
+	cls_tput_binary="${cls_binary_path%/}/tput"
+	cls_env_binary="${cls_binary_path%/}/env"
+	cls_tput_cmd="clear"
+	cls_console_term="linux"
+	cls_call_method="exec"
+	cls_setterm_binary="${cls_binary_path%/}/setterm"
+	cls_setterm_clearcmd="-reset"
+	if [ $cls_feature_stty = yes ]; then
+		$cls_feature_stty_binary $cls_feature_stty_sanestr
+	fi
+	if [ $TERM = $cls_console_term ]; then
+		$cls_call_method $cls_setterm_binary $cls_setterm_clearcmd
+	elif [ "$TERM" = "x" ]; then
+		$cls_call_method $cls_env_binary TERM=$cls_console_term $cls_tput_binary $cls_tput_cmd
+	else
+		$cls_call_method $cls_tput_binary $cls_tput_cmd
+	fi
+fi

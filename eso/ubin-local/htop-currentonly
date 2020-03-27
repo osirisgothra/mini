@@ -1,0 +1,41 @@
+#!/bin/zsh
+#
+# ADDITIONAL nOTES                     GBDECGHBDBgdbf
+#
+#  This program starts 'htop' without it's process ID
+# included in it's listing. However, the htop program
+# has no way of doing this. What it does have, is the
+# way to select what processes to view in its listing
+# so the pid list of what to show discluding only the
+# pid of this process, which will be inherited thanks
+# to the 'exec' command, will not be in that list.
+#
+#  Naturally, htop will not disclude its own pid, but
+# exec transfers control to the new process that uses
+# the same PID (that pid is known by us this way).
+#
+#  The only reason forking cannot happen unless there
+# is outside intervention on behalf of some other new
+# program that would handles this. Recursion via this
+# program is also a possability. However, htop cannot
+# run in the background because it is interactive, so
+# no real good can come from that since it writes the
+# terminal. On the other hand, if a program/script is
+# running from another terminal redirecting here, you
+# could accomplish this task (if that was needed).
+#
+#  There's no more commenting on this at this time. A
+# detailed report and this is probably not needed.
+#
+#  One exception is that others may want to write the
+# addition in theirselves, this will be submitted.
+#-----------------------------------------------------
+# (submitted items must come via github in the form of
+# a pull request)
+#-----------------------------------------------------
+
+for x in `ps -N -p $$ -o pid=`; do
+	ht_pids+=( "-p" "$x" )
+done
+
+exec /usr/bin/htop $ht_pids "$@"
