@@ -1,2 +1,56 @@
 #!/bin/zsh
-infoloc=`info -w "$1"`
+
+setopt globassign
+setopt nullglob
+setopt extendedglob
+setopt kshglob
+setopt aliases
+setopt nointeractivecomments
+i=0
+declare -ga preforder=( cheat perldoc info manpage generic )
+case $1 in
+	--help) echo "syntax: help [topic] OR help --list <- this one gets you preferred order of searching for docs"; exit;;
+	--list) for pref in $preforder; do echo "$pref (priority $i)"; let i++; done; exit;;
+esac
+
+declare -gA locs=( defined "yes"
+	info	"`info -w "$1"`"
+	manpage	"`man -w "$1"`"
+	cheat	"`cheat -l "^$1\$" | awk '{ print $2 }' | sed -nr '2p' `"
+	perldoc "`perldoc -l "$1"`"
+	generic	"`/usr/share/doc/$1/README*([1])`"
+)
+# change your preferred priority here
+# left side has priority over right side (ie; with a,b,c 'a' would be chosen first, 'c' last)
+# others are used only if previous one is not found!
+declare -p locs
+declare -gA matches=( )
+for pref in $preforder; do
+	if [[ $locs[$pref] ]]; then
+		print -P  "%Bfound match:%b"
+		print -P  "%F{122}sector:%F{142} $pref"
+		print -P  "%F{124} block:%F{144} $locs[$pref]%f"
+		matches+=( "$pref" "$locs[$pref]" )
+	fi
+done
+declare -p matches
+case $#matches in
+	0)	echo "could not find any match for: $*";;
+	1)	echo "using only match $locs[$pref] to be opened in $pref";;
+	*)	echo "more than one match, please indicate which kind will be used:"
+		echo " 0 = all"
+		i=0
+		while ($i -lt $#matches); do
+			let i++
+			echo " $i - ${(v)matches[$i]} in ${(k)matches[$i]}"
+		done
+		;;
+esac
+eval `resize`
+echo "fatal: reached end of file bound in $0, this should never happen"
+echo "       please check the script for corruption which may have happened"
+echo "		 due to 1) permissions changed while running, 2) disk space"
+echo "		 prevented full copy or 3) an error in a change made in script"
+echo "developers: if you made changes, you should look into #3 first"
+echo ""
+

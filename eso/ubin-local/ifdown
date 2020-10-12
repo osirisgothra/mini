@@ -1,0 +1,94 @@
+#!/usr/bin/perl
+#
+#    ifdown (assumes the name 'ifup' or 'ifcyc' also, any other defaults to as if it were 'ifdown')
+#    ifdown stand-in for ifconfig(8) for use on newer systems that dont sport ifup(8) or ifdown(8) by default in their installations
+#	 however the 'ifcyc' just combines down/up together
+#    mini:eso/ubin-local
+#    esoteric projects
+#
+#    NOTE: you can link to this file and name it 'ifup' to get the effects of the ifup(8) command
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Fri 12 Jun 2020 11:10:48 PM EDT
+#            osirisgothra@ initially created this file
+#            with the original name, ifdown
+#
+#
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#
+#	template output completed (code=OK(ERROR_NONE))
+#
+#
+use v5.20.2;
+use warnings;
+use strict;
+no warnings "experimental";
+my $progact = "down";
+my $okrun = ( $< =~ /^1000|0$/ ) ? 1 : 0;
+
+die ("arguments required, none given") when $#ARGV < 0 and not $0 =~ /list/;
+given ( $0 )
+{
+	$progact = "up" when /ifup/;
+	# other obscure linky usages (has nothing to do with non-existing/pre-existing standards, if any)
+	# mentioned in documentation for this file
+	$progact = "down up" when /ifcyc/;
+	# undocumented (because they are not recommended or should be used at all, for most users)
+	$progact = "up down" when /ifycy/;
+	$progact = "add" when /ifadd/;
+	$progact = "del" when /ifdel/;
+	$progact = "-a" when /iflist/;
+}
+my @acts = split(" ",$progact);
+
+# recycling $progact for use as its no longer used after @acts transfer
+for $progact (@acts) {
+	if ($okrun)
+	{
+		my $cmd = "sudo ifconfig %s $progact";
+		if ($#ARGV < 0)
+		{
+			system(sprintf($cmd,""));
+		}
+		else
+		{			
+			for my $iface (@ARGV)
+			{
+				CORE::say("performing a(n) $progact on $iface (no checking for proper interface names, used at own risk!)");
+				system(sprintf($cmd,$iface));
+			}
+		}
+	}
+	else
+	{
+		print("Only the main user (1000) or the superuser (0) may run this command -- main user must also be able to run sudo!");
+	}
+}

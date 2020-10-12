@@ -1,0 +1,37 @@
+#!/usr/bin/perl
+
+use warnings;
+use v5.20.2;
+use strict;
+use Path::Tiny;
+
+## same on all platforms 
+
+my $base = Path::Tiny->rootdir();
+
+## change if needed
+
+my $prefix = $base->child("usr")->child("bin");	# c:\usr\bin on windows, etc
+my $sprefix = $base->child("usr")->child("sbin"); # ditto
+my $cmd = $prefix->child("sudo");
+my $modprobe = $sprefix->child("modprobe");
+
+$cmd = $prefix->child("env") if ( (getpwuid($<))[2] == 0 );	# field 2, user's UID
+my $unload = "-r";
+my $kernelmod="pcspkr";
+my $beepcmd = $prefix->child("beep");
+
+## dont change these
+
+my @mod_on=( $cmd, $modprobe, $kernelmod );
+my @mod_off=( $cmd, $modprobe, $unload, $kernelmod );
+my @beepcmdline=( $beepcmd , @ARGV );
+
+say for @mod_on;
+system(@mod_on);
+
+say for @beepcmdline;
+system(@beepcmdline);
+
+say for @mod_off;
+system(@mod_off);

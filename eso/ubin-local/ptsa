@@ -89,21 +89,63 @@ my ($opt, $usage) = describe_options(
 
 print($usage->text), exit if $opt->help;
 my @terms = @ARGV || die("\nno search terms provided!!! please see --help for details\n${!}\nreturning with code: $?\n\n");
+
 # see (NOTES: built-in names)
 my @binames_g = qw( firefox chromium-browser midori dillo konqueror rekonq opera google-chrome xombrero safari );
 my @binames_t = qw( links2 elinks links lynx GET );
+
 # the proper names list OR auto-assign the built-in names to each if not available
 chomp ( my @names_g = `update-alternatives --list x-www-browser` // @binames_g,
 	    my @names_t = `update-alternatives --list www-browser` 	 // @binames_t);
+
+# home
+my $home = path($ENV{HOME});
+die "need home dir with write/read access!" unless -w -r -x -d $home;
+
 # next this is our program meat
 # remain argument is always it
 my $base =  $name->basename();
+say "loading user configuration (if any)";
+my @lines = 
 
-say("my name is $base");
+say "browsers (graphical):";
+say for @names_g;
+say "\nbrowsers (CLI or (n)curses):";
+say for @names_t;
+my $total = @names_t + @names_g;
+say("this script (or link thereof) name is $base");
+my $g = "x-www-browser";	# set defaults for graphical browser
+my $t = "www-browser";      # and text browser (see below)
+
 if ( -l $name ) {
-	say("$base is a soft link to another file");
+	say("$base is a soft link to another file, interpreting as a magic link..");
+	# magic links work this way:
+	#
+	# BL[extradata]	
+	# where:
+	#	B		Browser significant name in the list, if two browsers have the same first letter, the next letter will be used, and so on
+	#	L		The predefined 'URL' kind to use (built in ones are 'g'oogle 'd'uckduckgo 'y'ahoo )
+	# extradata	Suffix to select a subtype
+	#
+	# the only subtype available for built-ins is 'l' or 'L' which means
+	# to open the first search result instead of showing search results
+	# (warning this could be dangerous and may expose explicit content, use at own risk)
+	#
+	# so, assuming firefox is installed:
+	#	fgL or fgl would open firefox with google search, having it use the lucky search result and open the first website
+	#
+	# those familliar with tsa will see that it works the same way
+	# the main difference is that perl is now the interpreter instead of bash
+	# making it workable in other operating systems, including windows and
+	# OSX. (Also, the bash version is depreciated and gets no more updates other
+	# than bugfixes).
+	#
+	my $browser = substr($name,0,1);
+
+
 } else {
-	say("$base is a hard link to an inode");
+	say("$base is a hard link to an inode, using default targets...");
+	
 }
 
 

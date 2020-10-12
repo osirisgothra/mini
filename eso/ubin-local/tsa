@@ -1,11 +1,13 @@
 #!/bin/bash
 #
 #  tsa (original name, uses aliases to determine browser function)
+#  (depreciated, tsa is being rewritten in python3)
 #
 #  Author:
 #    Gabriel T. Sharp <osirisgothra@hotmail.com>
 #
 #  Copyright (C)2013-2014 Paradisim Enterprises, LLC (http://paradisim.twilightparadox.com)
+#  Copyright (C)2015-2020 Gabriel Sharp, T.
 #
 #  (Re)created on Sat Oct 2 11:03:17 EDT 2017, 
 #  Last Major Update on Sat Oct 28 11:03:56 EDT 2017
@@ -67,8 +69,34 @@
 #
 # REVISIONS
 #
-#  thus far, two annual revisions have been done, and a few intermediate changes as well. officially in 2018 this project will now
-#  become a subpart of the autox-extras project
+#	2014-2015
+#	  thus far, two annual revisions have been done, and a few intermediate changes as well. officially in 2018 this project will now
+#  	  become a subpart of the autox-extras project
+#	2016-2018
+#	  added some stuff/removed stuff, added translation links, etc.
+#	  added modifier maps, then transmaps too
+#	  added colorized logo, status checks
+#	  see commit log for details on changes
+#	2019
+#	  added compatibility for other single-or-double charactered binaries
+#	  as conflicts (blacklisted).
+#     cached the color logo generation to speed that up in high load situations
+#	  added most popular browsers and search engines
+#	  began work on tsap, the successor of tsa, in python3 (not yet available!)
+#	  stopped regular updates to this file on github
+#	  ** paradisim enterprises disbanded **  author will be working alone on future 
+#     ** projects of this kind
+#	  github paradisim projects can be found on osirisgothra's github page now
+#	2020
+#	  millenial-tweens-end update, this is the LAST feature update this program
+#	  will ever get:
+#		- updated to https (search engines wont index pages http anymore anyway)
+#		- updated these notes to include accurate changelog or pointer thereof
+#		- added verification of browsers plus a fallback
+#		- added fallback support for google-chrome->to->chromium-browser
+#		- fixed a couple bugs in translator, cleaned up code a little
+#		- no other non bugfixes will be added, and only major bugs will be fixed
+#		- follow tsap, its successor for a better, newer tsa.
 #
 # PARSABLE DESCRIPTION AND DOCUMENTATION
 #
@@ -281,12 +309,73 @@ else
 	declare -ig remove_from_jobcontrol=0
 fi
 
+# UPDATE(FINAL): added variable to handle if user has chromium-browser AND google-chrome
+# (without google-chrome, it will also be chromium-browser, if not that, then, www-browser)
+
+declare -g pref_chrome="$( [[ -x `which google-chrome` ]] && echo "google-chrome" || echo "chromium-browser")"
+
+
 # set variables for all occasions
+
 declare -ig colorful_logo=0
 declare -ig use_exec=0
 #declare -g LOGO_RENDERED="$(mktemp)"
-declare -gA translators=( [d]='dillo' [t]='links2'  [T]='links2 -g' [f]='firefox' [g]='firefox' [c]='chromium-browser' [l]='locate' [L]='find' [x]='xombrero' [u]='surf' [m]='midori' [s]='safari' [k]='konqueror' [K]='rekonq' )
-declare -gA modifiers=( [g]='http://www.google.com/search?q=%s' [d]='http://www.duckduckgo.com/?q=%s+!' [h]='http://www.github.com/%s' [i]='http://www.google.com/search?tbm=isch&ie=ISO-8859-1&hl=en&source=hp&biw=&bih=&q=%s&btnG=Search+Images&gbv=1' )
+# if you get NO_TRANSLATOR, check here -- be sure yours is here!
+# also check for www-browser setup on your machine (usually is graphical!)
+declare -gA translators=( 	[d]='dillo'
+							[t]='links2'
+							[T]='links2 -g'
+							[f]='firefox'
+							[g]='firefox'
+							[c]='chromium-browser'
+							[l]='locate'
+							[L]='find'
+							[x]='xombrero'
+							[u]='surf'
+							[m]='midori'
+							[s]='safari'
+							[k]='konqueror'
+							[K]='rekonq'
+							[G]="$pref_chrome"
+							[fallback]='www-browser'
+					  )
+					  	# UPDATE(FINAL): added validation for modifier (browser) programs
+					  	# 				 and an additional modifier, 'www-browser' will be used if missing it
+					  	starred=0
+						for x in ${!translators[@]}; do
+							#echo "processing $x ..."
+							#echo "which ${translators[$x]} == $(which ${translators[$x]})"
+							newtrans=`which ${translators[$x]}`
+							if [[ -x "$newtrans" ]]; then
+								echo "translator verified for '$x' (${translators[$x]}): $newtrans"
+								if [[ $translators[$x] != "$x" ]]; then
+									echo "commandline for $x ($translators[$x]) differ, keeping command line the same"
+								else
+									translators[$x]="$newtrans"
+								fi
+							else
+								echo "translator for '$x' is not available (${translators[$x]}), the default will be used: ${translators[fallback]}*"
+								let starred++
+								translators[$x]=${translators[fallback]}
+							fi
+						done
+						if ((starred)); then
+							echo "* = it is up to you to ensure ${translators[fallback]} is set properly!"
+						fi
+
+# UPDATE(FINAL): updated to https protocol as of now just about every website
+#                on the net (esp search engines) require it, and ALL websites are now using it 
+#				 server-side as per google's imposing the secureweb law stating that no results would
+#			 	 be generated by non-secure websites - https usually also works in text so dont
+#				 worry about the text part (the new python3 version will handle this much better
+#				 and is partly why its being moved).
+declare -gA modifiers=( 	[g]='https://www.google.com/search?q=%s'
+							[d]='https://www.duckduckgo.com/?q=%s+!'
+							[h]='https://www.github.com/%s'
+							[i]='https://www.google.com/search?tbm=isch&ie=ISO-8859-1&hl=en&source=hp&biw=&bih=&q=%s&btnG=Search+Images&gbv=1'
+							[D]='https://www.dict.org/search?q=%s'
+							[m]='https://man.cx/?page=%s'
+    				  )
 declare -g default_translator=t
 declare -g default_modifier=g
 declare -a tmps=( "/tmp/toolie.X.logo" )

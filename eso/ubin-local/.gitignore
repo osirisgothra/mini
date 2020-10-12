@@ -3,3 +3,8 @@ removeme
 *.bak
 *.swp
 *.save.*
+zsnes
+zsnesw
+psx
+pcsx
+*.zwc

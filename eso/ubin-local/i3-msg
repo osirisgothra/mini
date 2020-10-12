@@ -83,7 +83,15 @@ then
 # detailed report
 	printf "  result: %-15s  $ndo: %-15s\n" "$success" "$window"
 	printf "  status: %-15s   input: %-15s\n" "$parse_error" "$input"
-	printf "position: %-15s   index: %-15s\n" "$errorposition" "$errorindex"
+	v="$*"
+	printf "linedata: %-80s\n" "$v"
+	printf " rawline: %-80s\n" "$*"
+	printf "lineicnt: %-15s\n" "$# item(s)"
+	if [[ $errorindex < 2 ]]; then
+		printf "in string: %-80s\n" "$v"
+	else
+		printf "position: %-15s   index: %-15s\n" "$errorposition" "$errorindex (points to: [31m${v: 0:((errorindex))}[32m${v: errorindex}[0m)"
+	fi
 
 	if [[ $success == false ]]; then
 		pad 2

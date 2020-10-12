@@ -1,0 +1,23 @@
+#!/bin/zsh
+echo "java kinetic killer, killing any java started with a jarfile..."
+declare -gi k=0 nk=0
+echo "checking for preserve processes (not-kills)..."
+JRPIDS=( `pgrep java\ -X -f` )
+for x in $JRPIDS; do
+	if [[ -r /proc/$x ]]; then
+		echo "found $x, preserved"
+	fi
+	let nk++
+done
+[[ $nk -le 0 ]] && echo "not present"
+
+echo "checking for kill processes..."
+JLPIDS=( `pgrep java\ -jar -f` )
+for x in $JLPIDS; do
+	if [[ -r /proc/$x ]]; then
+		echo -ne "found $x..."
+		kill -KILL $x && echo "$x killed" || echo failed
+	fi
+	let k++
+done
+[[ $k -le 0 ]] && echo "none found"

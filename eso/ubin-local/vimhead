@@ -1,0 +1,77 @@
+#!/bin/zsh
+
+# VARIABLES
+
+declare -g errtag="$(uuidgen)"
+declare -gi errcode=127
+declare -g  vmodeline="vim: ft=%s:sw=4:ts=4:ls=2:fdl=99:nowrap:noic:nosb:cc=120:siso=50:so=25:noet:mls=2:fen:fdm=syntax:fcl=all:fdo=insert:fmr={,}"
+declare -ga vargs=( `getopt -n $0(:t) -o ht: -- $@ || echo $errtag` ) 
+declare -g filetype=zsh
+declare -gA msg=( err	 "too many errors, not enough arguments, or both.\n(use -h to get help)"
+				  help	 "Returns a vim header.\n\n\tsyntax: vimhead [-t filetype] [-h] [destination]\n\nIf destination is omitted, then /dev/stdout is assumed\n"
+				)
+
+# FUNCTIONS
+
+msg() {
+	mkey=${1-err}; shift
+	printf $msg[$mkey] "$@"
+}
+
+# GETOPT
+
+if [[ $vargs =~ $errtag ]]; then
+	msg err
+	exit errcode
+fi
+eval set -- $vargs
+
+# COMMAND LINE PROCESSING
+
+case $# in
+	# NO COMMAND LINE AT ALL (COMPATIBILITY, NOT USED IN ZSH)
+	0)	printf "$vmodeline" $filetype
+		;;
+	# COMMAND LINE PROCESSING STARTS HERE:
+	*)
+		declare -g varg=""
+		[[ $#vargs[@] -gt 16 ]] && echo "warning: command line long ($# long) press enter to confirm! (ctrl+c exits)" && read -sk1
+
+		# 
+
+		while [[ $1 != "--" ]] {
+			[[  $# -ge 1 ]] || break
+			varg="$1"
+			sarg="${2-nil}"
+			shift
+			[[ $varg == "--" ]] && break
+			case $varg in
+				-t)	shift
+					filetype=$sarg
+					;;
+				-h)	msg help
+					exit 127
+					;;
+			esac
+		}
+		declare -gi argcount=0
+		for varg {
+			[[ $varg == "--" ]] && continue		
+			let argcount++
+			if [[ -r "$varg" ]]; then
+				echo "skipping existing destination: $varg"
+			else
+				if touch "$varg"; then
+					printf "$vmodeline" $filetype > $varg
+					echo "wrote $varg ok"
+				else
+					echo "skipping (could not write to $varg!)"
+				fi
+			fi
+		}
+		if [[ $argcount -lt 1 ]]; then
+			printf "$vmodeline" $filetype
+		fi
+		;;
+esac
+

@@ -34,6 +34,9 @@ emulate zsh
 #    with this program; if not, write to the Free Software Foundation, Inc.,
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
+#	NOTES
+#	- (setting color vars): fhicolor (first high color, 16, is usually black)
+#
 #	HOW TO USE
 #
 #	 Usage is simple, just link a name of your preferred privledged program
@@ -66,13 +69,44 @@ emulate zsh
 #
 #
 
-#TODO: add interactive setup for adding links
 
+
+# direct use call
+
+if ( [[ $1 == "-q" ]] || [[ $1 == "--quietly" ]] ) && [[ $0 =~ quietly ]]; then
+	shift
+	echo "trying to run [$@] quietly..."
+	if [[ -x $1 ]] && [[ ${1: 0:2} != "./" ]]; then
+		echo "in same dir ($1) without a './', adding one..."
+		cmd="./$1"; shift
+	else
+		cmd="$1"; shift
+	fi
+	set -- "$cmd" "$@"
+	"$@" &> /dev/null &
+	job=$jobstates[$#jobstates]
+	echo "job: $job"
+	disown %
+	return $?
+fi
 
 setopt aliases
+setopt interactivecomments
+setopt kshglob
+setopt extendedglob
+setopt globassign
+setopt nullglob
+
+zmodload zsh/zutil 		\
+		 zsh/termcap 	\
+		 zsh/terminfo 	\
+		 zsh/pcre
+
+
 disable hash
 disable true
 disable false
+
 
 alias char='typeset -gg'
 alias int='typeset -gi'
@@ -82,36 +116,13 @@ alias bool='typeset -gi'
 alias echo='print -P'
 alias necho='print -Pn'
 alias rint='typeset -gir'
-alias color='integer lastcolor_fg; integer lastcolor_bg; () {
-	case $1 in
-		fg)	echo $lastcolor_fg;;
-		bg) echo $lastcolor_bg;;
-	  last) echo $lastcolor_fg $lastcolor_bg;;
-	     *)	integer fg=7
-			integer bg=0
-			fg=${1-7} bg={2-0}
-			if [[ $fg =~ , ]]; then
-				fg=${1%%,*} bg=${1##*,}
-			fi
-			if [[ $fg == $bg ]]; then
-				echo "warning: color spec must not be same for both back/foreground colors, setting to default"
-				tput sgr0
-			else
-				tput setaf $fg
-				tput setab $bg
-				lastcolor_bg=$bg
-				lastcolor_fg=$fg
-			fi;;
-	esac
-}'
-# syntax: color [fg] [bg] | color [fg,bg]
 
 rint false=0
 rint true=1
-# fhicolor (first high color, 16, is usually black)
 int black=0 red=1 green=2 yellow=3 blue=4 pink=5 cyan=6 white=7 lite=8
-int lblack=$[lite+0] litered=$[lite+1] litegreen=$[lite+2] liteyellow=$[lite+3] liteblue=$[lite+4] litepink=$[lite+5] litecyan=$[lite+6] litewhite=$[lite+7] fhicolor=$[lite+8]
-
+int liteblack=$[lite+0] litered=$[lite+1] litegreen=$[lite+2] liteyellow=$[lite+3] liteblue=$[lite+4] litepink=$[lite+5] litecyan=$[lite+6] litewhite=$[lite+7] fhicolor=$[lite+8]
+integer lastcolor_fg=$white
+integer lastcolor_bg=$black
 char linkname="$0"
 char linkbase=$(basename "$0")
 char scriptname=$(realpath "$0")
@@ -120,36 +131,70 @@ char scriptbase=$(basename $scriptname)
  int err_disqualified=0+err_base
  int err_fnf=1+err_base
  int err_abort=2+err_base
-bool use_debug=true
+bool use_debug=false
 bool use_messages=false
+bool use_logfile=false
 char flagfile="$HOME/.config/quietly/flags/donotdebug.flg"
+char logfile="quietly-output_user-${USER}_tty-${TTY//\//_}.log"
+
+# this pass will assure us the system is in an agreeable state
+rm $(mktemp) || { echo "fatal: cannot write to tmp (out of disk/memory resources? low system privileges?)"; exit 254; }
+[[ $(systemctl is-system-running) != running ]] && { echo "warning: system reports a degraded state (usually means awaiting a reboot)!"; }
+
+# to log or not to log
+if [[ $use_logfile != false ]]; then
+	touch $logfile || { echo "error: logging to $logfile could not be performed, logging can not happen, messages will be dumped to /dev/null!"; logfile="/dev/null"; }
+	if [[ $use_messages != false ]]; then
+		echo "logging enabled: $logfile"
+	fi
+else
+	# disable logging, we will use /dev/null if it so happens to need it
+	logfile="/dev/null"
+fi
 
 # flagfile (usually ~/.config/quietly/flags/donotdebug.flg) overrides all and makes truely quiet
-[[ -r $flagfile ]] && use_debug=false && use_messages=false
+[[ $linkname =~ quietly ]] || { [[ -r $flagfile ]] && use_debug=false && use_messages=false; }
+
+[[ $use_debug -ge 1 ]] && echo "usedebug=$use_debug (false=$false)"
 
 if ((use_debug == false)); then
-	echo() { : ; }
+	if [[ $use_messages != false ]]; then
+		echo "entering quiet state"
+	fi
+	#exec &> $logfile
 elif ((use_debug == true)); then
-	color $litered,$blue
-	echo "warn: $0 is running in DEBUG mode right now, you must disable this inside the script or execute 'mkdir -pf $flagfile' to make a flag dirent"
-	:
+	#color $litered,$blue
+	echo "warn: $0 is running in DEBUG mode right now, you must disable this inside"
+	echo "the script or execute 'mkdir -pf $flagfile' to make a flag (as a directory"
+	echo "not a empty file)."
 else
 	echo "fail: use_debug must be either true or false, not ${use_debug-NO_VALUE}"
 	echo "remedy this, and restart"
 	exit err_abort
 fi
-
-
-
 echo "linkname (base=$linkbase) is $linkname"
 echo "scriptname (base=$scriptbase) is $scriptname"
-
-
 if [[ $linkbase == $scriptbase ]]; then
-	echo "script and link are same, usually means you either"
-	echo "1) copied file instead of linking, 2) ran $scriptbase directly"
-	echo "this program can only be run from a symbolic link"
-	echo "program state: disqualified for linking"
+print <<EXPLANATION_END
+
+    That is an error!
+
+	script and link are same, usually means you either:
+
+	    1) copied file instead of linking
+	    2) ran $scriptbase directly
+
+
+	this program can only be run from a symbolic link unless:
+
+	    1) you supply special arguments to run directly some-program:
+	       syntax: quietly -q some-program program-args
+	       syntax: quietly --quietly some-program program-args
+	    2) modify the program itself
+
+	program state: disqualified for linking or forking
+EXPLANATION_END
+
 	exit err_disqualified
 else
 	echo "searching for a binary named $linkbase"
@@ -168,6 +213,12 @@ else
 	done
 	if [[ $target == none ]]; then
 		echo "no target was found - aborted"
+		if [[ -x /usr/lib/command-not-found ]]; then
+			echo "you have a cnf-handler, passing this on to ulcnf..."
+			/usr/lib/command-not-found "$linkbase"
+		else
+			echo "no cnf handlers found (or click here: http://www.google.com/search?q=get+$linkbase)"
+		fi
 		exit err_fnf
 	else
 		echo "found target: $target - attempting $ma on this ($ma \"$target $@\")"

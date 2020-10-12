@@ -1,0 +1,76 @@
+#!/usr/bin/perl
+
+use warnings;
+use v5.18;
+use strict;
+use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
+use Path::Tiny;
+
+
+my $errors = 0;
+
+my ($opt, $usage) = describe_options(
+        '$0 %o <some-arg> file',
+        [],
+	    [ 'pick|p=i',	"pick specific result number (instead of the first result)", { default => 1 } ],
+		[ 'gui|g',		"use GUI (whiptail required) to select one of the results from the search" ],
+		[ 'results|n=i',"number of results to request from google", { default => 100 } ],
+        [ 'verbose|v',  "print extra stuff"            ],
+        [ 'help',       "print usage message and exit" ],
+      );
+
+say("error: the gui and pick ( -g and -p ) options are exclusive") if ( $opt->gui ) and ( $opt->pick > 1 );
+
+
+print($usage->text), exit if $opt->help or $errors;
+my $text = join("+",@ARGV);
+say(" resolved: ". $text . " is the search criteria string to be used") if $opt->verbose;
+my $lines = ( int(`tput lines`) // 25 ) - 1;
+my $width = ( int(`tput cols`) // 80 ) - 1;
+$lines = $lines < 10 ? 10 : $lines;
+$width = $width < 20 ? 20 : $width;
+
+my $gurl="curl -k -sA \"Chrome\" -L 'https://www.google.com/search?hl=en&num=100&q=${text}' -o /dev/stdout";
+say("using google query link:" . $gurl);
+
+  # grep -P '(?<=q=)https[^&\>]+' -ao
+  # grep -P '(?<=q=)https[^&\>]+' -
+  # grep accounts.google.com -v  	
+  # grep accounts.google.com -v  	
+
+my @urls_pre=();
+my $response = `$gurl`;
+say("$response");
+#my $response=;
+push(@urls_pre,$1) while ( $response =~ /(?<=q=)(https[^&\>]+)/g );
+
+say("item: 1=$_") for @urls_pre;
+
+exit();
+	
+
+
+
+#`curl -k -sA "Chrome" -L 'https://www.google.com/search?hl=en&num=100&q=${text}' -o /dev/stdout | grep -P '(?<=q=)https[^&\>]+' -ao | grep accounts.google.com -v` ) );
+say("urls:");
+say for @urls_pre;
+exit();
+my @urls = ();
+push(@urls,$_),push(@urls,$_) for @urls_pre;
+my $url = "<unset>";
+
+if ( $opt->gui ) {
+	$url = `whiptail --notags --menu "Search Results, Select The Url To Open" 0 0 $lines @urls 3>&1 1>&2 2>&3`;
+}
+else
+{
+	$url = @urls[$opt->pick];
+}
+
+say("you picked url number " . $opt->pick . " which is = " . $urls[$opt->pick] ) if $opt->verbose;
+my $furl= "curl -k -sA 'Chrome' -L '${url}' -o /dev/stdout | html2text -style pretty -width $width" ;
+say("final command line to be used: ".$furl);
+
+
+
+

@@ -739,8 +739,6 @@ function tasks_submenu()
 				after=( `while read r; do printf "%1.02f " "$r"; done <<< $(xgamma |& grep -Po "[.0-9]+")` )
 				chg=( $(( $before[1]-$after[1] )) $(( $before[2]-$after[2] )) $(( $before[3]-$after[3] )) )
 				msgbox "before: $before   after: $after  change: $chg"
-			' "DBus: Kill DBus and dbus-launch instances (frees some CPU)" '
-				d "Terminating D-BUS..." dbusk
 			' "$jkpause Main JKU Task" '
 				d "${jkpausing}..." javapause
 			' "$jkstart Main JKU Task" '

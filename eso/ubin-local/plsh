@@ -1,0 +1,749 @@
+
+	
+	
+	
+	
+	
+	
+eval 'exec /usr/bin/perl  -S $0 ${1+"$@"}' if 0; 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+use v5.20.2;
+use Path::Tiny;
+
+my $debuginc=0;
+if ($debuginc) {
+	sub dprint { print(@_); }
+} else {
+	sub dprint { }
+}
+
+BEGIN { 
+	my @NEWINC = ( );
+	foreach (@INC) {
+		my $src = path($_);
+		my $real = $src->realpath();
+		if ( $src eq $real ) {
+			print("$src (real directory)\n");
+		} else {
+			print("$src (fake) -- will add $real due to $src's fakeness");
+			unshift(@NEWINC,$real);
+		}		
+	}
+	foreach (@NEWINC) {
+		push(@INC,$_);
+		print("$_ (real directory) added\n");
+
+	}
+}
+print("\nresulting INCs:\n");
+my $n=0; print($n++.": $_ \n") for @INC; 
+
+
+
+package PerlSh;
+use strict;
+no warnings qw(all);
+use Term::ReadLine;
+use POSIX;			
+use Term::ANSIColor;
+use Path::Tiny;
+use Cwd;
+use Data::Dumper;
+use IPC::Open3;
+use constant { DFLINES => 24, DFCOLS => 80 };
+use subs qw( say );
+no warnings 'deprecated';
+use vars qw($PS1 $PS2 $HISTFILE $HISTSIZE $INPUTRC $STRICT $INNERRC $PS1COLOR $PS1MONO $NOCOLOR
+	    $HOSTNAME $LOGNAME $CWP $LASTRV $USER $UID $UNAME $USERNAME $homedir);
+
+
+
+$NOCOLOR=1; 
+$PS1 = '$ ';
+$PS2 = 'more? '; 
+
+$PS1COLOR = "[38;5;232m[[38;5;21mP[38;5;25me[38;5;80mr[38;5;110ml[38;5;195mS[38;5;255mh[38;5;232m]:[[38;5;60mT[38;5;232m][38;5;97m2[38;5;218m>[s[38;5;111m[u ";
+ $PS1MONO = "PerlSh II: ";
+
+sub ansilen { s/^[\[[0-9;]+m//; return length($_); }
+sub nonprinting { my $count = shift; return ("[s" x ($count / 3)); }
+
+if ($NOCOLOR == 1) {
+	$PS1 = $PS1MONO; 
+	$PS1COLOR="";    
+} else {
+	if (length($PS1COLOR) > 0) {
+		$PS1 = "[s" x 5;
+	} else {
+		$PS1 = $PS1MONO;
+	}
+}
+
+
+
+$PS2 = ("  ++   ");
+$HISTFILE = ($ENV{HOME} || ((getpwuid($<))[7])) . "/.perlsh_history";
+$HISTSIZE = 256;
+$INPUTRC = ($ENV{HOME} || ((getpwuid($<))[7])) . "/.perlshrc";
+$INNERRC = ($ENV{HOME} || ((getpwuid($<))[7])) . "/.perlshirc";
+$STRICT = 0;
+$HOSTNAME = $ENV{HOSTNAME};
+$LOGNAME = $ENV{LOGNAME};
+$USERNAME = $ENV{USERNAME};
+$USER = $ENV{USER};
+$HOSTNAME = $ENV{HOSTNAME};
+$UNAME = $ENV{UID};
+$CWP = 'main';			
+
+package main;
+if (-f $PerlSh::INPUTRC) {
+    do $PerlSh::INPUTRC;
+}
+
+if (-f $PerlSh::INNERRC ) {
+	do $PerlSh::INNERRC;
+}
+package PerlSh;
+
+sub hrule {
+	
+    printf  colored("%s\n",'grey1'), "=" x ($ENV{"COLUMNS"} // 	DFCOLS);
+ 
+}
+sub vrule {
+	while(1) {
+		my $item1 = shift;
+		my $item2 = shift // "";
+		my $L = $ENV{'COLUMNS'} // DFCOLS;
+		last unless defined($item1);
+		printf("%${L}s | %${L}s", $item1, $item2)
+	}
+}
+
+
+use vars qw($term $attribs);	
+$term = new Term::ReadLine 'PerlSh';
+$term->ornaments("1,2,3,4");
+
+$attribs = $term->Attribs;
+
+$term->bind_key(ord "^", 'history-expand-line', 'emacs-meta');
+$term->bind_key(ord "\cv", 'display-readline-version', 'emacs-ctlx');
+$term->bind_key(ord "\cc", 'abort'); 
+
+if (defined &main::afterinit) {
+    package main;
+    &afterinit;
+    package PerlSh;
+}
+
+&toplevel;			
+
+
+my $lastcmd="";
+sub length_ansi
+{
+	my @results = ( );
+	push(@results,( length( colorstrip($_) ) )) for @_;
+	return 0 if @results == 0;	
+	return @results if (@results > 1); 
+	return $results[0] if (@results == 1); 
+	return length($_) if length($_) > 0; 
+	die("bad value/no value passed (need >= 1 or default params \$_ set");
+	
+}
+
+
+
+sub findinpath {
+	my $filename = shift;
+	unless ( -r "$filename" ) {
+		for (split(':',$ENV{"PATH"} // "/:.")) {
+			my $testfile = path($_)->child($filename);
+			return $testfile if -r $testfile;
+		}
+	}
+	return $filename
+}
+sub export {}	
+sub toplevel 
+{
+	
+	$homedir = path($ENV{"HOME"} // cwd);
+	
+	my $COLUMNS = $ENV{"COLUMNS"} // ($ENV{"LINES"} = undef);
+	my $LINES = $ENV{"LINES"} // ($ENV{"COLUMNS"} = undef);	
+	unless (defined($COLUMNS))
+	{	
+		
+		
+		
+		if ( -x findinpath('resize') ) {
+			
+			eval for grep { /COLUMNS|LINES/ && s/^/\$/g } qx(resize); 
+		}
+		elsif( -x findinpath('stty') ) {
+			
+			($LINES, $COLUMNS) = split(/\s/, qx(stty size));
+		}
+		else {
+			
+			
+			
+			$ENV{"COLUMNS"} = DFCOLS;
+			$ENV{"LINES"} = DFLINES;
+			
+		}	
+	}
+	else {
+		say("using hard-coded terminal settings from LINES/COLUMNS ($LINES/$COLUMNS)");
+	}
+	say("COLUMNS too small, setting to default (".DFCOLS.")"),$COLUMNS=DFCOLS if ($COLUMNS < 8);
+	say("LINES too small, setting to default (".DFLINES.")"),$LINES=DFLINES if ($LINES < 10);
+	say "using ${COLUMNS}x${LINES} terminal";	
+	print("$PS1COLOR") if length($PS1COLOR) > 0;
+	print("PS1 length zero, but color prompting disabled\n") unless ( length($PS1COLOR) | length($PS1) ) > 0;
+    
+    $term->MinLine(undef);
+    $term->stifle_history($HISTSIZE);
+    if (-f $HISTFILE) {
+		$term->ReadHistory($HISTFILE) or warn "perlsh: cannot read history file: $!\n";
+    }
+    $attribs->{attempted_completion_function} = \&attempt_perl_completion;
+    $attribs->{special_prefixes} = '$@%&';
+    $attribs->{completion_display_matches_hook}
+	= \&perl_symbol_display_match_list;
+
+    
+    
+    
+	sigaction SIGINT, new POSIX::SigAction sub {
+		$term->modifying;
+		$term->delete_text;
+		$attribs->{point} = $attribs->{end} = 0;
+		$term->redisplay;
+    } or die "[31;1mError setting SIGINT handler: $![0m\n";
+
+    my ($strict, $command, @result);
+    $strict = $STRICT ? '' : 'no strict;';
+    
+	while (defined($command = &reader)) 
+	{
+		if ( $command =~ m/^(\!)(.*)$/g )
+		{	
+			sub statuscode { my $code = shift; given($code) { return "000_NOERROR" when 0;  return "127_USER_ERROR" when 127; return "001_FAILED" when 1; }; return sprintf("%03d",$code); }
+			say "command $2 returned status code: " . statuscode(system("$2")) ;
+		}
+		elsif ( $command eq "" )
+		{	
+		}
+		else
+		{
+	    	$lastcmd = $command;
+			hrule();
+			CORE::say(colored("evaluating '$lastcmd'","rgb022"));		
+    		hrule();
+			@result = eval ("$strict package $CWP; $command");
+			hrule();
+			CORE::say(colored(@result . " result(s)\n", 'rgb024'));
+			hrule();
+			use strict;
+			if ($@) { print colored("Error: $@\n","red"); next; }
+			hrule;
+			print colored("\nData Dump:\n\n" . Dumper(@result), "rgb034");
+			hrule;
+			printer (@result);
+			$CWP = $1 if ($command =~ /^\s*package\s+([\w:]+)/);
+			hrule;
+		}
+    }
+    &quit;
+    
+}
+
+sub sigint 
+{
+    $term->modifying;
+    $term->delete_text;
+    $attribs->{point} = $attribs->{end} = 0;
+    $term->redisplay;
+}
+
+sub quit 
+{
+    $term->WriteHistory($HISTFILE) or warn "perlsh: cannot write history file: $!\n";
+    exit (0);
+}
+
+sub reader 
+{
+    my ($line, $command);
+    $command = '';
+    select()->flush();
+    
+    while (1) 
+	{
+		$term->ornaments("setaf,24,setaf,26");
+		$line = $term->readline($command ? $PS2 : prompt($PS1));
+		return undef unless (defined $line);	
+		if ($line =~ /\\$/) 
+		{
+	    	chop $line;
+		    $command = $command ? $command . " $line" : $line;
+		} 
+		else 
+		{
+		    $command = $command ? $command . " $line" : $line;
+		    $term->addhistory($command) if (length($command) > 0);
+		    return $command;
+		}
+    }
+}
+
+sub printer 
+{
+	
+	my $colpad = 2;		
+    my (@res) = @_;     
+    my ($i, $k, $v);	
+    my $x = 0;			
+    
+	my $maxw = ( $ENV{"COLUMNS"} // DFCOLS ) - $colpad;
+	my $maxil = $maxw / 4;
+	my $maxvl = $maxw - $maxil;
+	my ($il, $vl) = (0,$maxvl);
+	if ( $lastcmd =~ /^%/ )
+	{
+		print colored("\"$lastcmd\" evaluated to a hash object (guessed from input)\n",'cyan');
+		my %hres = @res;
+		$il=0;
+		my $kn="-key-";
+		my $vn="-value-";
+		foreach $k (keys(%hres))		{
+			$il = length($hres{$k}) > $il ? length($hres{$k}) : $il;
+		}	
+		$il=$maxil unless $il < $maxil;
+		$il=int($il);
+		$vl=int($vl);
+		my $fmtstr = "%${il}.${il}s %-${vl}.${vl}s\n";
+		print($fmtstr);
+	    printf(colored($fmtstr,'blue'),$kn,$vn);
+		foreach $k (keys(%hres)) 
+		{
+			$v = $hres{$k};
+		   	printf(colored($fmtstr,"rgb225"),$k,$v); 
+		}
+			
+	}
+	else
+	{
+		if (@res == 1)
+		{
+			print("'$lastcmd' returned scalar value of '", $res[0], "'\n");
+		}
+		elsif (@res == undef)
+		{
+			print("'$lastcmd' evaluated to 'undef' (undefined value)\n");
+		}
+		else
+		{
+			print("'$lastcmd' evaluated to default 'list' context:\n");
+			
+	    	printf("%-${il}s %s\n","index","value");
+	    	printf("%-${il}s %s\n","index","value");
+    		foreach $i (@res) 
+    		{ 
+	    		printf("%-${il}d %s\n",++$x,$i); 
+    			$LASTRV=$i unless (int($i) == 0);    	
+	    	}
+		}
+    }    
+	printf("$PS1COLOR") unless length($PS1COLOR) == 0;
+   
+}
+
+sub prompt {
+    local($_) = @_;
+    
+    return &$_ if (ref($_) eq 'CODE');
+
+    
+    s/\\h/$HOSTNAME/g;
+    s/\\u/$LOGNAME/g;
+    s/\\w/$CWP/g;
+    s/\\v/$LASTRV/g;
+    s/\\!/$attribs->{history_base} + $attribs->{history_length}/eg;
+    $_;
+}
+
+
+
+
+
+sub perl_symbol_display_match_list ($$$) 
+{
+    my($matches, $num_matches, $max_length) = @_;
+    map { $_ =~ s/^((\$#|[\@\$%&])?).*::(.+)/$3/; }(@{$matches});
+    $term->display_match_list($matches);
+    $term->forced_update_display;
+}
+
+sub attempt_perl_completion ($$$$) {
+    my ($text, $line, $start, $end) = @_;
+    
+    no strict qw(refs);
+    if (substr($line, 0, $start) =~ m/\$([\w:]+)\s*(->)?\s*{\s*['"]?$/) {
+	
+	$attribs->{completion_append_character} = '}';
+	return $term->completion_matches($text,
+					 \&perl_hash_key_completion_function);
+    } elsif (substr($line, 0, $start) =~ m/\$([\w:]+)\s*->\s*['"]?$/) {
+	
+	$attribs->{completion_append_character} = ' ';
+	return $term->completion_matches($text,
+					 \&perl_method_completion_function);
+    } else { 
+	$attribs->{completion_append_character} = '';
+	return  $term->completion_matches($text,
+					  \&perl_symbol_completion_function);
+    }
+}
+
+
+use vars qw($i @matches);
+
+sub perl_hash_key_completion_function ($$) 
+{
+    my($text, $state) = @_;
+    
+    if ($state) {
+	$i++;
+    } else {
+	
+	$i = 0;			
+	my ($var,$arrow) = (substr($attribs->{line_buffer},
+				   0, $attribs->{point} - length($text))
+			    =~ m/\$([\w:]+)\s*(->)?\s*{\s*['"]?$/); 
+	no strict qw(refs);
+	$var = "${CWP}::$var" unless ($var =~ m/::/);
+	if ($arrow) {
+	    my $hashref = eval "\$$var";
+	    @matches = keys %$hashref;
+	} else {
+	    @matches = keys %$var;
+	}
+	
+    }
+    for (; $i <= $#matches; $i++) {
+	return $matches[$i] if ($matches[$i] =~ /^\Q$text/);
+    }
+    return undef;
+}
+
+sub _search_ISA ($) {
+    my ($mypkg) = @_;
+    no strict 'refs';
+    no warnings 'prototype';
+    my $isa = "${mypkg}::ISA";
+    return $mypkg, map _search_ISA($_), @$isa;
+}
+
+sub perl_method_completion_function ($$) {
+    my($text, $state) = @_;
+    
+    if ($state) {
+	$i++;
+    } else {
+	
+	my ($var, $pkg, $sym, $pk);
+	$i = 0;			
+	$var = (substr($attribs->{line_buffer},
+		       0, $attribs->{point} - length($text))
+		=~ m/\$([\w:]+)\s*->\s*$/)[0];
+	$pkg = ref eval (($var =~ m/::/) ? "\$$var" : "\$${CWP}::$var");
+	no strict qw(refs);
+	@matches = map { $pk = $_ . '::';
+			 grep (/^\w+$/
+			       && ($sym = "${pk}$_", defined *$sym{CODE}),
+			       keys %$pk);
+		     } _search_ISA($pkg);
+    }
+    for (; $i <= $#matches; $i++) {
+	return $matches[$i] if ($matches[$i] =~ /^\Q$text/);
+    }
+    return undef;
+}
+
+
+
+
+{
+    my ($prefix, %type, @keyword);
+
+    sub perl_symbol_completion_function ($$) {
+	my($text, $state) = @_;
+
+	if ($state) {
+	    $i++;
+	} else {
+	    
+	    my ($pre, $pkg, $sym);
+	    $i = 0;		
+
+	    no strict qw(refs);
+	    ($prefix, $pre, $pkg) = ($text =~ m/^((\$#|[\@\$%&])?(.*::)?)/);
+	    @matches = grep /::$/, $pkg ? keys %$pkg : keys %::;
+	    $pkg = ($CWP eq 'main' ? '::' : $CWP . '::') unless $pkg;
+
+	    if ($pre) {		
+		@matches = (@matches,
+			    grep (/^\w+$/
+				  && ($sym = $pkg . $_,
+				      defined *$sym{$type{$pre}}),
+				  keys %$pkg));
+	    } else {		
+		@matches = (@matches,
+			    !$prefix && @keyword,
+			    grep (/^\w+$/
+				  && ($sym = $pkg . $_,
+				      defined *$sym{CODE}
+				      || defined *$sym{FILEHANDLE}
+				     ),
+				  keys %$pkg));
+	    }
+	}
+	my $entry;
+	for (; $i <= $#matches; $i++) {
+	    $entry = $prefix . $matches[$i];
+	    return $entry if ($entry =~ /^\Q$text/);
+	}
+	return undef;
+    }
+
+    BEGIN {
+	%type = ('$' => 'SCALAR', '*' => 'SCALAR',
+		 '@' => 'ARRAY', '$#' => 'ARRAY',
+		 '%' => 'HASH',
+		 '&' => 'CODE'); 
+
+	
+	@keyword = qw(
+		    chomp chop chr crypt hex index lc lcfirst
+		    length oct ord pack q qq
+		    reverse rindex sprintf substr tr uc ucfirst
+		    y
+		    
+		    m pos quotemeta s split study qr
+
+		    abs atan2 cos exp hex int log oct rand sin
+		    sqrt srand
+
+		    pop push shift splice unshift
+
+		    grep join map qw reverse sort unpack
+		    
+		    delete each exists keys values
+		    
+		    binmode close closedir dbmclose dbmopen die
+		    eof fileno flock format getc print printf
+		    read readdir rewinddir seek seekdir select
+		    syscall sysread sysseek syswrite tell telldir
+		    truncate warn write
+		    
+		    pack read syscall sysread syswrite unpack vec
+		    
+		    chdir chmod chown chroot fcntl glob ioctl
+		    link lstat mkdir open opendir readlink rename
+		    rmdir stat symlink umask unlink utime
+		    
+		    caller continue die do dump eval exit goto
+		    last next redo return sub wantarray
+		    
+		    caller import local my package use
+		    
+		    defined dump eval formline local my reset
+		    scalar undef wantarray
+		    
+		    alarm exec fork getpgrp getppid getpriority
+		    kill pipe qx setpgrp setpriority sleep
+		    system times wait waitpid
+		    
+		    do import no package require use
+		    
+		    bless dbmclose dbmopen package ref tie tied
+		    untie use
+		    
+		    accept bind connect getpeername getsockname
+		    getsockopt listen recv send setsockopt shutdown
+		    socket socketpair
+		    
+		    msgctl msgget msgrcv msgsnd semctl semget
+		    semop shmctl shmget shmread shmwrite
+		    
+		    endgrent endhostent endnetent endpwent getgrent
+		    getgrgid getgrnam getlogin getpwent getpwnam
+		    getpwuid setgrent setpwent
+		    
+		    endprotoent endservent gethostbyaddr
+		    gethostbyname gethostent getnetbyaddr
+		    getnetbyname getnetent getprotobyname
+		    getprotobynumber getprotoent getservbyname
+		    getservbyport getservent sethostent setnetent
+		    setprotoent setservent
+		    
+		    gmtime localtime time times
+		    
+		    abs bless chomp chr exists formline glob
+		    import lc lcfirst map my no prototype qx qw
+		    readline readpipe ref sub sysopen tie tied
+		    uc ucfirst untie use
+		    
+		    dbmclose dbmopen
+		   );
+    }
+}
+
+__END__
+
+=pod
+
+Before invoking, this program reads F<~/.perlshrc> and evaluates the
+content of the file.
+
+When this program is terminated, the content of the history buffer is
+saved in a file F<~/.perlsh_history>, and it is read at next
+invoking.
+
+=head1 VARIABLES
+
+You can customize the behavior of C<perlsh> by setting following
+variables in F<~/.perlshrc>;
+
+=over 4
+
+=item C<$PerlSh::PS1>
+
+The primary prompt string.  The following backslash-escaped special
+characters can be used.
+
+	\h: host name
+	\u: user name
+	\w: package name
+	\!: history number
+
+The default value is `C<\w[\!]$ >'.
+
+=item C<$PerlSh::PS2>
+
+The secondary prompt string.  The default value is `C<E<gt> >'.
+
+=item C<$PerlSh::HISTFILE>
+
+The name of the file to which the command history is saved.  The
+default value is C<~/.perlsh_history>.
+
+=item C<$PerlSh::HISTSIZE>
+
+If not C<undef>, this is the maximum number of commands to remember in
+the history.  The default value is 256.
+
+=item C<$PerlSh::STRICT>
+
+If true, restrict unsafe constructs.  See C<use strict> in perl man
+page.  The default value is 0;
+
+=back
+
+=head1 FILES
+
+=over 4
+
+=item F<~/.perlshrc>
+
+This file is eval-ed at initialization.  If a subroutine C<afterinit>
+is defined in this file, it will be eval-ed after initialization.
+Here is a sample.
+
+	
+	
+	sub h { map { sprintf("0x%x", $_ ) } @_;}
+
+	sub tk {
+	    $t->tkRunning(1);
+	    use Tk;
+	    $mw = MainWindow->new();
+	}
+
+	
+	sub afterinit {
+	    *t = \$PerlSh::term;
+	    *a = \$PerlSh::attribs;
+	}
+
+=item F<~/.perlsh_history>
+
+=item F<~/.inputrc>
+
+A initialization file for the GNU Readline Library.  Refer its manual
+for details.
+
+=back
+
+=head1 SEE ALSO
+
+L<Term::ReadLine::Gnu|http://search.cpan.org/dist/Term-ReadLine-Gnu/>
+
+L<GNU Readline Library|http://cnswww.cns.cwru.edu/php/chet/readline/rltop.html>
+
+=head1 AUTHOR
+
+Hiroo Hayashi <hiroo.hayashi@computer.org>
+
+=cut

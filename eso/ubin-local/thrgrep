@@ -1,78 +1,219 @@
 #!/bin/zsh
-MAXINT=32767
-docloc="/usr/share/doc/paradisim/mini/ubin-local/thrgrep"
-presetconfig="$HOME/.thrgreppresetrc"
-# adhere to this comment either inline or during execution!
-! [[ -r ~/.iamosirisgothra ]] && { echo "
-# NB: not intended for release of any kind use at own risk, or not at all! (ctrl+break aborts) you will have to read code to disable this message if you are not me
-"; sleep 15; }
-# NB: new argument, do we:
-#    1) allow preset lines such as:
-#					 "mystuffavg" "allavg"
-#    2) or have a special operator like:
-#					 alias mystuffavg=allavg
-#				or	alias mystuffavg allavg
-#				or  allavg [definitions] "aliases:testavg,[otheraliasnames]"
-#	problem being in 1) confusion whether the preset is a process name or not
-#	and in 2) another type of syntax to check, that basically doesnt do
-#	anything special or new (except resolves ambiguity).
-#	at this time, the only way it can be done is to use a "singular list"
-#	to disambiguate it from a non-preset or process name. This can be written
-#	one of two different ways:
-#						"mystuffavg"  ",allavg"
-#	or (preferred) 		"mystuffavg"	"allavg,"
 #
-#	the second one is preferred because the operator is in the back which
-#   keeps it from obstructing the name from view, and also acts as a placeholder
-#   for new items, should they be added (this is actually an idiom used by many
-#	mid and hi-level languages, where lists or hashes [aka dictionaries] are used).
-#	# NB: much argumenting about if (or not) bash->zsh was 'worth it', i wrote out
-# this lengthy evaluation to put this topic to bed.
-# CHANGED: arrays from bash format ( declare -gxA VARNAME=( [keyname]="value" )
-#                   to zsh format: ( declare -gxA VARNAME=( "keyname" "value" )#
-# have been converted and then also the ini file updated, and tested 
-# the meta feature was never in the bash version (is why we went to zsh)
-# the meta feature makes use of parameter flags (zsh only) and prevents the
-# need of manipulating IFS (saving, checking, setting, resetting)
-# the risks of going to zsh were far less than the risks of staying with bash
-# draft risks:
-# bash risks: possibly incompatible because of newer versions (0%)
-#             syntax problems (5%)  inferior syntax methods (30%)
-#             execution time and redundant code (10%)
-#             syntax reviewing confusion (10%)
-#			  user not having bash (0%)  conversion of code (%0)
-#			  overall: 55%
-# zsh risks:  user not having zsh (5%)   conversion of code (1%)
-#			  syntax reviewing confusion (5%)
-#			  overhead due to underuse on the system (2%)
-#			  overall: 13%
-# calculated risks: (draft is for observation and reference only, 
-#                    not for calculation!)
-# risk ---------------:---BASH---:---ZSH---:
-# incompatible version:    0%         1%
-#   conversion of code:   25%         5%
-#   syntax workarounds:   20%         0%
-#script execution time:    0%        15%
-#  reviewing confusion:   10%         8%
-#    language overhead:    2%        20%
-# user missing program:    0%        10%
-# -overall percentage:----[57%]------[59%]
-# -average----------------[8.1%]     [8.4%]
-# -largest risk-----------[25%]------[20%]
-# -integrated risk--------[30.0]     [29.1]
-# -overall gain in using zsh: [0.9] (9%)
-# -integrated "worth-it" percentage: [0.65] (65% gain in positive features and effects)
-#declare -gxA BUILTIN_PRESETS=( [rtfast]="-12 realtime 2" [rtgood]="-14 realtime 4"
-#							 [normal]="0 best-effort 5" [lazy]="12 idle 0" 
-#							 [javafast]="java -14 realtime 5"
-#							 [xorg]="Xorg -14 realtime 2"  )
-# yes this is sugar, pure sugar, and will be moved to another document once
-# this document is in the tree and has a place for older version(s)
-# *if this happened already you are looking at an older branch!!*
-# now, no more complaining, yes its worth it!
+#    thrgrep
+#    programs to NICE, CPUMASK, SECONTEXT, and IOPRIORITY, rolled into one
+#    mini/eso/ubin-local
+#    local esoteric projects/scripts/etc
+#
+# LICENSE, SUPPORT & AUTHOR INFORMATION
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  HISTORY
+#
+#	 Sun 14 Jun 2020 07:17:29 PM EDT
+#            osirisgothra@ initially created this file
+#            with the original name, thrgrep
+#
+#  SCRIPT COMMENTS
+#
+#		     As a practice and a matter of pedantic ethics, use this section to 
+#		outline changes, bugs, notes, etc. You need only reference the location 
+#       of or, preferably, block description or name. Don't use line numbers as 
+#	    those will/may change often! You can, alternatively, use a count (for a
+#		example: "next 4 lines" is a valid location as long as its also has ref
+#		to block description..
+#
+#	SCRIPT BLOCK or LINE DESC	|	DESCRIPTION
+#	============================|=============================================
+#   ENDOFFILE, UNDER "FOOTNOTES"|  USED TO STORE LENGTHY DESCRIPTIONS
+#								|  do NOT store index for it here, though!
+#	STARTOFFILE, HERE			|  added template, use for short comments only
+#
+#   ==========================================================================  
+#	
+#
+#  TARGET NOTES
+#
+# 	EXECUTIVE STATE CHANGES
+#		marking single existing file executable
+#			- mode of 'thrgrep' changed to u+rwx/og+rx.. []
+#		completed (errors: 0)
+#
+# 	ARGUMENTUAL ANALYSIS
+#       remaining arguments:
+#			0 arguments, with 0 error argument(s)
+#       disposition:
+#			4 were used during execution of template
+#   		0 were extra/unexpected error(s)
+#
+# 	TEMPLATE SUMMARY OF GENERATION
+#	 final outcome: good
+#     total errors: 0
+#
+# 	FINAL NOTES
+#		 (Sun 14 Jun 2020 07:17:29 PM EDT): osirisgothra reammended the target results 
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#
+#	template output completed (code=OK(ERROR_NONE))
+#
+#
+
+
+
+declare -gi MAXINT=32767
+declare -g docloc="/usr/share/doc/paradisim/mini/ubin-local/thrgrep"
+declare -g presetconfig="$HOME/.thrgreppresetrc"
+
+! [[ -r ~/.iamosirisgothra ]] && { echo "\n NB: not intended for release of any kind use at own risk, or not at all! (ctrl+break aborts) you will have to read code to disable this message if you are not me \n"; sleep 15; }
+
+# zmodules required 
+
+zmodload zsh/terminfo 
+zmodload zsh/mathfunc
+
+# store original tty caller
 otty=$(tty)
+# restore terminal setup (keyboard mainly)
 stty sane
-unset_state="$(uuidgen)"
+
+
+
+declare -g unset_state="$(uuidgen)"
+
+
+# do not change these unless you know what you are doing and understand the risks in doing so:
+# they do not affect the system once thrgrep is completed, it disappears anyway. This just helps
+# this process complete a bit faster. Multiple self calls will not trip this as per checking var.
+#	self_nice		niceness of thrgrep script
+#	self_class		io class (idle, realtime, best-effort, none)
+#	self_class_level	(0-7 or just 0 for idle and none)
+#	self_thrgrep_threshold	system load is at or lower, will not self thrgrep (-1 means disable and never use, 255 means disable and always use)
+#
+#
+declare -gi self_nice=-16
+declare -g self_class=realtime
+declare -g self_class_level=2
+declare -gF self_thrgrep_threshold=255
+declare -gF self_load=${$(</proc/loadavg)[1]}
+declare -gi maxstep=2
+declare -gi gstart=17
+declare -gi del=15
+
+cecho()
+{
+	# dont use the first 16 colors, or the 16 grays at the end
+	# (only use "chroma-vibrant" colors)
+	dir=${RANDOM: 0:1}
+	let del--
+	if [[ $del -le 0 ]]; then
+		del=${RANDOM: 0:2}
+	
+		if [[ $dir -ge 5 ]]; then
+			dir=6
+		else
+			dir=-6
+		fi
+	fi
+
+	let gstart+=$(( dir / sin(del) ))
+	if [[ $gstart -ge 230 ]]; then
+		gstart=23
+	elif [[ $gstart -le 16 ]]; then
+		gstart=223
+	fi
+
+	case $# in
+		0) 	echo "ERROR:NO_STRING_GIVEN(f=$0 l=$LINENO)"
+			return
+			;;
+		1) 	start=$gstart
+		   	step=4
+			[[ $step -ge $maxstep ]] && step=$maxstep
+		   	str=$1
+			;;
+		*)	start=$1
+			step=$2
+			str=$3
+			;;
+	esac
+
+	cur=$start
+	for ((x=0;x<$#str;x++)); do		
+		ch=${str: x:1}
+		c $cur
+		let cur+=$step
+		printf "%s" "$ch"
+	done
+	
+}
+c() { echoti setaf ${1-7}; [[ $# -gt 1 ]] && { echoti setab ${2}; shift 2; if [[ $# -gt 0 ]]; then echoti $@; fi; }; }
+
+# tests (comment these out)
+# first incantation of cecho/c
+#cecho 39 5 "the quick brown fox: jumped over, the; 123456789 lazy / d0gs!?"
+# second incantation (random)
+#cecho "the quick brown fox: jumped over, the; 123456789 lazy / d0gs!?"
+
+echo() {
+	case $# in
+	1)	cecho "$@"; builtin echo "";;
+	*)	builtin echo "$@";;
+	esac
+}
+
+
+if [[ $THRGREP_CHANGED_MY_PRI != 1 ]]; then
+	if ( [[ $self_load -le $self_thrgrep_threshold  ]] && [[ $self_thrgrep_threshold -le 254 ]] ) || [[ $self_thrgrep_threshold -le -1 ]]; then
+		if [[ $self_thrgrep_threshold -le -1 ]]; then
+			echo "skipping self threshold (its hard-disabled in the script: $0)"
+		else
+			echo "skipping self threshold because threshold is $self_thrgrep_threshold and load is $self_load"
+		fi
+	else
+		if [[ $self_thrgrep_threshold -ge 255 ]]; then
+			echo "setting self priority (it is hard coded in the script: $0)"
+		else
+			echo "setting self priority (to survive a high load ($self_load, greater than the $self_thrgrep_threshold limit) situation)..."
+		fi
+		echo "***beginning self priority***"
+		export THRGREP_CHANGED_MY_PRI=1
+		tg_name=${0##*/}
+		"$0" "$tg_name" -16 realtime 2
+		r=$? ps=$pipestatus
+		echo "***self priority setting ends***"
+		echo "self I/O and NICE setting completed (errors=$r, pipestatus=$ps ($#ps in pipeline))"
+	fi
+else
+	echo "skipping self threshold because: threshold delegation has already executed and we are it (tasking $$ to adjust ${PPID}'s level)"
+fi	
+
+
 assert()
 {
 	# syntax: assert(directive,value) (works for all but developer tool(s) below)
@@ -204,7 +345,7 @@ local function debug()
 	#completely transparent if not enabled, let all status codes
 	#fall through the cracks!
 	if ((tg_debug_enable)); then
-		printf "debug($SECONDS,$PWD,$?,$pipestatus): $*"
+		cecho "debug($SECONDS,$PWD,$?,$pipestatus): $*"
 	fi
 }
 assert()
@@ -426,7 +567,8 @@ fi
 std_out="/dev/stdout"
 err_out="/dev/null"
 
-for THREADID in "${THREADS[@]}"; do
+( for THREADID in "${THREADS[@]}"; do
+	
 	case $# in
 		0)	# display only
 			echo "$THREADID"
@@ -434,7 +576,7 @@ for THREADID in "${THREADS[@]}"; do
 		1)	# renice only
 #			[[ $1 =~ ^-?[0-9]+$ ]] || die "bad nice level value: $1"
 #			[[ $THREADID =~ ^[0-9]+$ ]] || die "thread id not legal (numeric decimal integers only): $THREADID"
-			$pfx renice -n $1 -p $THREADID 2>$err_out 1>$std_out
+			$pfx renice -n $1 -p $THREADID 2>$err_out 1>$std_out 
 			;;
 		2)	# renice | besteffort-prio
 			$pfx renice -n $1 -p $THREADID 2>$err_out 1>$std_out
@@ -453,5 +595,13 @@ for THREADID in "${THREADS[@]}"; do
 			break
 			;;
 	esac
-done
+
+done ) | while read r; do
+			echo "$r"
+		done
+
+exit $?
+#################################### /\F    N   S/\ #####################################################
+#### DO NOT PLACE CODE BELOW HERE ##/  \O T/\O E/  \### END OF PROGRAM ########## KEEP ABOVE HERE #######
+####################################    \O/  \T/    #####################################################
 

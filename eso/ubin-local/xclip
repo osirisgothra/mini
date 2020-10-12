@@ -1,5 +1,8 @@
 #!/bin/zsh
 
+# never change this
+myuuid=7a3118cc-17fa-47d4-900a-b96ad749c032
+
 # may need to change it
 debugging=0
 
@@ -12,8 +15,28 @@ else 				\
 	decho() { return $?; }
 }					\
 
-xclip_bin="/usr/bin/xclip"
-[[ -x $xclip_bin ]] || { echo "error: xclip dir not set right, edit it first (passing rest to xclip on path would be dangerous)"; exit 127; }
+# get script path *OR* fall back on first executable xclip and assume
+myname="$0"
+[[ -x $myname ]] || myname=`which xclip`
+if ! grep -q $myuuid $myname; then
+	echo "script identity self-check failed, please check for corruption or tampered script file"
+	exit 128
+fi
+for xclip_bin  in `which -a xclip` /usr/bin/xclip; do
+	if [[ $xclip_bin != $myname ]]; then
+		break
+	fi
+	xclip_bin=""
+done
+if [[ -x $xclip_bin ]]; then
+	unset myname
+else
+	echo "xclip is not installed, please install it before using this shim"
+	echo "command not found: xclip"
+	echo "getting libcnf response in background..."
+	( test -x /usr/lib/command-not-found && $_ xclip ) & disown
+	exit 127
+fi
 
 # NB: /usr/bin/xclip uses sub-standard argument parsing that is not part of the modern CLI standard on linux:
 # note: xclip help is accessed by -help not --help! (b/c some may see it as a bug) furthermore all xclip flags are -singledashed not --doubledashed

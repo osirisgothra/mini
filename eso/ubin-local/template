@@ -171,9 +171,99 @@ $TARGET_NOTES
 #
 #  (this template+header was created using the template generator by Gabriel T. Sharp)
 #
+
+
+
+
+# Get Options from Command Line for $1 
+
+declare -ga opts
+declare -gi quiet_level=0
+declare -g version_text="\$(tput setaf 124)$1\$(tput sgr0) Version 1.0 (C)2020 Gabriel T. Sharp, Licensed under GNU LGPL3 at https://gpl.gnu.org/gpl3.html"
+declare -g help_text="$1
+$2
+
+SYNTAX
+
+	$1 [OPTIONS] ARGUMENTS
+
+OPTIONS
+	--help -h	show this help text
+ --version -v   display version information and exit (also shows license info)
+   --quiet -q   increase quiet level by one (quiet level is always zero if left alone)
+
+ARGUMENTS
+
+	FILENAME	A filename that must exist or be writable by the current user.
+	PATHNAME	A relative or absolute path that must exist or be creatable.
+	STRING		A readable string, it must not contain any unreprintable characters.
+	NUMBER		An integer, usually between -32767 and 32767.
+	BOOLEAN		A true/false value, represented as 0 for false, and any other value for true.
+	FLOAT		A floating point single or double precision value, it is precise down to about 5 ot 6 decimal places.
+	ENG			Scientific notation, expressed in powers (3x10^4 is written as 3.4)
+	DEG			Like GRAD/RAD, but expressed in degrees (hours, minutes, seconds) so 3 5'5\" is written as \"3.5.5\" 
+
+
+LICENSE
+
+	GNU LGPL3 is available in full at the GNU GPL website, or through the google voice command 'show me GNU LGPL VERSION 3'
+
+"
+
+echo() {
+	if [[ \$quiet_level -gt 0 ]]; then
+		return 127
+	else
+		builtin echo "\$@"
+	fi
+}
+
+if opts=( \`getopt -n \$0 -o hvq -l help,version,quiet -- "\$@"\` ); then
+	eval set -- "\${opts[@]}"
+	while [[ \$# -ge 0 ]]; do
+		curopt=\$1
+		nextopt=\${2-none}
+		shift
+		# handle --options and -o ptions here
+		case \$curopt in
+			--help|-h)	echo "\$help_text"; exit 127;;
+			--version|-v) echo "\$version_text"; exit 127;;
+			--quiet|-q) let quiet_level++;;
+			--) echo "done with options"; break;;
+			*)	echo "handling option: \$curopt (next:\$nextopt)";;
+		esac	
+	done
+	for arg; do
+		# verify/handle non-option arguments
+		case \$arg in
+			*)	echo "handling argument: \$arg";;
+		esac
+	done		
+	
+else
+	echo "error, code is \$?, exiting with fail"
+fi
+
+
+
+
 MY_EXTREME_END_OF_FILE
 
 
 echo "#	template output completed (code=$([[ $? -ne 0 ]] && echo $? || echo 'OK(ERROR_NONE)' ))\n#\n#"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

@@ -1,0 +1,8 @@
+#!/bin/zsh
+
+echo "start java with $@ [no msg, forked]"
+{ ( java "$@" &> /dev/null & disown ) &> /dev/null; }  &> /dev/null
+echo "use 'pgrep java' to see java processes"
+
+
+

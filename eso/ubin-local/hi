@@ -1,5 +1,4 @@
 #!/usr/bin/perl
-#!/bin/bash
 #
 #    hi
 #    script for highlighting things
@@ -86,6 +85,10 @@ use v5.20;
 use strict;
 use Getopt::Long::Descriptive;
 use Path::Tiny qw( path );
+use Term::ANSIColor 4.00 qw( uncolor colorstrip colorvalid coloralias :constants :pushpop );
+use feature 'signatures';
+no warnings 'experimental::signatures';
+
 sub amatch 
 {
 	my $src = shift;
@@ -97,56 +100,66 @@ sub amatch
 	return @rets;
 }
 
+my %presets = (		markdown => [ '[[:punct:]]', '\b[0-9]+\b', '\*\*\*.*\*','\*\*', ],
+					ini		 => [ '\A\s*\S+(?==)', '(?<==)[^#;]+', '[#;]+[^\'"]+.*\z', '\A\s*\[[A-Za-z_][A-Za-z_0-9]+\]' ],
+					simple	 => [ '[[:punct:]]', '[[:digit:]]', '\b[-A-Z]+\b', '\b\d+\b', '\A[[:punct:]\h]+\z' ],
+					ccomment => [ '\/\*.*?\*\/', '\/\/.*' ],
+					scomment => [ '#[^"\']+*$' ],
+				   pycomment => [ '\A\s*"{2,}\s?.*' ],
+					perl	 => [ 'scomment', '<keywords todo>', ]
+				);
+			
 my $progname = path($0)->basename();
 my $groups_desc = <<FEOF
 
-	highlight groups ( [group] ... )
-		
-		a list of perl regular expressions must be given 
-		on the command line for highlighting if output of
-		the pipe is to be displayed. Input text is expected
-		to be piped in, but, if it is not, lines will be
-		read directly from stdin.  This usually means that
-		the program will accept lines being typed on the
-		keyboard, until an EOF is typed. Using CTRL+C or
-		CTRL+BREAK (CTRL+FN+BREAK on laptops) will cause the
-		program to stop immidiately and produces no further
-		output. The exit code in this case is usually >=254
-		depending on your operating system.    
+    highlight groups ( [group] ... )
+        
+        a list of perl regular expressions must be given 
+        on the command line for highlighting if output of
+        the pipe is to be displayed. Input text is expected
+        to be piped in, but, if it is not, lines will be
+        read directly from stdin.  This usually means that
+        the program will accept lines being typed on the
+        keyboard, until an EOF is typed. Using CTRL+C or
+        CTRL+BREAK (CTRL+FN+BREAK on laptops) will cause the
+        program to stop immidiately and produces no further
+        output. The exit code in this case is usually >=254
+        depending on your operating system.    
 
-	typing an EOF
+    typing an EOF
 
-		You can type an EOF by pressing CTRL+D on most 
-		nix-based systems. On more exotic operating 
-		systems like Windows, you will need to use CTRL+C
-		or CTRL+BREAK (on laptops CTRL+FN+BREAK). However,
-		output would be interrupted instead of an EOF being
-		inserted. On command windows you can enter an actual
-		EOF sometimes by pressing ALT+026. This feature must
-		be entered on the numeric keypad and is not always
-		supported. It is recommended to use cygwin since it
-		allows use of CTRL+D. Use a native linux shell like 
-		bash if you are able. This program was tested with 
-		zsh, sh, and bash under Linux Ubuntu 15.10, 17.04.
+        You can type an EOF by pressing CTRL+D on most 
+        nix-based systems. On more exotic operating 
+        systems like Windows, you will need to use CTRL+C
+        or CTRL+BREAK (on laptops CTRL+FN+BREAK). However,
+        output would be interrupted instead of an EOF being
+        inserted. On command windows you can enter an actual
+        EOF sometimes by pressing ALT+026. This feature must
+        be entered on the numeric keypad and is not always
+        supported. It is recommended to use cygwin since it
+        allows use of CTRL+D. Use a native linux shell like 
+        bash if you are able. This program was tested with 
+        zsh, sh, and bash under Linux Ubuntu 15.10, 17.04.
 
-	flags
+    flags
 
-		Allowed flags are 'egorms'. This is subject to change.
-		Please read 'perldoc perlre' for more on this. Most
-		users will find that the default, 'g' is just fine.
-		Most of the other flags are only useful for those who
-		are customizing this program from within (developers).
-		Any not-allowed flags or ones that just dont exist
-		are removed from the string at startup, so if you put
-		a string like 'ihateyou' it will become 'eo' because
-		the other characters are not allowed. Use this feature
-		with caution if you are a regular user.
-	
-			
-
+        Allowed flags are 'egorms'. This is subject to change.
+        Please read 'perldoc perlre' for more on this. Most
+        users will find that the default, 'g' is just fine.
+        Most of the other flags are only useful for those who
+        are customizing this program from within (developers).
+        Any not-allowed flags or ones that just dont exist
+        are removed from the string at startup, so if you put
+        a string like 'ihateyou' it will become 'eo' because
+        the other characters are not allowed. Use this feature
+        with caution if you are a regular user.
 FEOF
 ;
-my ($opt, $usage) = describe_options( "$progname %o [group(s)]",
+
+my $opt;
+my $usage;
+
+($opt, $usage) = describe_options( "$progname %o [group(s)]",
 									  [], ["output options"], [],
 									  ['colorseed|S=i',"seed to use for the random color generator, use same value if you want to get the same random color sequence every time (default is -1 which picks a random seed)", { default => -1 } ],
 									  ['charcount|n=i',"numerical value to limit each line to number of characters from start, negative measures from end", { default => 0 } ],
@@ -158,17 +171,26 @@ my ($opt, $usage) = describe_options( "$progname %o [group(s)]",
     								  [], ["miscellaneous"], [],
 									  ['verbose|v', "print extra stuff"],
                                       ['help', "print usage message and exit"],
-									  ["$groups_desc"], [], 
                                     );
 
-print($usage->text), exit if $opt->help;				# show --help content and exit when --help is specified on the CLI
-srand($opt->colorseed) unless $opt->colorseed == -1;	# seed for color randomizer: gets randomized seed if not touched here
-print("$opt->flags became...");
-my $flags = $opt->flags;
-$flags =~ s/[^egomrs]//g;							# remove forbidden characters from
-($opt->flags) = $flags;
-print("$opt->flags\n");
 
+
+sub showhelp($ = 0) {
+	my $skipexit = shift // 0;
+	say( $usage->text);
+	#say	($usetext); # =~ s/([[:punct:]])/[38;5;234m$1[0m/g );
+	say ($groups_desc);
+	exit 127 unless $skipexit;
+}
+
+showhelp if $opt->help;				# show --help content and exit when --help is specified on the CLI
+
+
+srand($opt->colorseed) unless $opt->colorseed == -1;	# seed for color randomizer: gets randomized seed if not touched here
+my $flags = $opt->flags;
+print("$flags became...");
+$flags =~ s/[^egomrs]//g;							# remove forbidden characters from
+print("$flags\n");
 
 my $grouplimiter = 1;
 my $groups = $#ARGV+1;
@@ -179,11 +201,39 @@ my $show_matching_line_only = $opt->l_isolate // 0;
 my $show_matching_word_only = $opt->w_isolate // 0;
 my @colortbl = qw( 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 );
 
-sub errdef { my $a = int(shift) // 127; my $msg = shift // "unspecified error";  print("error($a): $msg\n"); exit($a); }
+sub errdef
+{
+		showhelp(1);
+		my $a = int(shift) // 127; 
+		my $msg = shift // "unspecified error";  
+		print("error($a): $msg\n"); 
+		exit($a); 
+}
 errdef(122,"color (or -c) must contain unique enough characters to match against 'color', 'mono', or 'none'\n") unless scalar(amatch($opt->color,"color","mono","none")) > 0;
 errdef(121,"too many arguments (> $grouplimit)") if $groups > $grouplimit && $grouplimiter == 1;
 errdef(120,"nothing to highlight") if $groups < 1;
 errdef(119,"l-isolate and w-isolate are mutually exclusive, please use one or the other") if $show_matching_line_only && $show_matching_word_only;
+
+# first translate preset if present
+if(0) {
+for my $arg (@ARGV)
+{
+	for my $preset (keys(%presets)) {
+		say("checking argument $arg against preset $preset");
+		if ( $preset eq $arg )
+		{
+			say("match, adding expressions...");
+			for my $ex (%presets{$preset})
+			{
+				say("add: $ex");
+			}
+			say("done adding $arg preset expression(s)");
+		}
+	}
+	say("done checking presets against $arg")
+}
+ } # disabled until completed
+
 
 # TODO: use Term::Cap to do this /IF/ it ends up being needed (at this time its not)
 my $term_colors=`tput colors`;
@@ -212,6 +262,7 @@ while (<STDIN>)
 	my $creset = "[0m";		 
 	my $orgline = $_;
 	my $restline = $_;
+	# exit(1) # test point - keep commented unless testing
 	if ($opt->charcount > 0)
 	{
 		#positive: pos(0),count
@@ -223,10 +274,10 @@ while (<STDIN>)
 		$_ = substr($orgline,$opt->charcount);
 		$orgline = substr($orgline,0,$opt->charcount);
 	}
-
+	# exit(1) # test point - keep commented when not testing this block
 	while ($i < $groups) 
 	{
-		#say "using number: $i";
+		
 		my $cgroup = $group[$i];
 		#say($cgroup);
 		$ccolor = "[38;5;${colortbl[$i]}m";
@@ -238,11 +289,11 @@ while (<STDIN>)
 		$ccolor = $mcolor if $color =~ /mono/;
 		$ccolor = "" if $color =~ /none/;
 		$ccolor = $ccolor if $color =~ /color/;	# gfcs
-		$matched = ( s/($cgroup)/${ccolor}${1}${creset}/g );
+		eval '$matched = ( s/($cgroup)/${ccolor}${1}${creset}/'.$flags.' )';;
 		$matchtext .= (length($matchtext) > 0 ? " " : "") . "${ccolor}${1}${creset}" if defined($1);
 		$i++;
 	}	
-	#exit(1);
+	#exit(1);	# test point, keep commented when not testing
 	if ($show_matching_word_only) 	# $show_matching_word_only -> show matches from groups only (invalidates $show_matching_line_only)
 		{ print("$matchtext\n") unless length($matchtext) <= 0; }
 	else  # $show_matching_line_only -> show matching lines only

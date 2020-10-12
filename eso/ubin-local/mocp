@@ -1,0 +1,9 @@
+#!/bin/zsh
+
+# use system mocp
+if pgrep mocp; then
+	echo "passing to server"
+	sudo -H mocp --moc-dir=/var/mocp "$@"
+else
+	echo "server not running"
+fi

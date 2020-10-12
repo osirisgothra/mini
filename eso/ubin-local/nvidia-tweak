@@ -68,15 +68,34 @@ declare -a NVSC=( "$NVSP" "-a" )
 
 assign_attribute()
 {
-	if "${NVSC[@]}" "${1}=${2}" &> /dev/null; then
+	if "${NVSC[@]}" "${1}=${2}" &> /tmp/nvidia-tweak.log; then
 		echo "set $1 to $2"
 	else
-		echo "error: attribute $1 not accepted for value $2, locked out ($?)"
+		echo -ne "set $1 to $2 failed? :::"
+		cat /tmp/nvidia-tweak.log
+		rm $_
 	fi
 }
 
 # SCRIPTSTART
 
-assign_attribute OpenGLImageSettings $IMAGE_HI_SPEED
+echo -ne "loading configuration and sending to X driver..."
+nvidia-settings -l && echo "ok" || echo "(possibly failed? error code is $?)"
+
+# Visual Only Settings
 assign_attribute DigitalVibrance $ROBUST_VIBRANCE
+
+# GPU/GL Optimizations for Better Speed
 assign_attribute GPUPowerMizerMode $GPU_MAX_SPEED
+assign_attribute OpenGLImageSettings $IMAGE_HI_SPEED
+# assign_attribute GLThreadedOptimizations 1
+# assign_attribute GLSingleThreaded 0
+# assign_attribute GLAllowUnofficialProtocol 1
+# assign_attribute GLAllowFXAAUsage 0
+# assign_attribute GLIgnoreGLSLExtReqs 1
+# assign_attribute GLShaderDiskCachePath "/home/osirisgothra/.cache/shaders"
+# assign_attribute GLShaderDiskCache 1
+
+
+
+echo "You can edit the settings by typing 'nano $0'"

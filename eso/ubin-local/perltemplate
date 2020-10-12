@@ -42,12 +42,17 @@
 #
 #                                                                              }}}
 #  PROGRAM SETTINGS {{{
+
 use warnings;
 use strict;
 use v5.20;
-no warnings "experimental";
+
+
 use Curses::UI;
 use Getopt::Long::Descriptive;
+
+no warnings "experimental";
+
 
 # }}}
 

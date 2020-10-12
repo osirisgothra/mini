@@ -1,8 +1,7 @@
 #!/usr/bin/perl
-#
 # FILE
-#    man
-#    man with a few extra features
+#    mman
+#    man with a few extra features and more
 #
 # PROJECT
 #    eso-bin/ubin-local
@@ -12,11 +11,9 @@
 #
 #    Copyright (C) 2020, Gabriel Thomas Sharp
 #
-#    Written by Gabriel Thomas Sharp osirisgothra@larnica.(none)
+#    Written by Gabriel Thomas Sharp osirisgothra@larnica
 #    Latest versions of this and all of Gabriel Thomas Sharp's projects can be
 #    obtained from:
-#
-#     <<projbranch>>
 #
 #    Documentation Available At:
 #
@@ -50,7 +47,7 @@
 #
 #	Mon Feb 10 20:04:32 2020
 #         osirisgothra@larnica.(none) created this file using the template generator 'perltemplate'
-#         and named it man for the project '<projname'.
+#         and named it man for the project 'mman'.
 #
 #
 # (created with perltemplate by Gabriel T. Sharp <osirisgothra@hotmail.com>)
@@ -64,50 +61,18 @@ no warnings "experimental";			# 	allow given/when/default and smartmatching with
 no warnings "once";					# 	allow variables to be used just once without warning***
 use Getopt::Long::Descriptive; 
 use Path::Tiny;
-
 use Env qw( @PATH $HOME );				#	access $PATH as an array (it is already setup here)
+
 my $summary = "\nLaunch manual viewer with some extra abilities.\n";
 my $details = "\n* Adding \"--\" will cause arguments to be forcibly passed to man(1)\n";
-sub passalong
-{
-	my $r = system("/usr/bin/man",@ARGV);
-	exit($r);
-}
-$_=$ARGV[0] // "";
-passalong if @ARGV and /^(-[a-eg-uw-zA-Z]|--section(=\S+)|[0-9])$/;
-sub find($target)
-{
-	for my $path (@PATH) {
-		my $item = path($path)->child($target);
-		return path($item) if -r -x -f $item and not $item =~ /^$HOME/;
-	}
-}
-
-my $last_resort_reader=path(Path::Tiny::rootdir())->child("bin")->child("cat");
-my %readers = (	perl => (find("perldoc") // $last_resort_reader),
-				python => (find("pydoc") // $last_resort_reader),
-				man => (find("man") // $last_resort_reader),
-				info => (find("info") // $last_resort_reader),
-				www => (find("www-browser") // $last_resort_reader),
-				plain => (find($ENV{"PAGER"}) // $last_resort_reader),
-			  );
-printf("%25s as %s interpreter/reader\n",$readers{$_},$_) for keys %readers;
-
-				
+my $tba = "to be announced";
+			
 
 my ($opt, $usage) = describe_options(
     '%c %o <some-arg> file',
 	[ $summary ] ,
 	[ "\nMain options:\n" ] ,
-	[ 'force|f=s', "force reader type (perl, python, man, info, www, or plain)" => { default => 'man',  one_of => [
-		[ "perl|p" 		=> hidden => { hidden => 1 } ],
-		[ "python|P"	=> hidden => { hidden => 1 } ],
-		[ "man|m" 		=> hidden => { hidden => 1 } ],
-		[ "info|i" 		=> hidden => { hidden => 1 } ],
-		[ "www|W" 		=> hidden => { hidden => 1 } ],
-		[ "plain|L" 	=> hidden => { hidden => 1 } ],
-		] }
-	],
+	[ $tba ] ,
     [],
 	[ "\nMiscellaneous options:\n"],
     [ 'verbose|v',  "print extra stuff"            ],
@@ -118,21 +83,9 @@ my $ARGC = $#ARGV+1;
 
 say($usage->text), exit if $opt->help;
 sub vsay { CORE::say(@_) if $opt->verbose; }
-vsay("getopt: arguments left: $ARGC" );	
-vsay("in verbose mode");
-vsay($opt->force);
 
-my $prefix=Path::Tiny::rootdir()->child('usr')->child('bin')->child($opt->force);
-if ($ARGC) {	
-	
-#	system("/usr/bin/man",@ARGV);
-	system($prefix,@ARGV);
-	
-} else {
-	say("What manpage do you wish pitifully for?");
-}
-	
+say("warning: still in production, only man available");
+
+return system("/usr/bin/man",@ARGV);
 
 
-# REF START
-=pod

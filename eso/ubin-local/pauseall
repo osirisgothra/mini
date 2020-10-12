@@ -1,0 +1,101 @@
+#!/usr/bin/perl
+#
+# FILE
+#    pauseall
+#    pause or unpause processes that match a regular expression or string
+#
+# PROJECT
+#    mini/eso/ubin-local
+#	 small projects, esoteric in nature, binary or script form
+#
+# AUTHOR / COPYRIGHT
+#
+#    Copyright (C) 2020, Gabriel T. Sharp (All Rights Reserved)
+#
+#    Written by  osirisgothra@larnica.whyfi.net
+#    Latest versions of this and all of osirisgothra's projects can be
+#    obtained from:
+#
+#     <https://www.github.com/osirisgothra>
+#
+#    Documentation Available At:
+#
+#     <http://www.github.com/osirisgothra/mini/eso/ubin-local/README.md>
+#
+# LICENSE
+#
+#    pauseall is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  NOTES
+#
+#     * TODO: move 'use' statements to top if you want to keep them**
+#    ** this feature will be added to the next version of perltemplate (hopefully)
+#   *** warnings are disabled for experimental and once because they are pretty
+#       annoying here, you might want to re-enable them for your own program
+#       to do this during testing and development.
+#
+#  HISTORY
+#
+#	Thu Apr  9 11:37:59 2020
+#         osirisgothra@larnica.whyfi.net created this file using the template generator 'perltemplate'
+#         and named it pauseall for the project 'mini/eso/ubin-local'.
+#
+#
+# (created with 'perltemplate' program, from the mini/eso/ubin-local project on github)
+# (perltemplate used the 'template' program to create this header (template v1.0-2020))
+# (both 'perltemplate' and 'template' were written by Gabriel T. Sharp <osirisgothra@hotmail.com>)
+#
+
+use warnings;
+use v5.18;
+use strict;
+no warnings "experimental";			# 	allow given/when/default and smartmatching without their warnings***
+no warnings "once";					# 	allow variables to be used just once without warning***
+use Term::ANSIColor 4.0  qw ( colorstrip color colored uncolor coloralias :constants colorvalid :pushpop );
+use Path::Tiny;
+use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
+#\ #___
+# \#O|ES (denoted by #NUM on code lines for simplicity):
+
+	# 	This is a trick of sorts -- however it is portable and terminal device independant (DI)
+    #   we pre-select the ansi color to red, then put it back to white in the usage text and after
+	# 1 the arguments are parsed. This allows the unreachable "Unknown [blah]" and other messages from
+	# 	Getopt/Long.pm to be colorized without having to reel in the module's largest subroutine for
+	#	rewriting or other methods (modules can do that too, but this is far simpler abiet a bit hacky)
+	#	since Term::ANSIColor is in use, terminal independance is guarenteed.
+
+
+
+say(RED " ");	#1
+
+my ($opt, $usage) = describe_options(
+    colored( [ "red" ] ) . "\n". path("$0")->basename . " %o PROCESS_NAME | PID" ,
+	[],
+	[ "At the very least, you need to include either a PID or PROCESS NAME in the form of a regular expression (see grep(1) for regular expression syntax explanation). All processes that match the PIDs or PROCESSES named, will be stopped (SIGSTOP) if more than 50% of them are running, otherwise, they will be continued (SIGCONT) unless you use the -t commandline option. This happens by sending a signal (either SIGSTOP or SIGCONT) directly to each process. If the user does not own the process, and the user is a member of the 'root' or 'admin/adm' group(s), then the use of 'sudo' will be tried as a last result. To avoid any complications, if you run this program as root, ownership will not be considered and all processes will be stopped or continued." ],
+	[],
+    [ 'toggle|t', "instead of 50%, just STOP/CONT each process individually.",  ],
+    [ 'consider|c', "the percentage of processes needed to be stopped or started to consider them all (50% by default).",   { default  => 50 } ],
+    [],
+    [ 'quiet|q',  "don't print extra stuff"            ],
+    [ 'help',       "print usage message and exit"     ],
+);
+say($usage->text), exit if $opt->help;
+say(RED "\n\nNo process name/number was given!\n\n", RESET $usage->text ), exit if ( @ARGV < 1 );
+say(RESET "\n");
+
+for (@ARGV) {
+	say("attempting to resolve $_");
+	
+}

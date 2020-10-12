@@ -48,9 +48,6 @@ use Getopt::Long::Descriptive;
 
 my ($opt, $usage) = describe_options(
  $0 . ' %o <arguments>',
- #[ 'server|s=s', "the server to connect to", { required => 1  } ],
- #[ 'port|p=i',"the port to connect to",{ default  => 79 } ],
- #[],
  [ 'verbose|v',  "print extra stuff"],
  [ 'help', "print usage message and exit" ],
 );
@@ -61,6 +58,6 @@ die("must be on, off, or toggle, and not ambiguous") unless ($ARGV[0] =~ m/(on|o
 
 given($ARGV[0]) {
 	when(/toggle/) { print "toggling"; }
-	when(/on/)   { print "enable"; }
-	when(/off/)  { print "disable"; }
+	when(/on/)   { print "enable", `tput smam`; }
+	when(/off/)  { print "disable", `tput rmam` ; }
 }

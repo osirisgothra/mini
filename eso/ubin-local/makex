@@ -5,6 +5,21 @@
 # make executable files executable in specified location, using a few 
 # different methods.
 #
+declare -ga newargs=( )
+for x; do
+	if [[ -r ~/bin/$x ]] && ! [[ -r $x ]]; then
+		y="~/bin/$x"
+		echo "translating parameter (with glob evaluation) $x into $y because one exists and the other does not"
+		x="$y"
+	fi
+	newargs+=( "$x" )
+done
+echo "pretranslated command line: $@"
+eval set -- "${newargs[@]}"
+echo "postranslated command line: $@"
+
+
+	
 if [[ -d "$1" ]]; then
 	pushd .
 	cd "$1"

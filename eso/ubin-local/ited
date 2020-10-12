@@ -1,0 +1,158 @@
+#!/bin/zsh
+# vi: mls=2:hls:fdo=insert:fcl=all:fdl=2:fen:fdm=marker:fmr=#<,>#:fdm=syntax:cc=160:siso=50:so=$COLUMNS:ft=zsh:ts=4:sw=4:et:bs=2
+#
+emulate zsh
+#
+#    ited
+#    edit inventorytweaks rules/sorting/config files in currently running modpack (see requirements)
+#    esoteric and usually single-file scripts, binaries, etc
+#    github:/osirisgothra/mini/eso/ubin-local
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sat 27 Jun 2020 12:21:15 PM EDT
+#            osirisgothra@ initially created this file
+#            with the original name, ited
+#
+# TARGET NOTES
+#
+# 	EXECUTIVE STATE CHANGES
+#		marking single existing file executable
+#			- mode of 'ited' changed to u+rwx/og+rx.. []
+#		completed (0)
+# 	ARGUMENTUAL ANALYSIS
+#       remaining arguments:
+#			no arguments to list
+#       disposition:
+#			4 were used during execution of template
+#   		0 were extra and/or unexpected
+# 	TEMPLATE SUMMARY OF GENERATION
+#	     outcome: good
+#	     errors: 0
+# 	FINAL NOTE
+#	     template program under renovation
+#        you should REMOVE the TARGET NOTES section once youve reviewed this!
+#		 (Sat 27 Jun 2020 12:21:15 PM EDT): osirisgothra ignored the final note and left this behind for
+#		           the user(s) to see, how embarassed I am for the author!
+#
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#
+#	template output completed (code=OK(ERROR_NONE))
+#
+#
+
+[[ $zsh_eval_context =~ toplevel ]]  || echo "fatal: zsh(1) required!"
+
+# functions
+
+function print() 
+{ 
+        builtin print -P "$@"
+}
+
+# prologue variables
+
+
+declare -ga prerequisites=( zsh jku_gamedir java perl which find sed grep pgrep ps basename dirname realpath nano )
+declare -gi errors=0
+
+setopt kshglob
+setopt interactivecomments
+setopt extendedglob
+setopt globassign
+setopt dotglob
+setopt globsubst
+setopt promptsubst
+setopt kshglob
+
+setopt noxtrace
+_debug=0
+
+# required externals
+
+for x ($prerequisites)  {
+							print "checking for required components..."
+                            if [[ -x `which -p "$x"` ]]  {
+                                    [[ $_debug == 1 ]] && print "%BFound:%b $x"
+                            } else {
+                                        print "%F{124}%Berror:%b %U$x%u is required but is NOT found%f"
+                                        let errors++
+                            }
+}
+
+# epilogue variables
+
+declare -gx gamedir="$(jku_gamedir)"
+declare -gx gamename="$(jku_gamedir -g)"
+declare -gx progname=$(basename $0)
+declare -gx progpath=$(realpath $(dirname $0))
+
+# modules
+
+zmodload zsh/mathfunc
+zmodload zsh/termcap
+
+# program
+
+function t() { for x { echotc "$x" } }
+
+
+function main()
+{
+    [[ $_debug == 1 ]] && print "prog name=$progname path=$progpath"
+    print "found running game in '$gamedir' called '$gamename'"
+	_configdir="$gamedir/config"
+	_files=( --syntax=invtweaksrules $_configdir/InvTweaksRules.txt 
+			 	$_configdir/InvTweaksTree.txt
+			 	$_configdir/InvTweaks.cfg		)
+	echo -n "detecting nano settings..."
+	for x in ~/.nanorc /etc/nanorc /var/nano/nanorc ~/.config/nano/nanorc ~/.config/nanorc ~/.config/.nanorc; do
+		if [[ -r $x ]]; then
+			_conf="$x"
+			break
+		fi
+	done
+	[[ -r "$_conf" ]] || echo "fatal: cannot locate nano config file -- please create one or reinstall nano"
+	if ! grep -q invtweaksrules\.nanorc $_conf; then
+		echo "invtweaksrules syntax rule not installed, color support will be limited!"
+	else
+		echo "configuration ok, full color supported"
+	fi
+	print "initializing nano..."
+	nano $_files
+	print "cleaning up..."
+	unset IFS
+	
+}
+
+# entry point
+main "$@"
+
+

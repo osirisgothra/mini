@@ -1,6 +1,21 @@
 mini/eso-bin
 ============
 
+4-04-2020
+
+ubin-local	once was /usr/bin/local scripts changed by me,
+		plus some of my own. It now is ONLY items belonging
+		to me for LICENSE consistency purposes. Modified items
+		that may remain do so unknowingly and will be removed
+		as they are found. This directory now refers to
+		the very personal ~/bin instead.
+
+ubin		as above, except there are far less left behind here
+		and also, this is compeltely discontinued and soon to
+		be no more. For the time being it is read-only.
+
+3-20-2015
+
 ```
  You probably dont want to bother reading this, find
  a repo that is of a more interesting nature.

@@ -75,6 +75,7 @@ const jkg_err_fatal=127
 const jkg_err_help=126
 const jkg_false=1
 const jkg_true=0
+const jkg_extra_msgs=0
 
 # prefix (current location of system root & binaries under it) *
 global jkg_prefix_sys='/'
@@ -173,7 +174,7 @@ function increment_version()
 function main()
 {
 	integer retval=0
-	if f=( `getopt -o hvVLanN -n "$(basename "$jkg_progname")" -- "$@"` ); then
+	if f=( `getopt -o hvgVLanN -n "$(basename "$jkg_progname")" -- "$@"` ); then
 		while [[ $f[1] != '--' ]]; do
 			case $f[1] in
 				-L)	ln -s $( "$0" -n ) "$f[2]"
@@ -182,6 +183,22 @@ function main()
 						*) echo "could not link directory" > /dev/stderr; shift 2;;
 					esac
 					exit $rv ;;
+				-g) if jkg_name=`realpath $jkg_gamedir/../instance.json`; then
+						((jkg_extra_msgs)) && echo "reading from $jkg_name"
+						if cat $jkg_name | grep -Po '(?<="title":")[^"]+'; then
+							return 0;
+						else
+							echo "Minecraft"
+							return 1;
+						fi
+					else
+						echo "Minecraft"
+						return 2;
+					fi
+					echo "Unexpected Result Encountered (code malformed, check free space/permissions/file integrity)"
+					return 125
+					;;				
+						
 				-n|-N)
 					if ! [[ $jkg_gamedir =~ ERROR ]]; then
 						if [[ $f[1] == '-N' ]]; then
@@ -198,15 +215,14 @@ function main()
 				-V)	 increment_version "$@"
 					 [[ $- =~ i ]] && return $?
 					 exit $?;;
-           -h) out=( "\nsyntax: jku_gamedir -h"
-					 "      or: jku_gamedir -v"
-					 "      or: jku_gamedir -N"
-					 "      or: jku_gamedir -n"
-					 "      or: jku_gamedir -L DIRECTORY"
+           -h) out=( "\nsyntax: jku_gamedir -hvNng [-L DIR]"
+					 "	"
+					 " The following options cannot be combined and can include one of:"
 					 "                                                                        "
+					 " -g   output game friendly name, if possible, by peeking into instance data"
 					 " -n   fallback to $HOME/.minecraft when no game is running"
 					 " -N   fallback to /dev/null when no game is running (useful for linking)"
-					 " -L   link DIRECTORY to running gamedir, or /dev/null if none is running"
+					 " -L   link DIR to running gamedir, or /dev/null if none is running"
 					 " -V	update version in-place (devs only)"
 					 "      (use -V --help for more on this argument)"
 					 " -h   this help message"

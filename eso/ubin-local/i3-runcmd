@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 #
 #    i3-runcmd
 #    A I3-runcmd Program
@@ -45,3 +45,63 @@
 # target resides in /home/osirisgothra/bin ... yes
 #
 
+# preprocessed args declarations
+
+declare -gi dorun=1
+declare -g debugging=0		
+declare -gA input=( command 'none' output 'nil' occurances 0 )
+declare -gi dowait=1
+
+# process arguments and process as needed
+if [[ $1 == "-nox" ]]; then
+	shift
+	dorun=0
+elif [[ $1 == "--wait" ]]; then
+	# ^^ for i3-fastcmd compat only
+	shift
+	dowait=1
+elif [[ $1 == "--help" ]]; then
+	echo "syntax: $0 [-nox|--help] [prompt] [format-string] [xfont] [i3-socket]"
+	echo "\nnote: xfont can be replaced with xfontsel in backticks to prompt for a font straight away (but really annoying for repeated use)\n"
+fi
+
+# postprocessed args declarations
+
+declare -g font="${3--*-fixed-*-*-*-*-*-200-*-*-*-*-*-*}"
+declare -g prompt="${1-Input:}"
+declare -g format="${2-unused}"
+declare -g socket="${4-unused}"
+declare -i retv=0
+
+
+[[ $debugging == 0 ]] && exec 2>/dev/null
+[[ $format == unused ]] && unset format
+[[ $socket == unused ]] && unset socket
+
+eval "declare -gA input=( `i3-input ${socket+-s }${socket} ${format+-F }${format} -f $font -P $prompt | sed -r 's/(.*) = (.*)/"\1" "\2" /g' | tail -n3` )"
+retv=$?
+
+if [[ $input[output] != "nil" && $input[output] != "" ]] {
+	echo "OK: input cmd,output,occ=$input[command],$input[output],$input[occurances] ($retv)" > /dev/stderr
+	if ((dorun)) {
+		eval $input[output]
+	} else {
+		echo $input[output]
+	}
+
+} else {
+	echo "NOGO: inputs: ${input[@]} retv=$?" > /dev/stderr
+	declare -p input
+}
+
+if ((dowait)) {
+	eval `resize`
+	if ((COLUMNS < 12)); then
+		echo "[?]:"
+	if ((COLUMNS < 65)); then
+		echo "[$((LINES));1H[44m[2K Press a Key [0m[1;1H"
+	else
+		echo "[$((LINES));1H[44m[2K    *** PRESS ANY KEY TO END PROGRAM OUTPUT DISPLAY ***[0m[1;1H"
+	fi
+	read -sk1
+}

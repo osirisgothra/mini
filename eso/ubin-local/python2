@@ -1,9 +1,0 @@
-#!/usr/bin/perl -w
-use strict;
-use v5.20.2;
-no warnings "experimental";
-print("axpython2: executing...\n");
-exec "/usr/bin/python2",@ARGV;
-
-
-

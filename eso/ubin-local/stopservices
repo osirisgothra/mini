@@ -1,4 +1,5 @@
-#!/bin/zsh
+#!/bin/zsh   
+# ###BEGINFOLD	code
 emulate zsh
 #
 #    stopservices
@@ -103,27 +104,43 @@ declare -gA zret=( ok "0: no errors (known errors, that is)" autofix "124: ran i
 
 ___usrconf()
 {
+###ENDFOLD
+
 	require dbus
 	require	polkitd
 
+	# dont mess with these, really!
 	keep init
 	keep systemd-journald
 	keep systemd-udevd
 	keep systemd-logind
 	keep accounts-daemon
+	
+	# dont mess with these
 	keep login
 	keep agetty
 	keep polkit
 	keep polkitd
-	keep dbus
-	keep dbus-daemon
 
-	nokeep -p dbus_launch
-	nokeep ModemManager
-	nokeep NetworkManager
-	nokeep ntp
-	nokeep systemd-resolved
-	nokeep wpa_supplicant
+	# dont touch
+	# keepgroup BAREBONES_USAGE
+	# dont use these unless you are desparate -- dbus these days has been tasked to do most of the system's dirty work
+	# so unless you use an old linux distro (has a release year of 2012 or earlier, at the very least), you should probably not enable it
+	# nokeep dbus
+	# nokeep dbus-daemon
+	# nokeep -d dbus_launch
+	# endkeepgroup
+
+	# not a good idea to touch
+	# keepgroup INTERNET_USAGE
+	keep ModemManager
+	keep NetworkManager
+	keep systemd-resolved      # needed for basic internet use
+	keep wpa_supplicant        # change to nokeep if using offline only
+	keep ntp
+	# endkeepgroup
+
+    # could touch if you know what your doing
 	nokeep postfix
 	nokeep vsftpd
 	nokeep cups
@@ -154,7 +171,12 @@ ___usrconf()
 	nokeep -p kdeinit5
 	nokeep -p kded
 	nokeep -p kded5
+	
+	# always mess with these
 
+	# (theres nothing!)
+
+##BEGINFOLD epilogue
 }
 
 # functions
@@ -570,3 +592,6 @@ exit $?
 #  nokeep -p at-spi-bus-launcher at-spi2-registryd
 
 trap -- DEBUG
+#
+
+##ENDFOLD

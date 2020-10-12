@@ -104,14 +104,25 @@ parse_cmdline()
 }
 err()
 {
+	local u="unspecified error"
 	case $# in
-		local u="unspecified error"
-		0|1) case $# in
-			0)	set 127 "$u";;
-			1)  set $1  "$u";;
-		;;
+		0|1)
+			case $# in
+				0)	set 127 "$u"
+					;;
+				1)  set $1  "$u"
+					;;
+				*)	set 126 "(internal error detected in err handler)"
+					;;
+			esac
+			;;
+		*)
+			set 125 "(internal error in err handler via first eval)"
+			;;
 	esac
+
 	echo "error($num): $* (exiting $0)"
+
 	exit $num
 }
 init()

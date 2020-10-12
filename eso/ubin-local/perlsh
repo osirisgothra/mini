@@ -55,6 +55,7 @@ eval 'exec /usr/bin/perl  -S $0 ${1+"$@"}' if 0; # prevent a shell from sourcing
 
 use v5.20.2;
 use Path::Tiny;
+use Cwd;
 
 my $debuginc=0;
 if ($debuginc) {
@@ -63,26 +64,27 @@ if ($debuginc) {
 	sub dprint { }
 }
 
-BEGIN { 
-	my @NEWINC = ( );
-	foreach (@INC) {
-		my $src = path($_);
-		my $real = $src->realpath();
-		if ( $src eq $real ) {
-			print("$src (real directory)\n");
-		} else {
-			print("$src (fake) -- will add $real due to $src's fakeness");
-			unshift(@NEWINC,$real);
-		}		
-	}
-	foreach (@NEWINC) {
-		push(@INC,$_);
-		print("$_ (real directory) added\n");
+#BEGIN { 
+#	my @NEWINC = ( );
+#	foreach (@INC) {
+#		my $src = path($_);
+#		my $real = $src->realpath();
+#		if ( $src eq $real ) {
+#			print("$src (real directory)\n");
+#		} else {
+#			print("$src (fake) -- will add $real due to $src's fakeness");
+#			unshift(@NEWINC,$real);
+#		}		
+#	}
+#	foreach (@NEWINC) {
+#		push(@INC,$_);
+#		print("$_ (real directory) added\n");
+#
+#	}
+#}
 
-	}
-}
-print("\nresulting INCs:\n");
-my $n=0; print($n++.": $_ \n") for @INC; 
+#print("\nresulting INCs:\n");
+#my $n=0; print($n++.": $_ \n") for @INC; 
 
 
 
@@ -153,7 +155,7 @@ package PerlSh;
 
 sub hrule {
 	
-    printf  colored("%s\n",'grey1'), "_" x ($ENV{"COLUMNS"} // 	DFCOLS);
+    printf  colored("%s\n",'grey1'), "=" x ($ENV{"COLUMNS"} // 	DFCOLS);
  # colored('=' x $ENV{"COLUMNS"},'red') . "\n";
 }
 sub vrule {
@@ -214,9 +216,14 @@ sub findinpath {
 sub export {}	# dummy function for resize usage
 sub toplevel 
 {
-	# store home directory
+	# SETUP OF...
+
+	# HOME
+
 	$homedir = path($ENV{"HOME"} // cwd);
-	# check terminal sizes - these lines will cause both to become undef if one is
+
+	# TERMINAL
+
 	my $COLUMNS = $ENV{"COLUMNS"} // ($ENV{"LINES"} = undef);
 	my $LINES = $ENV{"LINES"} // ($ENV{"COLUMNS"} = undef);	
 	unless (defined($COLUMNS))
@@ -247,9 +254,14 @@ sub toplevel
 	say("COLUMNS too small, setting to default (".DFCOLS.")"),$COLUMNS=DFCOLS if ($COLUMNS < 8);
 	say("LINES too small, setting to default (".DFLINES.")"),$LINES=DFLINES if ($LINES < 10);
 	say "using ${COLUMNS}x${LINES} terminal";	
+
+	# PROMPT
+
 	print("$PS1COLOR") if length($PS1COLOR) > 0;
 	print("PS1 length zero, but color prompting disabled\n") unless ( length($PS1COLOR) | length($PS1) ) > 0;
-    # disable implicit add_history() call
+
+   	# HISTORY
+
     $term->MinLine(undef);
     $term->stifle_history($HISTSIZE);
     if (-f $HISTFILE) {
@@ -260,8 +272,8 @@ sub toplevel
     $attribs->{completion_display_matches_hook}
 	= \&perl_symbol_display_match_list;
 
-    # See http://perldoc.perl.org/perlipc.html#Deferred-Signals-%28Safe-Signals%29
-    # was '$SIG{INT} = sub { ...'
+    # see contrib-note 9629
+
     
 	sigaction SIGINT, new POSIX::SigAction sub {
 		$term->modifying;
@@ -275,32 +287,61 @@ sub toplevel
     
 	while (defined($command = &reader)) 
 	{
-		if ( $command =~ m/^(\!)(.*)$/g )
-		{	
-			sub statuscode { my $code = shift; given($code) { return "000_NOERROR" when 0;  return "127_USER_ERROR" when 127; return "001_FAILED" when 1; }; return sprintf("%03d",$code); }
-			say "command $2 returned status code: " . statuscode(system("$2")) ;
-		}
-		elsif ( $command eq "" )
-		{	
-		}
-		else
-		{
-	    	$lastcmd = $command;
-			hrule();
-			CORE::say(colored("evaluating '$lastcmd'","rgb022"));		
-    		hrule();
-			@result = eval ("$strict package $CWP; $command");
-			hrule();
-			CORE::say(colored(@result . " result(s)\n", 'rgb024'));
-			hrule();
-			use strict;
-			if ($@) { print colored("Error: $@\n","red"); next; }
-			hrule;
-			print colored("\nData Dump:\n\n" . Dumper(@result), "rgb034");
-			hrule;
-			printer (@result);
-			$CWP = $1 if ($command =~ /^\s*package\s+([\w:]+)/);
-			hrule;
+		given($command)
+		{			
+			when ( m/^(\!)(.*)$/g )
+			{					
+				sub statuscode { my $code = shift; given($code) { return "000_NOERROR" when 0;  return "127_USER_ERROR" when 127; return "001_FAILED" when 1; }; return sprintf("%03d",$code); }
+				say "command $2 returned status code: " . statuscode(system("$2")) ;
+			}
+			when ( m/^$/g )
+			{	
+				say("you are in the " . (length($CWP) > 0 ? $CWP : "root (topmost)") . " package, in pwd = " . cwd . "");
+			}
+			default
+			{
+		    	$lastcmd = $command;
+				CORE::say(colored("evaluating '$lastcmd'","rgb022"));		
+				CORE::printf(colored("","rgb044"));
+				@result = eval ("$strict package $CWP; $command");
+				#CORE::printf(colored(@result . " result(s)", 'rgb024'));
+				use strict;
+				if ($@) 
+				{ 	
+					print colored("Error: $@\n","red"); next; 
+				}
+				else	
+				{ 	
+					my %result = @result;
+					given ($command)
+					{
+						# predicates first
+						
+						printer(@result) when /(=|;)/;	# assignments, multiple commands, etc involved, use complex printer
+						print colored("list data =>\n" . Dumper(@result), "rgb034") when /^(@|keys\(%)/;
+						print colored("hash data =>\n" . Dumper(%result), "rgb044") when /^%/;				# todo make these all blocks eventually and unique printers
+						print colored("   scalar =>\n@result", "rgb054") when /^\$/;
+					
+	
+						# blocks second (keep in mind to not allow 'dirty' commands into the system)
+
+						when (/^\s*package\s+([\w:]+)/)
+						{
+							$CWP = $1;
+							print colored("package change => $CWP\n", "rgb064");
+						}	
+						when (/^synopsis ([A-Za-z:_]*)$/)	# must sanitize: should only have A-Za-z:_ (this line required to allow un-nerfable call to system)
+						{
+							system($command);	# requires the synopsis program, fyi
+						}
+						default
+						{
+							#say("not printing, printer supressed");
+							printer (@result);
+						}
+					}
+				}
+			}
 		}
     }
     &quit;
@@ -329,7 +370,7 @@ sub reader
     
     while (1) 
 	{
-		$term->ornaments("setaf,4,setaf,6");
+		$term->ornaments("setaf,24,setaf,26");
 		$line = $term->readline($command ? $PS2 : prompt($PS1));
 		return undef unless (defined $line);	
 		if ($line =~ /\\$/) 
@@ -572,8 +613,11 @@ sub perl_method_completion_function ($$) {
 		 '%' => 'HASH',
 		 '&' => 'CODE'); # '
 
+	# first line contains local pre-parsed commands that do special things
 	# from perl5.004_02 perlfunc
-	@keyword = qw(
+	@keyword = qw( 
+			exit quit clear ls cd chmod chown start run
+
 		    chomp chop chr crypt hex index lc lcfirst
 		    length oct ord pack q qq
 		    reverse rindex sprintf substr tr uc ucfirst
@@ -744,5 +788,63 @@ L<GNU Readline Library|http://cnswww.cns.cwru.edu/php/chet/readline/rltop.html>
 =head1 AUTHOR
 
 Hiroo Hayashi <hiroo.hayashi@computer.org>
+
+			Main Author of the original file.
+			This file is a derivitive of his 'perlsh'.
+
+=head1 CONTRIB
+
+Gabriel T. Sharp <21shariria@gmail.com>
+
+=over 4			
+
+=item C<Contributing Author (not fully in circulation)
+			Stored in github/osirisgothra/mini.git under eso/ubin-local/perlsh
+			(If there are further notes, they would be in README.md)
+			Contributed startup code additions (@INC checking, colorization, 
+            Data::Dumper integration, Term::ANSIColor and Path::Tiny support)
+            Also added some minor program flow plus extra commands/interpreters, etc.>
+
+=back
+
+=head1 CONTRIB NOTES
+
+=over 4
+
+=item CONTRIB-NOTE 9629 (approximate file position in characters)
+
+=back
+
+=begin text
+
+		DEFERRED SIGNALS in perlipc(5):
+			http://perldoc.perl.org/perlipc.html#Deferred-Signals-%28Safe-Signals%29	
+
+			The line referred by 9629 originally was: 
+				
+				$SIG{INT} = sub { ... <rest of block>
+			
+			Changed to prevent crashes/noncleanups from SIGINT signals.
+
+		These lines were changed to increase compatibility and bolster resilliance.
+
+REFERENCES
+
+		perlsh(1)  original version as mentioned above
+		perlpod(1) required to read this document
+		perldoc(1) preferred parser for this document
+		man(1)     can be used as a generic reader for this document
+		vim(1) 
+        nano(1)    these were all used to update or write the perlpod source
+        atom(1)
+
+
+PERLSH - perlsh(3pm) - Perl (Modified) Shell Reference - (Read this document with perlpod, perldoc, or man reader)
+
+
+=end text
+
+
+
 
 =cut
