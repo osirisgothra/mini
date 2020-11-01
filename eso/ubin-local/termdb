@@ -1,0 +1,610 @@
+#!/usr/bin/perl
+#
+#    termdb
+#    search for known termcap/terminfo names for querying all kinds of terminal info
+#  !!!! Nōtə Benē !!!!
+#    This program should work for people who need to write software that depends on termcap databases,
+#    I strongly encourage the use of such software because it makes term apps much more compatible and
+#    is much preferred than blindling striking out ansi escape sequences that may not even work for your
+#    target audience, or in the far future when terminals change, and yes, they will always change!
+#  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#    mini
+#    eso/ubinlocal:formerly zshx/bin
+#
+#    Copyright (C) 1995-2021 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Unknown Date, Time
+#			osirisgothra created this file for use in zsh-x
+#			decomissioned due to zsh-x being merged into a larger project	
+#	 Sun 11 Oct 2020 08:03:05 PM EDT
+#            osirisgothra@ initially created this template
+#            with the original name, termdb
+#
+#   AQNA (Anticipated QnA)
+#
+#	do we need Term::Cap to run it
+#		NO: common misconception, this program does NOT show term values, nor does it look them up
+#           this program only looks up the character pairs or sequences needed to get such information
+#			either directly though TermCap or TermInfo (both included sets), the only difference being
+#			that TermInfo uses a longer string of characters for describing while TermCap(the one most used)
+#			uses a char-pair, which was intended to fit in a single word, thus a single register. This
+#			was most optimal back in the days of assembler code (not assemblies, thats completely different)
+#			But TermCap is still used alot because it performs great with binary trees, hash lookups, etc,
+#			in environments where space is very limited (risc, arm/d, dsp, to name just a very few).
+
+
+use warnings;
+use strict;
+use v5.20.2;
+
+
+
+my %termdb = (
+	"Variable" => { termcap => "Long Terminal Capability Name (termcap)", terminfo => "Short (terminfo) Representation (aka 'ti')",  label => "Description of what the item stands for", kind => "type of data used for this item (see kinds)" },
+
+	"auto_left_margin" => { termcap => "bw", terminfo => "bw",  label => "cub1 wraps from col‐umn 0 to last column"  , kind => "boolean" },
+	"auto_right_margin" => { termcap => "am", terminfo => "am",  label => "terminal has auto‐matic margins"  , kind => "boolean" },
+	"back_color_erase" => { termcap => "bce", terminfo => "ut",  label => "screen erased withbackground color"  , kind => "boolean" },
+	"can_change" => { termcap => "ccc", terminfo => "cc",  label => "terminal can re-de‐fine existing colors"  , kind => "boolean" },
+	"ceol_standout_glitch" => { termcap => "xhp", terminfo => "xs",  label => "standout not erasedby overwriting (hp)"  , kind => "boolean" },
+	"col_addr_glitch" => { termcap => "xhpa", terminfo => "YA",  label => "only positive motionfor hpa/mhpa caps"  , kind => "boolean" },
+	"cpi_changes_res" => { termcap => "cpix", terminfo => "YF",  label => "changing characterpitch changes reso‐lution"  , kind => "boolean" },
+	"cr_cancels_micro_mode" => { termcap => "crxm", terminfo => "YB",  label => "using cr turns offmicro mode"  , kind => "boolean" },
+	"dest_tabs_magic_smso" => { termcap => "xt", terminfo => "xt",  label => "tabs destructive,magic so char(t1061)"  , kind => "boolean" },
+	"eat_newline_glitch" => { termcap => "xenl", terminfo => "xn",  label => "newline ignored af‐ter 80 cols (con‐cept)"  , kind => "boolean" },
+	"erase_overstrike" => { termcap => "eo", terminfo => "eo",  label => "can erase over‐strikes with a blank"  , kind => "boolean" },
+	"generic_type" => { termcap => "gn", terminfo => "gn",  label => "generic line type"  , kind => "boolean" },
+	"hard_copy" => { termcap => "hc", terminfo => "hc",  label => "hardcopy terminal"  , kind => "boolean" },
+	"hard_cursor" => { termcap => "chts", terminfo => "HC",  label => "cursor is hard tosee"  , kind => "boolean" },
+	"has_meta_key" => { termcap => "km", terminfo => "km",  label => "Has a meta key(i.e., sets 8th-bit)"  , kind => "boolean" },
+	"has_print_wheel" => { termcap => "daisy", terminfo => "YC",  label => "printer needs opera‐tor to change char‐acter set"  , kind => "boolean" },
+	"has_status_line" => { termcap => "hs", terminfo => "hs",  label => "has extra statusline"  , kind => "boolean" },
+	"hue_lightness_saturation" => { termcap => "hls", terminfo => "hl",  label => "terminal uses only HLS color notation(Tektronix)"  , kind => "boolean" },
+	"insert_null_glitch" => { termcap => "in", terminfo => "in",  label => "insert mode distin‐guishes nulls"  , kind => "boolean" },
+	"lpi_changes_res" => { termcap => "lpix", terminfo => "YG",  label => "changing line pitchchanges resolution"  , kind => "boolean" },
+	"memory_above" => { termcap => "da", terminfo => "da",  label => "display may be re‐tained above thescreen"  , kind => "boolean" },
+	"memory_below" => { termcap => "db", terminfo => "db",  label => "display may be re‐tained below thescreen"  , kind => "boolean" },
+	"move_insert_mode" => { termcap => "mir", terminfo => "mi",  label => "safe to move whilein insert mode"  , kind => "boolean" },
+	"move_standout_mode" => { termcap => "msgr", terminfo => "ms",  label => "safe to move whilein standout mode"  , kind => "boolean" },
+	"needs_xon_xoff" => { termcap => "nxon", terminfo => "nx",  label => "padding will notwork, xon/xoff re‐quired"  , kind => "boolean" },
+	"no_esc_ctlc" => { termcap => "xsb", terminfo => "xb",  label => "beehive (f1=escape,f2=ctrl C)"  , kind => "boolean" },
+	"no_pad_char" => { termcap => "npc", terminfo => "NP",  label => "pad character doesnot exist"  , kind => "boolean" },
+	"non_dest_scroll_region" => { termcap => "ndscr", terminfo => "ND",  label => "scrolling region isnon-destructive"  , kind => "boolean" },
+	"non_rev_rmcup" => { termcap => "nrrmc", terminfo => "NR",  label => "smcup does not re‐verse rmcup"  , kind => "boolean" },
+	"over_strike" => { termcap => "os", terminfo => "os",  label => "terminal can over‐strike"  , kind => "boolean" },
+	"prtr_silent" => { termcap => "mc5i", terminfo => "5i",  label => "printer will notecho on screen"  , kind => "boolean" },
+	"row_addr_glitch" => { termcap => "xvpa", terminfo => "YD",  label => "only positive motionfor vpa/mvpa caps"  , kind => "boolean" },
+	"semi_auto_right_margin" => { termcap => "sam", terminfo => "YE",  label => "printing in lastcolumn causes cr"  , kind => "boolean" },
+	"status_line_esc_ok" => { termcap => "eslok", terminfo => "es",  label => "escape can be usedon the status line"  , kind => "boolean" },
+	"tilde_glitch" => { termcap => "hz", terminfo => "hz",  label => "cannot print ~'s(Hazeltine)"  , kind => "boolean" },
+	"transparent_underline" => { termcap => "ul", terminfo => "ul",  label => "underline characteroverstrikes"  , kind => "boolean" },
+	"xon_xoff" => { termcap => "xon", terminfo => "xo",  label => "terminal usesxon/xoff handshaking"  , kind => "boolean" },
+	"columns" => { termcap => "cols", terminfo => "co",  label => "number of columns ina line"  , kind => "integer" },
+	"init_tabs" => { termcap => "it", terminfo => "it",  label => "tabs initially every X spaces"  , kind => "integer" },
+	"label_height" => { termcap => "lh", terminfo => "lh",  label => "rows in each label"  , kind => "integer" },
+	"label_width" => { termcap => "lw", terminfo => "lw",  label => "columns in each la‐bel"  , kind => "integer" },
+	"lines" => { termcap => "lines", terminfo => "li",  label => "number of lines onscreen or page"  , kind => "integer" },
+	"lines_of_memory" => { termcap => "lm", terminfo => "lm",  label => "lines of memory if >line. 0 means varies"  , kind => "integer" },
+	"magic_cookie_glitch" => { termcap => "xmc", terminfo => "sg",  label => "number of blankcharacters left bysmso or rmso"  , kind => "integer" },
+	"max_attributes" => { termcap => "ma", terminfo => "ma",  label => "maximum combined at‐tributes terminalcan handle"  , kind => "integer" },
+	"max_colors" => { termcap => "colors", terminfo => "Co",  label => "maximum number of colors on screen"  , kind => "integer" },
+	"max_pairs" => { termcap => "pairs", terminfo => "pa",  label => "maximum number of color pairs on the screen"  , kind => "integer" },
+	"maximum_windows" => { termcap => "wnum", terminfo => "MW",  label => "maximum number of definable windows"  , kind => "integer" },
+	"no_color_video" => { termcap => "ncv", terminfo => "NC",  label => "video attributesthat cannot be used with colors"  , kind => "integer" },
+	"num_labels" => { termcap => "nlab", terminfo => "Nl",  label => "number of labels on screen"  , kind => "integer" },
+	"padding_baud_rate" => { termcap => "pb", terminfo => "pb",  label => "lowest baud ratewhere padding needed"  , kind => "integer" },
+	"virtual_terminal" => { termcap => "vt", terminfo => "vt",  label => "virtual terminalnumber (CB/unix)"  , kind => "integer" },
+	"width_status_line" => { termcap => "wsl", terminfo => "ws",  label => "number of columns instatus line"  , kind => "integer" },
+	"bit_image_entwining" => { termcap => "bitwin", terminfo => "Yo",  label => "number of passes foreach bit-image row"  , kind => "integer" },
+	"bit_image_type" => { termcap => "bitype", terminfo => "Yp",  label => "type of bit-image device"  , kind => "integer" },
+	"buffer_capacity" => { termcap => "bufsz", terminfo => "Ya",  label => "numbers of bytesbuffered beforeprinting"  , kind => "integer" },
+	"buttons" => { termcap => "btns", terminfo => "BT",  label => "number of buttons onmouse"  , kind => "integer" },
+	"dot_horz_spacing" => { termcap => "spinh", terminfo => "Yc",  label => "spacing of dots hor‐izontally in dotsper inch"  , kind => "integer" },
+	"dot_vert_spacing" => { termcap => "spinv", terminfo => "Yb",  label => "spacing of pins ver‐tically in pins perinch"  , kind => "integer" },
+	"max_micro_address" => { termcap => "maddr", terminfo => "Yd",  label => "maximum value in mi‐cro_..._address"  , kind => "integer" },
+	"max_micro_jump" => { termcap => "mjump", terminfo => "Ye",  label => "maximum value inparm_..._micro"  , kind => "integer" },
+	"micro_col_size" => { termcap => "mcs", terminfo => "Yf",  label => "character step sizewhen in micro mode"  , kind => "integer" },
+	"micro_line_size" => { termcap => "mls", terminfo => "Yg",  label => "line step size whenin micro mode"  , kind => "integer" },
+	"number_of_pins" => { termcap => "npins", terminfo => "Yh",  label => "numbers of pins in print-head"  , kind => "integer" },
+	"output_res_char" => { termcap => "orc", terminfo => "Yi",  label => "horizontal resolu‐tion in units perline"  , kind => "integer" },
+	"output_res_horz_inch" => { termcap => "orhi", terminfo => "Yk",  label => "horizontal resolu‐tion in units perinch"  , kind => "integer" },
+	"output_res_line" => { termcap => "orl", terminfo => "Yj",  label => "vertical resolutionin units per line"  , kind => "integer" },
+	"output_res_vert_inch" => { termcap => "orvi", terminfo => "Yl",  label => "vertical resolutionin units per inch"  , kind => "integer" },
+	"print_rate" => { termcap => "cps", terminfo => "Ym",  label => "print rate in characters per second"  , kind => "integer" },
+	"wide_char_size" => { termcap => "widcs", terminfo => "Yn",  label => "character step sizewhen in double widemode"  , kind => "integer" },
+	"acs_chars" => { termcap => "acsc", terminfo => "ac",  label => "graphics charsetpairs, based onvt100"  , kind => "string" },
+	"back_tab" => { termcap => "cbt", terminfo => "bt",  label => "back tab (P)"  , kind => "string" },
+	"bell" => { termcap => "bel", terminfo => "bl",  label => "audible signal(bell) (P)"  , kind => "string" },
+	"carriage_return" => { termcap => "cr", terminfo => "cr",  label => "carriage return (P*)(P*)"  , kind => "string" },
+	"change_char_pitch" => { termcap => "cpi", terminfo => "ZA",  label => "Change number ofcharacters per in ch to N"  , kind => "string" },
+	"change_line_pitch" => { termcap => "lpi", terminfo => "ZB",  label => "Change number oflines per inch to  N "  , kind => "string" },
+	"change_res_horz" => { termcap => "chr", terminfo => "ZC",  label => "Change horizontalresolution to  N "  , kind => "string" },
+	"change_res_vert" => { termcap => "cvr", terminfo => "ZD",  label => "Change vertical resolution to  N "  , kind => "string" },
+	"change_scroll_region" => { termcap => "csr", terminfo => "cs",  label => "change region toline  N  to line  M (x L)"  , kind => "string" },
+	"char_padding" => { termcap => "rmp", terminfo => "rP",  label => "like ip but when ininsert mode"  , kind => "string" },
+	"clear_all_tabs" => { termcap => "tbc", terminfo => "ct",  label => "clear all tab stops(x L)"  , kind => "string" },
+	"clear_margins" => { termcap => "mgc", terminfo => "MC",  label => "clear right and leftsoft margins"  , kind => "string" },
+	"clear_screen" => { termcap => "clear", terminfo => "cl",  label => "clear screen andhome cursor (x L)"  , kind => "string" },
+	"clr_bol" => { termcap => "el1", terminfo => "cb",  label => "Clear to beginningof line"  , kind => "string" },
+	"clr_eol" => { termcap => "el", terminfo => "ce",  label => "clear to end of line(x L)"  , kind => "string" },
+	"clr_eos" => { termcap => "ed", terminfo => "cd",  label => "clear to end ofscreen (x L)"  , kind => "string" },
+	"column_address" => { termcap => "hpa", terminfo => "ch",  label => "horizontal position  N , absolute (x L)"  , kind => "string" },
+	"command_character" => { termcap => "cmdch", terminfo => "CC",  label => "terminal settablecmd character inprototype !?"  , kind => "string" },
+	"create_window" => { termcap => "cwin", terminfo => "CW",  label => "define a window  N  from  M ,#3 to #4,#5"  , kind => "string" },
+	"cursor_address" => { termcap => "cup", terminfo => "cm",  label => "move to row  N  columns  M "  , kind => "string" },
+	"cursor_down" => { termcap => "cud1", terminfo => "do",  label => "down one line"  , kind => "string" },
+	"cursor_home" => { termcap => "home", terminfo => "ho",  label => "home cursor (if nocup)"  , kind => "string" },
+	"cursor_invisible" => { termcap => "civis", terminfo => "vi",  label => "make cursor invisible"  , kind => "string" },
+	"cursor_left" => { termcap => "cub1", terminfo => "le",  label => "move left one space"  , kind => "string" },
+	"cursor_mem_address" => { termcap => "mrcup", terminfo => "CM",  label => "memory relative cursor addressing, moveto row  N  columns  M "  , kind => "string" },
+	"cursor_normal" => { termcap => "cnorm", terminfo => "ve",  label => "make cursor appearnormal (undocivis/cvvis)"  , kind => "string" },
+	"cursor_right" => { termcap => "cuf1", terminfo => "nd",  label => "non-destructivespace (move rightone space)"  , kind => "string" },
+	"cursor_to_ll" => { termcap => "ll", terminfo => "ll",  label => "last line, firstcolumn (if no cup)"  , kind => "string" },
+	"cursor_up" => { termcap => "cuu1", terminfo => "up",  label => "up one line"  , kind => "string" },
+	"cursor_visible" => { termcap => "cvvis", terminfo => "vs",  label => "make cursor veryvisible"  , kind => "string" },
+	"define_char" => { termcap => "defc", terminfo => "ZE",  label => "Define a character N ,  M  dots wide,descender #3"  , kind => "string" },
+	"delete_character" => { termcap => "dch1", terminfo => "dc",  label => "delete character(x L)"  , kind => "string" },
+	"delete_line" => { termcap => "dl1", terminfo => "dl",  label => "delete line (x L)"  , kind => "string" },
+	"dial_phone" => { termcap => "dial", terminfo => "DI",  label => "dial number  N "  , kind => "string" },
+	"dis_status_line" => { termcap => "dsl", terminfo => "ds",  label => "disable status line"  , kind => "string" },
+	"display_clock" => { termcap => "dclk", terminfo => "DK",  label => "display clock"  , kind => "string" },
+	"down_half_line" => { termcap => "hd", terminfo => "hd",  label => "half a line down"  , kind => "string" },
+	"ena_acs" => { termcap => "enacs", terminfo => "eA",  label => "enable alternatechar set"  , kind => "string" },
+	"enter_alt_charset_mode" => { termcap => "smacs", terminfo => "as",  label => "start alternatecharacter set (P)"  , kind => "string" },
+	"enter_am_mode" => { termcap => "smam", terminfo => "SA",  label => "turn on automaticmargins"  , kind => "string" },
+	"enter_blink_mode" => { termcap => "blink", terminfo => "mb",  label => "turn on blinking"  , kind => "string" },
+	"enter_bold_mode" => { termcap => "bold", terminfo => "md",  label => "turn on bold (extrabright) mode"  , kind => "string" },
+	"enter_ca_mode" => { termcap => "smcup", terminfo => "ti",  label => "string to start programs using cup"  , kind => "string" },
+	"enter_delete_mode" => { termcap => "smdc", terminfo => "dm",  label => "enter delete mode"  , kind => "string" },
+	"enter_dim_mode" => { termcap => "dim", terminfo => "mh",  label => "turn on half-brightmode"  , kind => "string" },
+	"enter_doublewide_mode" => { termcap => "swidm", terminfo => "ZF",  label => "Enter double-widemode"  , kind => "string" },
+	"enter_draft_quality" => { termcap => "sdrfq", terminfo => "ZG",  label => "Enter draft-qualitymode"  , kind => "string" },
+	"enter_insert_mode" => { termcap => "smir", terminfo => "im",  label => "enter insert mode"  , kind => "string" },
+	"enter_italics_mode" => { termcap => "sitm", terminfo => "ZH",  label => "Enter italic mode"  , kind => "string" },
+	"enter_leftward_mode" => { termcap => "slm", terminfo => "ZI",  label => "Start leftward car‐riage motion"  , kind => "string" },
+	"enter_micro_mode" => { termcap => "smicm", terminfo => "ZJ",  label => "Start micro-motionmode"  , kind => "string" },
+	"enter_near_letter_quality" => { termcap => "snlq", terminfo => "ZK",  label => "Enter NLQ mode"  , kind => "string" },
+	"enter_normal_quality" => { termcap => "snrmq", terminfo => "ZL",  label => "Enter normal-qualitymode"  , kind => "string" },
+	"enter_protected_mode" => { termcap => "prot", terminfo => "mp",  label => "turn on protectedmode"  , kind => "string" },
+	"enter_reverse_mode" => { termcap => "rev", terminfo => "mr",  label => "turn on reversevideo mode"  , kind => "string" },
+	"enter_secure_mode" => { termcap => "invis", terminfo => "mk",  label => "turn on blank mode(characters invisi‐ble)"  , kind => "string" },
+	"enter_shadow_mode" => { termcap => "sshm", terminfo => "ZM",  label => "Enter shadow-printmode"  , kind => "string" },
+	"enter_standout_mode" => { termcap => "smso", terminfo => "so",  label => "begin standout mode"  , kind => "string" },
+	"enter_subscript_mode" => { termcap => "ssubm", terminfo => "ZN",  label => "Enter subscript mode"  , kind => "string" },
+	"enter_superscript_mode" => { termcap => "ssupm", terminfo => "ZO",  label => "Enter superscriptmode"  , kind => "string" },
+	"enter_underline_mode" => { termcap => "smul", terminfo => "us",  label => "begin underline mode"  , kind => "string" },
+	"enter_upward_mode" => { termcap => "sum", terminfo => "ZP",  label => "Start upward car‐riage motion"  , kind => "string" },
+	"enter_xon_mode" => { termcap => "smxon", terminfo => "SX",  label => "turn on xon/xoffhandshaking"  , kind => "string" },
+	"erase_chars" => { termcap => "ech", terminfo => "ec",  label => "erase #1 characters(P)"  , kind => "string" },
+	"exit_alt_charset_mode" => { termcap => "rmacs", terminfo => "ae",  label => "end alternate char‐acter set (P)"  , kind => "string" },
+	"exit_am_mode" => { termcap => "rmam", terminfo => "RA",  label => "turn off automaticmargins"  , kind => "string" },
+	"exit_attribute_mode" => { termcap => "sgr0", terminfo => "me",  label => "turn off all at‐tributes"  , kind => "string" },
+	"exit_ca_mode" => { termcap => "rmcup", terminfo => "te",  label => "strings to end pro‐grams using cup"  , kind => "string" },
+	"exit_delete_mode" => { termcap => "rmdc", terminfo => "ed",  label => "end delete mode"  , kind => "string" },
+	"exit_doublewide_mode" => { termcap => "rwidm", terminfo => "ZQ",  label => "End double-wide mode"  , kind => "string" },
+	"exit_insert_mode" => { termcap => "rmir", terminfo => "ei",  label => "exit insert mode"  , kind => "string" },
+	"exit_italics_mode" => { termcap => "ritm", terminfo => "ZR",  label => "End italic mode"  , kind => "string" },
+	"exit_leftward_mode" => { termcap => "rlm", terminfo => "ZS",  label => "End left-motion mode"  , kind => "string" },
+	"exit_micro_mode" => { termcap => "rmicm", terminfo => "ZT",  label => "End micro-motionmode"  , kind => "string" },
+	"exit_shadow_mode" => { termcap => "rshm", terminfo => "ZU",  label => "End shadow-printmode"  , kind => "string" },
+	"exit_standout_mode" => { termcap => "rmso", terminfo => "se",  label => "exit standout mode"  , kind => "string" },
+	"exit_subscript_mode" => { termcap => "rsubm", terminfo => "ZV",  label => "End subscript mode"  , kind => "string" },
+	"exit_superscript_mode" => { termcap => "rsupm", terminfo => "ZW",  label => "End superscript mode"  , kind => "string" },
+	"exit_underline_mode" => { termcap => "rmul", terminfo => "ue",  label => "exit underline mode"  , kind => "string" },
+	"exit_upward_mode" => { termcap => "rum", terminfo => "ZX",  label => "End reverse charac‐ter motion"  , kind => "string" },
+	"exit_xon_mode" => { termcap => "rmxon", terminfo => "RX",  label => "turn off xon/xoffhandshaking"  , kind => "string" },
+	"fixed_pause" => { termcap => "pause", terminfo => "PA",  label => "pause for 2-3 sec‐onds"  , kind => "string" },
+	"flash_hook" => { termcap => "hook", terminfo => "fh",  label => "flash switch hook"  , kind => "string" },
+	"flash_screen" => { termcap => "flash", terminfo => "vb",  label => "visible bell (maynot move cursor)"  , kind => "string" },
+	"form_feed" => { termcap => "ff", terminfo => "ff",  label => "hardcopy terminalpage eject (P*)"  , kind => "string" },
+	"from_status_line" => { termcap => "fsl", terminfo => "fs",  label => "return from statusline"  , kind => "string" },
+	"goto_window" => { termcap => "wingo", terminfo => "WG",  label => "go to window N"  , kind => "string" },
+	"hangup" => { termcap => "hup", terminfo => "HU",  label => "hangup phone"  , kind => "string" },
+	"init_1string" => { termcap => "is1", terminfo => "i1",  label => "initialization string 1"  , kind => "string" },
+	"init_2string" => { termcap => "is2", terminfo => "is",  label => "initialization string 2"   , kind => "string" },
+	"init_3string" => { termcap => "is3", terminfo => "i3",  label => "initialization string 3"  , kind => "string" },
+	"init_file" => { termcap => "if", terminfo => "if",  label => "name of initialization file"  , kind => "string" },
+	"init_prog" => { termcap => "iprog", terminfo => "iP",  label => "path name of program for initialization"  , kind => "string" },
+	"initialize_color" => { termcap => "initc", terminfo => "Ic",  label => "initialize color N to (M,N,O)"  , kind => "string" },
+	"initialize_pair" => { termcap => "initp", terminfo => "Ip",  label => "Initialize color pair N to fg=(m,n,o) bg=(p,q,r)"  , kind => "string" },
+	"insert_character" => { termcap => "ich1", terminfo => "ic",  label => "insert character (L)"  , kind => "string" },
+	"insert_line" => { termcap => "il1", terminfo => "al",  label => "insert line (L x)"  , kind => "string" },
+	"insert_padding" => { termcap => "ip", terminfo => "ip",  label => "insert padding afterinserted character"  , kind => "string" },
+	"key_a1" => { termcap => "ka1", terminfo => "K1",  label => "upper left of keypad"  , kind => "string" },
+	"key_a3" => { termcap => "ka3", terminfo => "K3",  label => "upper right of key‐pad"  , kind => "string" },
+	"key_b2" => { termcap => "kb2", terminfo => "K2",  label => "center of keypad"  , kind => "string" },
+	"key_backspace" => { termcap => "kbs", terminfo => "kb",  label => "backspace key"  , kind => "string" },
+	"key_beg" => { termcap => "kbeg", terminfo => "@1",  label => "begin key"  , kind => "string" },
+	"key_btab" => { termcap => "kcbt", terminfo => "kB",  label => "back-tab key"  , kind => "string" },
+	"key_c1" => { termcap => "kc1", terminfo => "K4",  label => "lower left of keypad"  , kind => "string" },
+	"key_c3" => { termcap => "kc3", terminfo => "K5",  label => "lower right of key‐pad"  , kind => "string" },
+	"key_cancel" => { termcap => "kcan", terminfo => "@2",  label => "cancel key"  , kind => "string" },
+	"key_catab" => { termcap => "ktbc", terminfo => "ka",  label => "clear-all-tabs key"  , kind => "string" },
+	"key_clear" => { termcap => "kclr", terminfo => "kC",  label => "clear-screen orerase key"  , kind => "string" },
+	"key_close" => { termcap => "kclo", terminfo => "@3",  label => "close key"  , kind => "string" },
+	"key_command" => { termcap => "kcmd", terminfo => "@4",  label => "command key"  , kind => "string" },
+	"key_copy" => { termcap => "kcpy", terminfo => "@5",  label => "copy key"  , kind => "string" },
+	"key_create" => { termcap => "kcrt", terminfo => "@6",  label => "create key"  , kind => "string" },
+	"key_ctab" => { termcap => "kctab", terminfo => "kt",  label => "clear-tab key"  , kind => "string" },
+	"key_dc" => { termcap => "kdch1", terminfo => "kD",  label => "delete-character key"  , kind => "string" },
+	"key_dl" => { termcap => "kdl1", terminfo => "kL",  label => "delete-line key"  , kind => "string" },
+	"key_down" => { termcap => "kcud1", terminfo => "kd",  label => "down-arrow key"  , kind => "string" },
+	"key_eic" => { termcap => "krmir", terminfo => "kM",  label => "sent by rmir or smirin insert mode"  , kind => "string" },
+	"key_end" => { termcap => "kend", terminfo => "@7",  label => "end key"  , kind => "string" },
+	"key_enter" => { termcap => "kent", terminfo => "@8",  label => "enter/send key"  , kind => "string" },
+	"key_eol" => { termcap => "kel", terminfo => "kE",  label => "clear-to-end-of-linekey"  , kind => "string" },
+	"key_eos" => { termcap => "ked", terminfo => "kS",  label => "clear-to-end-of-screen key"  , kind => "string" },
+	"key_exit" => { termcap => "kext", terminfo => "@9",  label => "exit key"  , kind => "string" },
+	"key_f0" => { termcap => "kf0", terminfo => "k0",  label => "F0 function key"  , kind => "string" },
+	"key_f1" => { termcap => "kf1", terminfo => "k1",  label => "F1 function key"  , kind => "string" },
+	"key_f10" => { termcap => "kf10", terminfo => "k;",  label => "F10 function key"  , kind => "string" },
+	"key_f11" => { termcap => "kf11", terminfo => "F1",  label => "F11 function key"  , kind => "string" },
+	"key_f12" => { termcap => "kf12", terminfo => "F2",  label => "F12 function key"  , kind => "string" },
+	"key_f13" => { termcap => "kf13", terminfo => "F3",  label => "F13 function key"  , kind => "string" },
+	"key_f14" => { termcap => "kf14", terminfo => "F4",  label => "F14 function key"  , kind => "string" },
+	"key_f15" => { termcap => "kf15", terminfo => "F5",  label => "F15 function key"  , kind => "string" },
+	"key_f16" => { termcap => "kf16", terminfo => "F6",  label => "F16 function key"  , kind => "string" },
+	"key_f17" => { termcap => "kf17", terminfo => "F7",  label => "F17 function key"  , kind => "string" },
+	"key_f18" => { termcap => "kf18", terminfo => "F8",  label => "F18 function key"  , kind => "string" },
+	"key_f19" => { termcap => "kf19", terminfo => "F9",  label => "F19 function key"  , kind => "string" },
+	"key_f2" => { termcap => "kf2", terminfo => "k2",  label => "F2 function key"  , kind => "string" },
+	"key_f20" => { termcap => "kf20", terminfo => "FA",  label => "F20 function key"  , kind => "string" },
+	"key_f21" => { termcap => "kf21", terminfo => "FB",  label => "F21 function key"  , kind => "string" },
+	"key_f22" => { termcap => "kf22", terminfo => "FC",  label => "F22 function key"  , kind => "string" },
+	"key_f23" => { termcap => "kf23", terminfo => "FD",  label => "F23 function key"  , kind => "string" },
+	"key_f24" => { termcap => "kf24", terminfo => "FE",  label => "F24 function key"  , kind => "string" },
+	"key_f25" => { termcap => "kf25", terminfo => "FF",  label => "F25 function key"  , kind => "string" },
+	"key_f26" => { termcap => "kf26", terminfo => "FG",  label => "F26 function key"  , kind => "string" },
+	"key_f27" => { termcap => "kf27", terminfo => "FH",  label => "F27 function key"  , kind => "string" },
+	"key_f28" => { termcap => "kf28", terminfo => "FI",  label => "F28 function key"  , kind => "string" },
+	"key_f29" => { termcap => "kf29", terminfo => "FJ",  label => "F29 function key"  , kind => "string" },
+	"key_f3" => { termcap => "kf3", terminfo => "k3",  label => "F3 function key"  , kind => "string" },
+	"key_f30" => { termcap => "kf30", terminfo => "FK",  label => "F30 function key"  , kind => "string" },
+	"key_f31" => { termcap => "kf31", terminfo => "FL",  label => "F31 function key"  , kind => "string" },
+	"key_f32" => { termcap => "kf32", terminfo => "FM",  label => "F32 function key"  , kind => "string" },
+	"key_f33" => { termcap => "kf33", terminfo => "FN",  label => "F33 function key"  , kind => "string" },
+	"key_f34" => { termcap => "kf34", terminfo => "FO",  label => "F34 function key"  , kind => "string" },
+	"key_f35" => { termcap => "kf35", terminfo => "FP",  label => "F35 function key"  , kind => "string" },
+	"key_f36" => { termcap => "kf36", terminfo => "FQ",  label => "F36 function key"  , kind => "string" },
+	"key_f37" => { termcap => "kf37", terminfo => "FR",  label => "F37 function key"  , kind => "string" },
+	"key_f38" => { termcap => "kf38", terminfo => "FS",  label => "F38 function key"  , kind => "string" },
+	"key_f39" => { termcap => "kf39", terminfo => "FT",  label => "F39 function key"  , kind => "string" },
+	"key_f4" => { termcap => "kf4", terminfo => "k4",  label => "F4 function key"  , kind => "string" },
+	"key_f40" => { termcap => "kf40", terminfo => "FU",  label => "F40 function key"  , kind => "string" },
+	"key_f41" => { termcap => "kf41", terminfo => "FV",  label => "F41 function key"  , kind => "string" },
+	"key_f42" => { termcap => "kf42", terminfo => "FW",  label => "F42 function key"  , kind => "string" },
+	"key_f43" => { termcap => "kf43", terminfo => "FX",  label => "F43 function key"  , kind => "string" },
+	"key_f44" => { termcap => "kf44", terminfo => "FY",  label => "F44 function key"  , kind => "string" },
+	"key_f45" => { termcap => "kf45", terminfo => "FZ",  label => "F45 function key"  , kind => "string" },
+	"key_f46" => { termcap => "kf46", terminfo => "Fa",  label => "F46 function key"  , kind => "string" },
+	"key_f47" => { termcap => "kf47", terminfo => "Fb",  label => "F47 function key"  , kind => "string" },
+	"key_f48" => { termcap => "kf48", terminfo => "Fc",  label => "F48 function key"  , kind => "string" },
+	"key_f49" => { termcap => "kf49", terminfo => "Fd",  label => "F49 function key"  , kind => "string" },
+	"key_f5" => { termcap => "kf5", terminfo => "k5",  label => "F5 function key"  , kind => "string" },
+	"key_f50" => { termcap => "kf50", terminfo => "Fe",  label => "F50 function key"  , kind => "string" },
+	"key_f51" => { termcap => "kf51", terminfo => "Ff",  label => "F51 function key"  , kind => "string" },
+	"key_f52" => { termcap => "kf52", terminfo => "Fg",  label => "F52 function key"  , kind => "string" },
+	"key_f53" => { termcap => "kf53", terminfo => "Fh",  label => "F53 function key"  , kind => "string" },
+	"key_f54" => { termcap => "kf54", terminfo => "Fi",  label => "F54 function key"  , kind => "string" },
+	"key_f55" => { termcap => "kf55", terminfo => "Fj",  label => "F55 function key"  , kind => "string" },
+	"key_f56" => { termcap => "kf56", terminfo => "Fk",  label => "F56 function key"  , kind => "string" },
+	"key_f57" => { termcap => "kf57", terminfo => "Fl",  label => "F57 function key"  , kind => "string" },
+	"key_f58" => { termcap => "kf58", terminfo => "Fm",  label => "F58 function key"  , kind => "string" },
+	"key_f59" => { termcap => "kf59", terminfo => "Fn",  label => "F59 function key"  , kind => "string" },
+	"key_f6" => { termcap => "kf6", terminfo => "k6",  label => "F6 function key"  , kind => "string" },
+	"key_f60" => { termcap => "kf60", terminfo => "Fo",  label => "F60 function key"  , kind => "string" },
+	"key_f61" => { termcap => "kf61", terminfo => "Fp",  label => "F61 function key"  , kind => "string" },
+	"key_f62" => { termcap => "kf62", terminfo => "Fq",  label => "F62 function key"  , kind => "string" },
+	"key_f63" => { termcap => "kf63", terminfo => "Fr",  label => "F63 function key"  , kind => "string" },
+	"key_f7" => { termcap => "kf7", terminfo => "k7",  label => "F7 function key"  , kind => "string" },
+	"key_f8" => { termcap => "kf8", terminfo => "k8",  label => "F8 function key"  , kind => "string" },
+	"key_f9" => { termcap => "kf9", terminfo => "k9",  label => "F9 function key"  , kind => "string" },
+	"key_find" => { termcap => "kfnd", terminfo => '@0',  label => "find key"  , kind => "string" },
+	"key_help" => { termcap => "khlp", terminfo => "%1",  label => "help key"  , kind => "string" },
+	"key_home" => { termcap => "khome", terminfo => "kh",  label => "home key"  , kind => "string" },
+	"key_ic" => { termcap => "kich1", terminfo => "kI",  label => "insert-character key"  , kind => "string" },
+	"key_il" => { termcap => "kil1", terminfo => "kA",  label => "insert-line key"  , kind => "string" },
+	"key_left" => { termcap => "kcub1", terminfo => "kl",  label => "left-arrow key"  , kind => "string" },
+	"key_ll" => { termcap => "kll", terminfo => "kH",  label => "lower-left key (homedown)"  , kind => "string" },
+	"key_mark" => { termcap => "kmrk", terminfo => "%2",  label => "mark key"  , kind => "string" },
+	"key_message" => { termcap => "kmsg", terminfo => "%3",  label => "message key"  , kind => "string" },
+	"key_move" => { termcap => "kmov", terminfo => "%4",  label => "move key"  , kind => "string" },
+	"key_next" => { termcap => "knxt", terminfo => "%5",  label => "next key"  , kind => "string" },
+	"key_npage" => { termcap => "knp", terminfo => "kN",  label => "next-page key"  , kind => "string" },
+	"key_open" => { termcap => "kopn", terminfo => "%6",  label => "open key"  , kind => "string" },
+	"key_options" => { termcap => "kopt", terminfo => "%7",  label => "options key"  , kind => "string" },
+	"key_ppage" => { termcap => "kpp", terminfo => "kP",  label => "previous-page key"  , kind => "string" },
+	"key_previous" => { termcap => "kprv", terminfo => "%8",  label => "previous key"  , kind => "string" },
+	"key_print" => { termcap => "kprt", terminfo => "%9",  label => "print key"  , kind => "string" },
+	"key_redo" => { termcap => "krdo", terminfo => "%0",  label => "redo key"  , kind => "string" },
+	"key_reference" => { termcap => "kref", terminfo => "&1",  label => "reference key"  , kind => "string" },
+	"key_refresh" => { termcap => "krfr", terminfo => "&2",  label => "refresh key"  , kind => "string" },
+	"key_replace" => { termcap => "krpl", terminfo => "&3",  label => "replace key"  , kind => "string" },
+	"key_restart" => { termcap => "krst", terminfo => "&4",  label => "restart key"  , kind => "string" },
+	"key_resume" => { termcap => "kres", terminfo => "&5",  label => "resume key"  , kind => "string" },
+	"key_right" => { termcap => "kcuf1", terminfo => "kr",  label => "right-arrow key"  , kind => "string" },
+	"key_save" => { termcap => "ksav", terminfo => "&6",  label => "save key"  , kind => "string" },
+	"key_sbeg" => { termcap => "kBEG", terminfo => "&9",  label => "shifted begin key"  , kind => "string" },
+	"key_scancel" => { termcap => "kCAN", terminfo => "&0",  label => "shifted cancel key"  , kind => "string" },
+	"key_scommand" => { termcap => "kCMD", terminfo => "*1",  label => "shifted command key"  , kind => "string" },
+	"key_scopy" => { termcap => "kCPY", terminfo => "*2",  label => "shifted copy key"  , kind => "string" },
+	"key_screate" => { termcap => "kCRT", terminfo => "*3",  label => "shifted create key"  , kind => "string" },
+	"key_sdc" => { termcap => "kDC", terminfo => "*4",  label => "shifted delete-char‐acter key"  , kind => "string" },
+	"key_sdl" => { termcap => "kDL", terminfo => "*5",  label => "shifted delete-linekey"  , kind => "string" },
+	"key_select" => { termcap => "kslt", terminfo => "*6",  label => "select key"  , kind => "string" },
+	"key_send" => { termcap => "kEND", terminfo => "*7",  label => "shifted end key"  , kind => "string" },
+	"key_seol" => { termcap => "kEOL", terminfo => "*8",  label => "shifted clear-to-end-of-line key"  , kind => "string" },
+	"key_sexit" => { termcap => "kEXT", terminfo => "*9",  label => "shifted exit key"  , kind => "string" },
+	"key_sf" => { termcap => "kind", terminfo => "kF",  label => "scroll-forward key"  , kind => "string" },
+	"key_sfind" => { termcap => "kFND", terminfo => "*0",  label => "shifted find key"  , kind => "string" },
+	"key_shelp" => { termcap => "kHLP", terminfo => "#1",  label => "shifted help key"  , kind => "string" },
+	"key_shome" => { termcap => "kHOM", terminfo => "#2",  label => "shifted home key"  , kind => "string" },
+	"key_sic" => { termcap => "kIC", terminfo => 	"#3",  label => "shifted insert-char‐acter key"  , kind => "string" },
+	"key_sleft" => { termcap => "kLFT", terminfo => "#4",  label => "shifted left-arrowkey"  , kind => "string" },
+	"key_smessage" => { termcap => "kMSG", terminfo => "%a",  label => "shifted message key"  , kind => "string" },
+	"key_smove" => { termcap => "kMOV", terminfo => "%b",  label => "shifted move key"  , kind => "string" },
+	"key_snext" => { termcap => "kNXT", terminfo => "%c",  label => "shifted next key"  , kind => "string" },
+	"key_soptions" => { termcap => "kOPT", terminfo => "%d",  label => "shifted options key"  , kind => "string" },
+	"key_sprevious" => { termcap => "kPRV", terminfo => "%e",  label => "shifted previous key"  , kind => "string" },
+	"key_sprint" => { termcap => "kPRT", terminfo => "%f",  label => "shifted print key"  , kind => "string" },
+	"key_sr" => { termcap => "kri", terminfo => "kR",  label => "scroll-backward key"  , kind => "string" },
+	"key_sredo" => { termcap => "kRDO", terminfo => "%g",  label => "shifted redo key"  , kind => "string" },
+	"key_sreplace" => { termcap => "kRPL", terminfo => "%h",  label => "shifted replace key"  , kind => "string" },
+	"key_sright" => { termcap => "kRIT", terminfo => "%i",  label => "shifted right-arrowkey"  , kind => "string" },
+	"key_srsume" => { termcap => "kRES", terminfo => "%j",  label => "shifted resume key"  , kind => "string" },
+	"key_ssave" => { termcap => "kSAV", terminfo => "!1",  label => "shifted save key"  , kind => "string" },
+	"key_ssuspend" => { termcap => "kSPD", terminfo => "!2",  label => "shifted suspend key"  , kind => "string" },
+	"key_stab" => { termcap => "khts", terminfo => "kT",  label => "set tab key"  , kind => "string" },
+	"key_sundo" => { termcap => "kUND", terminfo => "!3",  label => "shifted undo key"  , kind => "string" },
+	"key_suspend" => { termcap => "kspd", terminfo => "&7",  label => "suspend key"  , kind => "string" },
+	"key_undo" => { termcap => "kund", terminfo => "&8",  label => "undo key"  , kind => "string" },
+	"key_up" => { termcap => "kcuu1", terminfo => "ku",  label => "up-arrow key"  , kind => "string" },
+	"keypad_local" => { termcap => "rmkx", terminfo => "ke",  label => "leave 'keyboard_transmit' mode"  , kind => "string" },
+	"keypad_xmit" => { termcap => "smkx", terminfo => "ks",  label => "enter 'keyboard_transmit' mode"  , kind => "string" },
+	"lab_f0" => { termcap => "lf0", terminfo => "l0",  label => "label on functionkey f0 if not f0"  , kind => "string" },
+	"lab_f1" => { termcap => "lf1", terminfo => "l1",  label => "label on functionkey f1 if not f1"  , kind => "string" },
+	"lab_f10" => { termcap => "lf10", terminfo => "la",  label => "label on functionkey f10 if not f10"  , kind => "string" },
+	"lab_f2" => { termcap => "lf2", terminfo => "l2",  label => "label on functionkey f2 if not f2"  , kind => "string" },
+	"lab_f3" => { termcap => "lf3", terminfo => "l3",  label => "label on functionkey f3 if not f3"  , kind => "string" },
+	"lab_f4" => { termcap => "lf4", terminfo => "l4",  label => "label on functionkey f4 if not f4"  , kind => "string" },
+	"lab_f5" => { termcap => "lf5", terminfo => "l5",  label => "label on functionkey f5 if not f5"  , kind => "string" },
+	"lab_f6" => { termcap => "lf6", terminfo => "l6",  label => "label on functionkey f6 if not f6"  , kind => "string" },
+	"lab_f7" => { termcap => "lf7", terminfo => "l7",  label => "label on functionkey f7 if not f7"  , kind => "string" },
+	"lab_f8" => { termcap => "lf8", terminfo => "l8",  label => "label on functionkey f8 if not f8"  , kind => "string" },
+	"lab_f9" => { termcap => "lf9", terminfo => "l9",  label => "label on functionkey f9 if not f9"  , kind => "string" },
+	"label_format" => { termcap => "fln", terminfo => "Lf",  label => "label format"  , kind => "string" },
+	"label_off" => { termcap => "rmln", terminfo => "LF",  label => "turn off soft labels"  , kind => "string" },
+	"label_on" => { termcap => "smln", terminfo => "LO",  label => "turn on soft labels"  , kind => "string" },
+	"meta_off" => { termcap => "rmm", terminfo => "mo",  label => "turn off meta mode"  , kind => "string" },
+	"meta_on" => { termcap => "smm", terminfo => "mm",  label => "turn on meta mode (8th-bit on)"  , kind => "string" },
+	"micro_column_address" => { termcap => "mhpa", terminfo => "ZY",  label => "Like column_address in micro mode"  , kind => "string" },
+	"micro_down" => { termcap => "mcud1", terminfo => "ZZ",  label => "Like cursor_down in micro mode"  , kind => "string" },
+	"micro_left" => { termcap => "mcub1", terminfo => "Za",  label => "Like cursor_left in micro mode"  , kind => "string" },
+	"micro_right" => { termcap => "mcuf1", terminfo => "Zb",  label => "Like cursor_right in micro mode"  , kind => "string" },
+	"micro_row_address" => { termcap => "mvpa", terminfo => "Zc",  label => "Like row_address N in micro mode"  , kind => "string" },
+	"micro_up" => { termcap => "mcuu1", terminfo => "Zd",  label => "Like cursor_up in micro mode"  , kind => "string" },
+	"newline" => { termcap => "nel", terminfo => "nw",  label => "newline (behave like CR followed by LF)"  , kind => "string" },
+	"order_of_pins" => { termcap => "porder", terminfo => "Ze",  label => "Match software bits to print head pins"  , kind => "string" },
+	"orig_colors" => { termcap => "oc", terminfo => "oc",  label => "Set all color pairs to the original ones"  , kind => "string" },
+	"orig_pair" => { termcap => "op", terminfo => "op",  label => "Set default pair to its original value"  , kind => "string" },
+	"pad_char" => { termcap => "pad", terminfo => "pc",  label => "padding char (instead of null)"  , kind => "string" },
+	"parm_dch" => { termcap => "dch", terminfo => "DC",  label => "delete N characters(M*)"  , kind => "string" },
+	"parm_delete_line" => { termcap => "dl", terminfo => "DL",  label => "delete N lines (M*)"  , kind => "string" },
+	"parm_down_cursor" => { termcap => "cud", terminfo => "DO",  label => "down N lines (M*)"  , kind => "string" },
+	"parm_down_micro" => { termcap => "mcud", terminfo => "Zf",  label => "Like parm_down_cursor in micro mode"  , kind => "string" },
+	"parm_ich" => { termcap => "ich", terminfo => "IC",  label => "insert N characters(M*)"  , kind => "string" },
+	"parm_index" => { termcap => "indn", terminfo => "SF",  label => "scroll forward N lines (M)"  , kind => "string" },
+	"parm_insert_line" => { termcap => "il", terminfo => "AL",  label => "insert N lines (M*)"  , kind => "string" },
+	"parm_left_cursor" => { termcap => "cub", terminfo => "LE",  label => "move N characters to the left (M)"  , kind => "string" },
+	"parm_left_micro" => { termcap => "mcub", terminfo => "Zg",  label => "Like parm_left_cursor in micro mode"  , kind => "string" },
+	"parm_right_cursor" => { termcap => "cuf", terminfo => "RI",  label => "move N charactersto the right (M*)"  , kind => "string" },
+	"parm_right_micro" => { termcap => "mcuf", terminfo => "Zh",  label => "Like parm_right_cursor in micro mode"  , kind => "string" },
+	"parm_rindex" => { termcap => "rin", terminfo => "SR",  label => "scroll back N lines (M*)"  , kind => "string" },
+	"parm_up_cursor" => { termcap => "cuu", terminfo => "UP",  label => "up N lines (M*)"  , kind => "string" },
+	"parm_up_micro" => { termcap => "mcuu", terminfo => "Zi",  label => "Like parm_up_cursor in micro mode"  , kind => "string" },
+	"pkey_key" => { termcap => "pfkey", terminfo => "pk",  label => "program function key M to type string N"  , kind => "string" },
+	"pkey_local" => { termcap => "pfloc", terminfo => "pl",  label => "program function key M to execute string N"  , kind => "string" },
+	"pkey_xmit" => { termcap => "pfx", terminfo => "px",  label => "program function key M to transmit string N"  , kind => "string" },
+	"plab_norm" => { termcap => "pln", terminfo => "pn",  label => "program label M to show string N"  , kind => "string" },
+	"print_screen" => { termcap => "mc0", terminfo => "ps",  label => "print contents of screen"  , kind => "string" },
+	"prtr_non" => { termcap => "mc5p", terminfo => "pO",  label => "turn on printer for N bytes"  , kind => "string" },
+	"prtr_off" => { termcap => "mc4", terminfo => "pf",  label => "turn off printer"  , kind => "string" },
+	"prtr_on" => { termcap => "mc5", terminfo => "po",  label => "turn on printer"  , kind => "string" },
+	"pulse" => { termcap => "pulse", terminfo => "PU",  label => "select pulse dialing"  , kind => "string" },
+	"quick_dial" => { termcap => "qdial", terminfo => "QD",  label => "dial number N without checking"  , kind => "string" },
+	"remove_clock" => { termcap => "rmclk", terminfo => "RC",  label => "remove clock"  , kind => "string" },
+	"repeat_char" => { termcap => "rep", terminfo => "rp",  label => "repeat char M N times (multiply by O, or 1)"  , kind => "string" },
+	"req_for_input" => { termcap => "rfi", terminfo => "RF",  label => "send next input character (for pseudo-terminals)"  , kind => "string" },
+	"reset_1string" => { termcap => "rs1", terminfo => "r1",  label => "reset string"  , kind => "string" },
+	"reset_2string" => { termcap => "rs2", terminfo => "r2",  label => "reset string"  , kind => "string" },
+	"reset_3string" => { termcap => "rs3", terminfo => "r3",  label => "reset string"  , kind => "string" },
+	"reset_file" => { termcap => "rf", terminfo => "rf",  label => "name of reset file"  , kind => "string" },
+	"restore_cursor" => { termcap => "rc", terminfo => "rc",  label => "restore cursor to position of last save cursor"  , kind => "string" },
+	"row_address" => { termcap => "vpa", terminfo => "cv",  label => "vertical position abs(N)"  , kind => "string" },
+	"save_cursor" => { termcap => "sc", terminfo => "sc",  label => "save current cursorposition (N)"  , kind => "string" },
+	"scroll_forward" => { termcap => "ind", terminfo => "sf",  label => "scroll text up (N)"  , kind => "string" },
+	"scroll_reverse" => { termcap => "ri", terminfo => "sr",  label => "scroll text down (N)"  , kind => "string" },
+	"select_char_set" => { termcap => "scs", terminfo => "Zj",  label => "Select character set N"  , kind => "string" },
+	"set_attributes" => { termcap => "sgr", terminfo => "sa",  label => "define video at‐tributes 1 thru 9 (PG9)"  , kind => "string" },
+	"set_background" => { termcap => "setb", terminfo => "Sb",  label => "Set background color"  , kind => "string" },
+	"set_bottom_margin" => { termcap => "smgb", terminfo => "Zk",  label => "Set bottom margin at current line"  , kind => "string" },
+	"set_bottom_margin_parm" => { termcap => "smgbp", terminfo => "Zl",  label => "Set bottom margin at line N or (if smgtp is not given), M lines from bottom"  , kind => "string" },
+	"set_clock" => { termcap => "sclk", terminfo => "SC",  label => "set clock, L=hrs M=mins N=secs"  , kind => "string" },
+	"set_color_pair" => { termcap => "scp", terminfo => "sp",  label => "Set current color pair to N"  , kind => "string" },
+	"set_foreground" => { termcap => "setf", terminfo => "Sf",  label => "Set foreground color"  , kind => "string" },
+	"set_left_margin" => { termcap => "smgl", terminfo => "ML",  label => "set left soft marginat current col‐umn.     See smgl.(ML is not in BSDtermcap)."  , kind => "string" },
+	"set_left_margin_parm" => { termcap => "smglp", terminfo => "Zm",  label => "Set left (right) margin at column N"  , kind => "string" },
+	"set_right_margin" => { termcap => "smgr", terminfo => "MR",  label => "set right soft margin at current column"  , kind => "string" },
+	"set_right_margin_parm" => { termcap => "smgrp", terminfo => "Zn",  label => "Set right margin at column N"  , kind => "string" },
+	"set_tab" => { termcap => "hts", terminfo => "st",  label => "set a tab in every row, current columns"  , kind => "string" },
+	"set_top_margin" => { termcap => "smgt", terminfo => "Zo",  label => "Set top margin atcurrent line"  , kind => "string" },
+	"set_top_margin_parm" => { termcap => "smgtp", terminfo => "Zp",  label => "Set top (bottom) margin at row N"  , kind => "string" },
+	"set_window" => { termcap => "wind", terminfo => "wi",  label => "current window is lines K,L and cols M,N" , kind => "string" },
+	"start_bit_image" => { termcap => "sbim", terminfo => "Zq",  label => "Start printing bit image graphics"  , kind => "string" },
+	"start_char_set_def" => { termcap => "scsd", terminfo => "Zr",  label => "Start character set definition #1, with"  , kind => "string" },
+	"stop_bit_image" => { termcap => "rbim", terminfo => "Zs",  label => "Stop printing bitimage graphics"  , kind => "string" },
+	"stop_char_set_def" => { termcap => "rcsd", terminfo => "Zt",  label => "End definition of character set 1"  , kind => "string" },
+	"subscript_characters" => { termcap => "subcs", terminfo => "Zu",  label => "List of subscriptable characters"  , kind => "string" },
+	"superscript_characters" => { termcap => "supcs", terminfo => "Zv",  label => "List of superscriptable characters"  , kind => "string" },
+	"tab" => { termcap => "ht", terminfo => "ta",  label => "tab to next 8-spacehardware tab stop"  , kind => "string" },
+	"these_cause_cr" => { termcap => "docr", terminfo => "Zw",  label => "Printing any of these characterscauses CR"  , kind => "string" },
+	"to_status_line" => { termcap => "tsl", terminfo => "ts",  label => "move to status line and column"  , kind => "string" },
+	"tone" => { termcap => "tone", terminfo => "TO",  label => "select touch tonedialing"  , kind => "string" },
+	"underline_char" => { termcap => "uc", terminfo => "uc",  label => "underline char andmove past it"  , kind => "string" },
+	"up_half_line" => { termcap => "hu", terminfo => "hu",  label => "half a line up"  , kind => "string" },
+	"user0" => { termcap => "u0", terminfo => "u0",  label => "User string No.0"  , kind => "string" },
+	"user1" => { termcap => "u1", terminfo => "u1",  label => "User string No.1"  , kind => "string" },
+	"user2" => { termcap => "u2", terminfo => "u2",  label => "User string No.2"  , kind => "string" },
+	"user3" => { termcap => "u3", terminfo => "u3",  label => "User string No.3"  , kind => "string" },
+	"user4" => { termcap => "u4", terminfo => "u4",  label => "User string No.4"  , kind => "string" },
+	"user5" => { termcap => "u5", terminfo => "u5",  label => "User string No.5"  , kind => "string" },
+	"user6" => { termcap => "u6", terminfo => "u6",  label => "User string No.6"  , kind => "string" },
+	"user7" => { termcap => "u7", terminfo => "u7",  label => "User string No.7"  , kind => "string" },
+	"user8" => { termcap => "u8", terminfo => "u8",  label => "User string No.8"  , kind => "string" },
+	"user9" => { termcap => "u9", terminfo => "u9",  label => "User string No.9"  , kind => "string" },
+	"wait_tone" => { termcap => "wait", terminfo => "WA",  label => "wait for dial-tone"  , kind => "string" },
+	"xoff_character" => { termcap => "xoffc", terminfo => "XF",  label => "XOFF character"  , kind => "string" },
+	"xon_character" => { termcap => "xonc", terminfo => "XN",  label => "XON character"  , kind => "string" },
+	"zero_motion" => { termcap => "zerom", terminfo => "Zx",  label => "No motion for subse‐quent character"  , kind => "string" },
+	"alt_scancode_esc" => { termcap => "scesa", terminfo => "S8",  label => "Alternate escapefor scancode emulation"  , kind => "string" },
+	"bit_image_carriage_return" => { termcap => "bicr", terminfo => "Yv",  label => "Move to beginning of same row"  , kind => "string" },
+	"bit_image_newline" => { termcap => "binel", terminfo => "Zz",  label => "Move to next row of the bit image"  , kind => "string" },
+	"bit_image_repeat" => { termcap => "birep", terminfo => "Xy",  label => "Repeat bit M image cell N times"  , kind => "string" },
+	"char_set_names" => { termcap => "csnm", terminfo => "Zy",  label => "Produce Nth itemfrom list of character set names"  , kind => "string" },
+	"code_set_init" => { termcap => "csin", terminfo => "ci",  label => "Init sequence formultiple codesets"  , kind => "string" },
+	"color_names" => { termcap => "colornm", terminfo => "Yw",  label => "Give name for color"  , kind => "string" },
+	"define_bit_image_region" => { termcap => "defbi", terminfo => "Yx",  label => "Define rectangularbit image region"  , kind => "string" },
+	"device_type" => { termcap => "devt", terminfo => "dv",  label => "Indicate lan‐guage/codeset support"  , kind => "string" },
+	"display_pc_char" => { termcap => "dispc", terminfo => "S1",  label => "Display PC character"  , kind => "string" },
+	"end_bit_image_region" => { termcap => "endbi", terminfo => "Yy",  label => "End a bit-imageregion"  , kind => "string" },
+	"enter_pc_charset_mode" => { termcap => "smpch", terminfo => "S2",  label => "Enter PC character display mode"  , kind => "string" },
+	"enter_scancode_mode" => { termcap => "smsc", terminfo => "S4",  label => "Enter PC scancodemode"  , kind => "string" },
+	"exit_pc_charset_mode" => { termcap => "rmpch", terminfo => "S3",  label => "Exit PC characterdisplay mode"  , kind => "string" },
+	"exit_scancode_mode" => { termcap => "rmsc", terminfo => "S5",  label => "Exit PC scancodemode"  , kind => "string" },
+	"get_mouse" => { termcap => "getm", terminfo => "Gm",  label => "Curses should getbutton events, parameter  not documented."  , kind => "string" },
+	"key_mouse" => { termcap => "kmous", terminfo => "Km",  label => "Mouse event hasoccurred"  , kind => "string" },
+	"mouse_info" => { termcap => "minfo", terminfo => "Mi",  label => "Mouse status in‐formation"  , kind => "string" },
+	"pc_term_options" => { termcap => "pctrm", terminfo => "S6",  label => "PC terminal op‐tions"  , kind => "string" },
+	"pkey_plab" => { termcap => "pfxl", terminfo => "xl",  label => "Program function key to typestring and showstring"  , kind => "string" },
+	"req_mouse_pos" => { termcap => "reqmp", terminfo => "RQ",  label => "Request mouse position"  , kind => "string" },
+	"scancode_escape" => { termcap => "scesc", terminfo => "S7",  label => "Escape for scan‐code emulation"  , kind => "string" },
+	"set0_des_seq" => { termcap => "s0ds", terminfo => "s0",  label => "Shift to codeset 0 (EUC set 0, ASCII)"  , kind => "string" },
+	"set1_des_seq" => { termcap => "s1ds", terminfo => "s1",  label => "Shift to codeset 1"  , kind => "string" },
+	"set2_des_seq" => { termcap => "s2ds", terminfo => "s2",  label => "Shift to codeset 2"  , kind => "string" },
+	"set3_des_seq" => { termcap => "s3ds", terminfo => "s3",  label => "Shift to codeset 3"  , kind => "string" },
+	"set_a_background" => { termcap => "setab", terminfo => "AB",  label => "Set backgroundcolor to N, usingANSI escape"  , kind => "string" },
+	"set_a_foreground" => { termcap => "setaf", terminfo => "AF",  label => "Set foregroundcolor to N, usingANSI escape"  , kind => "string" },
+	"set_color_band" => { termcap => "setcolor", terminfo => "Yz",  label => "Change to ribboncolor N"  , kind => "string" },
+	"set_lr_margin" => { termcap => "smglr", terminfo => "ML",  label => "Set both left andright margins to N, M  (ML isnot in BSD term‐cap)."  , kind => "string" },
+	"set_page_length" => { termcap => "slines", terminfo => "YZ",  label => "Set page length to N lines"  , kind => "string" },
+	"set_tb_margin" => { termcap => "smgtb", terminfo => "MT",  label => "Sets both top andbottom margins to N, M"  , kind => "string" },
+	"enter_horizontal_hl_mode" => { termcap => "ehhlm", terminfo => "Xh",  label => "Enter horizontalhighlight mode"  , kind => "string" },
+	"enter_left_hl_mode" => { termcap => "elhlm", terminfo => "Xl",  label => "Enter left highlightmode"  , kind => "string" },
+	"enter_low_hl_mode" => { termcap => "elohlm", terminfo => "Xo",  label => "Enter low highlightmode"  , kind => "string" },
+	"enter_right_hl_mode" => { termcap => "erhlm", terminfo => "Xr",  label => "Enter right high‐light mode"  , kind => "string" },
+	"enter_top_hl_mode" => { termcap => "ethlm", terminfo => "Xt",  label => "Enter top highlightmode"  , kind => "string" },
+	"enter_vertical_hl_mode" => { termcap => "evhlm", terminfo => "Xv",  label => "Enter vertical high‐light mode"  , kind => "string" },
+	"set_a_attributes" => { termcap => "sgr1", terminfo => "sA",  label => "Define second set ofvideo attributes N1-N6"  , kind => "string" },
+	"set_pglen_inch" => { termcap => "slength", terminfo => "YI",  label => "Set page length to N hundredth of aninch (some implementations use sL for termcap)."  , kind => "string" },
+);
+my @kinds = (
+	{ name => "string",  description => "values are a string of ASCII characters" , datakind => "scalar", },
+	{ name => "boolean",  description => "values are either on or off (1 or 0) or triggered at set" , datakind => "scalar", },
+	{ name => "integer",  description => "values below take an integer (nominal range is around 0 to 32767, positive usual, negative unusual)", datakind => "scalar", }
+);
+
+my $mode = ( @ARGV > 3) ? "short" : "long";
+my $shortfmt="%17s %42s %7s %10s %s";
+my @founds = ();
+my $lastelide = undef;
+sub elide	
+{
+    my $str = shift;
+    my $maxlen = shift;
+    if (length($str) >= $maxlen)
+    {
+    	return(substr($str,1,$maxlen));
+    }
+    else
+    {
+    	return $str;
+	}
+}
+
+for my $arg (@ARGV) {
+	say(elide("\nlooking up $arg ...\n",50));
+	say(sprintf($shortfmt,"name","desc","tcap","tinf","kind")) if $mode =~ /short/;
+	for my $k ( keys(%termdb) )
+	{
+
+		my %hr = %{$termdb{$k}};
+		my ($tc, $ti, $kind, $desc) = ( $hr{termcap}, $hr{terminfo}, $hr{kind}, $hr{label} );		
+		push(@founds,$k) if ( $arg eq $tc || $arg eq $ti || $desc =~ $arg );
+	}
+	$mode = "short" if @founds > 3;
+	for my $k (@founds)
+	{		
+		my %hr = %{$termdb{$k}};
+		my ($tc, $ti, $kind, $desc) = ( $hr{termcap}, $hr{terminfo}, $hr{kind}, $hr{label} );
+		no warnings 'experimental';
+		given($mode) 
+		{
+			when (/long/)
+			{			
+    			say("	   friendlyname: $k");
+        		say("		description: $desc");
+         		say("		 termcap_id: $tc");
+        		say("	    terminfo_id: $ti");
+         		say("		 value_kind: $kind");
+         	}
+         	when (/short/)
+         	{   # 15/40/5/10/* TODO: softcode and get elide-ints from $shortfmt[x,y]
+				say(sprintf($shortfmt,elide($k,15),elide($desc,40),elide($tc,5),elide($ti,10),$kind));
+			}
+			default 
+			{ 
+				printf("houston, we have a problem");
+				exit(127);
+			}
+		}
+	
+	}
+}
+if ( @ARGV == 0 ) {
+
+	printf(	"%-10s %-10s %-40s %s\n",
+			$termdb{$_}{termcap},
+			$termdb{$_}{terminfo},
+			$_,
+			$termdb{$_}{label}
+		)
+			for keys(%termdb);
+}
+
+# vim: ft=perl:ts=4:et:sw=4:so=5:siso=10:ls=2:bs=2:fen:fdo=insert:fcl=all:fdm=syntax:hls:mls=2

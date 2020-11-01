@@ -17,17 +17,54 @@ use Curses::UI;
 
 
 # uncomment when inifile is done
-use File::Config::INI qw( inifile );
+#use File::Config::INI qw( inifile );
 # comment this range out when inifile is done
 #sub inifile { return (); }
 # end comment out when range inifile done
-use feature qw ( switch );
-
-
+package main;
 no warnings "experimental";
 
-# constants (compile time, do not precompile me)
+# functions for inifile ops
+########### inifile
+#--------------------------------------------------------------
+ # The DevDaily::Time Perl module.
+ # Free to use as a template for creating your own Perl modules.
+ #--------------------------------------------------------------
+ package File::Format::INI;
+ require Exporter;
+ use Path::Tiny;
+ use feature 'signatures';
 
+ our @ISA     = qw(Exporter);
+ our @EXPORT  = qw(inifile);   # symbols to be exported by default (space-separated)
+ our $VERSION = 1.00;          # version number
+
+ #use MODULE_NAME 'function_name';
+
+ sub inifile($filename)
+ {
+	die("Need an actual path structure here (inifile.filename.argument)") unless ( blessed($filename, Path::Tiny) );
+
+	
+ }
+
+ 1;
+
+  #As you might guess from the code, the first part of the package name (the DevDaily part) corresponds to the subdirectory you created, and the Time part corresponds to the Time.pm file you created.
+
+  # A lot of the other code is boilerplate Perl code that's needed when creating a module. Possibly the most important thing to remember about it is that when you create a new Perl function you need to include it in the EXPORT statement. For instance, if I created a
+ #  new function called getdayof_week, I'd need to export it like this:
+
+# our @EXPORT  = qw(get_time_suffix get_day_of_week);
+
+#   Fortunately it's actually a pretty easy problem to debug: if you don't export your function you won't be able to access it from the program that tries to call it.
+#################
+
+package main;
+import File::Format::INI;
+
+
+# constants (compile time, do not precompile me)
 use constant HOME => $ENV{HOME};
 use constant PSF => ".logofrc";
 use constant PRESET => "<preset name>";
@@ -66,7 +103,7 @@ my @dialogsize = qw! -1 -1 !;
 my $logfile = "/var/log/syslog";
 if (@ARGV == 1) {
 	$logfile = translate_logfile($ARGV[0]);
-	
+
 	die("$logfile is unreadable by effective user ($uname)!") unless -r $logfile;
 
 

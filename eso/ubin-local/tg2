@@ -1,30 +1,24 @@
-#!/usr/bin/perl
+#!/bin/zsh
+#!/bin/bash
 #
-# FILE
-#    perltemplate-file
-#    the perltemplate-file perl script
+#    tg2
+#    thrgrep2, without using external utilities (except renice/ionice)
+#    mini
+#    esoteric projects
 #
-# PROJECT
-#    perltemplate-file-proj
-#	 project perltemplate-file-proj: container for perltemplate-file
+#    Copyright (C) 1995-2020 Gabriel Thomas Sharp
 #
-# AUTHOR / COPYRIGHT
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository:
 #
-#    Copyright (C) 2020, Gabriel Thomas Sharp
+#    <https://github.com/osirisgothra>
 #
-#    Written by Gabriel Thomas Sharp osirisgothra@larnica.(none)
-#    Latest versions of this and all of Gabriel Thomas Sharp's projects can be
-#    obtained from:
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
 #
-#     <<projbranch>>
-#
-#    Documentation Available At:
-#
-#     <http://www.github.com/osirisgothra/perltemplate-file-proj.git>
-#
-# LICENSE
-#
-#    perltemplate-file-proj/perltemplate-file  is free software; you can redistribute it and/or modify
+#    This program is free software; you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
 #    the Free Software Foundation; either version 2 of the License, or
 #    (at your option) any later version.
@@ -38,155 +32,311 @@
 #    with this program; if not, write to the Free Software Foundation, Inc.,
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
-#  NOTES
+#    HISTORY
 #
-#     * TODO: move 'use' statements to top if you want to keep them**
-#    ** this feature will be added to the next version of perltemplate (hopefully)
-#   *** warnings are disabled for experimental and once because they are pretty
-#       annoying here, you might want to re-enable them for your own program
-#       to do this during testing and development.
+#     Tue 18 Aug 2020 06:43:59 AM EDT
+#            osirisgothra@ initially created this file
+#            with the original name, tg2
 #
-#  HISTORY
+#    NOTES
+#    
+#        INDEX
+#        I.    CRITICAL SECTION NOTES
+#                A.    ASYNCHRONOUS CRITICAL SECTION (CONSIDERING OTHER THREADS OR PROCESSES, EVEN OTHER USERS ON THE SYSTEM)
+#                B.  BASIC VARIABLES
+#                C.  CONSTANTS
+#                D.  OTHER DECLARATIONS
+#                
 #
-#	Mon Feb 10 10:34:21 2020
-#         osirisgothra@larnica.(none) created this file using the template generator 'perltemplate'
-#         and named it perltemplate-file for the project '<projname'.
+#        CRITICAL SECTION NOTES (no section tag, then its section A!)
 #
+#        A.    ASYNCHRONOUS CRITICAL SECTION (CONSIDERING OTHER THREADS OR PROCESSES, EVEN OTHER USERS ON THE SYSTEM)
+#            ABSTRACT: this critical section (documentation) is ironically about "critical section (threading)" dont get them mixed up!
+#            LEADNOTE: These lines should probably either be locked as a mutex somehow for the working pid/gpid:
+#                      it is at this point that the $_commpath is _assumed_ to still exist (but could easily not if target is running paralell and not stopped
+#                  possilbe solutions should be listed here, so far i have:
+#                 1) stop the process, verify it is still present, perform actions, then continue the process (probably safest)
+#                 2) use some custom utility or script+libcall (perl or python since they are usually stock) to "lock" the process in some other way or
+#                    to perform the actions with a guarentee that no timeslices will be given to the target PID (probably fastest, but not very safe)
+#                 3) check pid just before each action below (somewhat safe, somewhat slow, and not very accurate, but suprisingly preferred by other programs)
+#                 last but not least) prompt the user to do one of the above if process is not "locked" (how we would know this is not very clear, and therefore not very safe or fast)
+#                 FOR NOW: assuming after a re-check of the PID's /proc path, that it exists, and attempt actions on it
+#                  also, ionice/renice are being used as surrogates so they will have the final word on securing the process during modifications
+#                    however i wish to embed this into C or perl code eventually!!
 #
-# (created with perltemplate by Gabriel T. Sharp <osirisgothra@hotmail.com>)
+#        B    
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
 #
 
-use warnings;
-use v5.18;
-use strict;
-no warnings "experimental";			# 	allow given/when/default and smartmatching without their warnings***
-no warnings "once";					# 	allow variables to be used just once without warning***
-use Path::Tiny	qw( rootdir  );						#	path("name") or Path::Tiny::rootdir->child("name")
-use Getopt::Long::Descriptive; 
-use Term::ANSIColor 4.0  qw ( colorstrip color colored uncolor coloralias :constants colorvalid :pushpop );
-use Curses::UI;
-use Path::Tiny::Ext qw (basename);
+# MODULES
+
+zmodload zsh/mathfunc
+zmodload zsh/termcap
+zmodload zsh/terminfo
+
+# OPTIONS
+
+setopt extendedglob
+setopt globassign
+setopt globdots
+setopt globsubst
+setopt kshglob
+setopt promptsubst
+setopt noxtrace
+
+# DECLARATIONS
+
+declare -g noflags=1
+declare -ga opts=( )
+declare -gA params=(    defined 1
+                        nice    -1
+                        class    none
+                        level    5
+                    )
+declare -gi quiet_level=0
+declare -g version_text="$(tput setaf 124)tg2$(tput sgr0) Version 1.0 (C)2020 Gabriel T. Sharp, Licensed under GNU LGPL3 at https://gpl.gnu.org/gpl3.html"
+declare -g help_text="tg2
+
+thrgrep2, without using external utilities (except renice/ionice)
+
+SYNTAX
+
+    tg2 [OPTIONS] ARGUMENT(S)
+
+OPTIONS
+
+    Expects zero or more of the following options:
+
+ Long Form    Short Form   Breif Description
+
+ --help            -h      Show this help text.
+ --version         -v      Displays license and version information, then exit.
+ --class[=]CLASS   -c      Specify ionice class (detailed below).
+ --level[=]LEVEL   -l       for classes other than idle/none, priority level from 0 to 7.
+ --nice[=]NICENESS -n       Set the nice level to a value between -20 (highest priority) to 19 (lowest).
+ --quiet           -q      Show less messages (defaults to zero).
 
 
+ARGUMENT
+
+    Expects one or more of the following arguments:
+
+    PID         A process identifier (usually a number in the 1-32767 range)
+    COMMAND     The name of a running processes command (comm under /proc)
+
+    You may omit these arguments when using '--help'
+
+GENERATED
+
+    The core of this project file was created using the template and license
+    generator v1.0 by Gabriel T Sharp <osirisgothra@hotmail.com>.
+
+LICENSE
+
+    GNU LGPL3 is available in full at the GNU GPL website, or through the google voice command 'show me GNU LGPL VERSION 3'
+
+"
+
+## FUNCTIONS
+
+cleanup() {
+        clear
+        echo -ne "cleaning up environment..."
+        setterm -cursor on
+        echo "finished!"
+        exit 0
+}
+setup()
+{
+        setterm -cursor off
+}
+decho() { ((TG2_DEBUG_ECHO)) && print -P -- "$@"; }
+__ionice() {
+    [[ $# -le 3 ]] && { echo "FATAL: not enough args ($#, need at least 4) in ionice func"; exit 127; }
+    _ppi=${2-0}
+    [[ $_ppi -le 1 ]] && { echo "FATAL: bad ppid in ionice func"; exit 127; }
+    _old=`ionice -p $_ppi`
+    #                          1  2          3   4             5?   6?
+    if sudo -H ionice -p $_threadid -c $params[class] -n $params[level]; then
+        _new=`ionice -p $_ppi`
+        echo "   |"
+        echo "   +------- $_old => $_new"
+    else
+        echo "pid($_ppi), ionice($_old) could not set new class/level (are you superuser/sudoer?)"
+    fi
+}
+main() {
+    # restores terminal and any other things we messed with that the user wouldnt want dumped on
+    unsetopt monitor
+
+    setup
+    trap cleanup INT TERM KILL QUIT EXIT SEGV
+    # these allow user to use CTRL+Z to suspend, without losing the cursor
+    trap "setterm -cursor on" TSTP
+    trap "setterm -cursor off" CONT
+
+    deflev=`sudo ionice`
+    # syntax: main [proccess-name] [...]
+    # be sure the params[] hash was already set prior to this call!
+    integer tot_procs=0
+    integer tot_changed=0
+    printf '[1;1H[2J'
+    for _procname_tofind; do
+        for _commpath in /proc/*/comm; do
+            
+            if [[ -r $_commpath ]]; then
+                # TODO: this is the entrance to a critical section (see CRITICAL SECTION NOTE above)
+                _proccname="$(<$_commpath)"
+                if [[ $_proccname == $_procname_tofind ]]; then
+                    _pid=$_commpath(:h)
+                    echo $_pid $_proccname
+                    #                    v--- include main pid too
+                    for _threadid in $_pid(:t) $_pid/task/*(:t); do
+                        let tot_procs++
+                        printf '[1;1H'
+                        #printf '[2K'
+                        sudo renice -n $params[nice] -p $_threadid
+                        if [[ $params[class] =~ ^(idle|none)$ ]]; then
+                            __ionice -p $_threadid -c $params[class]
+                        else
+                            __ionice -p $_threadid -c $params[class] -n $params[level]
+                        fi
+                    done
+                fi
+            else
+                # the last check for process presence ended falsely (see TODO above)
+                # this is the only checking inside the critical section, but it may be exited even after this
+                # it is for this reason it should be locked after this evaluation above passes truthfully
+                echo "info: $_commpath was ended during operation, removing from list of possible identities"
+            fi
+        done
+    done
+    echo "default class:level is currently: $deflev"
 
 
-## PATH ##
-# # creating Path::Tiny objects
-# print("for this to work, must have /tmp/foo.txt and /tmp/foo/bar.txt first, attempt will be made to create them...");
-# sleep(1);
-# my $data1 = `ls -l /`;
-# my $data2 = `ls /etc`;
-# path('/tmp/foo/bar.txt')->spew($data1);
-# path('/tmp/foo.txt')->spew($data2);
-# my $dir = path("/tmp");
-# my $foo = path("foo.txt");
-# my $subdir = $dir->child("foo");
-# my $bar = $subdir->child("bar.txt");
-# # stringifies as cleaned up path
-# my $file = path("./foo.txt");
-# say $file; # "foo.txt"
-# # reading files
-# my $guts = $file->slurp;
-# $guts = $file->slurp_utf8;
-# my @lines = $file->lines;
-# @lines = $file->lines_utf8;
-# my ($head) = $file->lines( {count => 1} );
-# my ($tail) = $file->lines( {count => -1} );
-# say "head";
-# say $head;
-# say "tail";
-# say $tail;
-# say "write data...";
-# # writing files
-# my @data = qw ( sample data );
-# $bar->spew( @data );
-# $bar->spew_utf8( @data );
-# # reading directories
-# for ( $dir->children ) { say("children: $_"); }
-# my $iter = $dir->iterator;
-# while ( my $next = $iter->() ) { say("iterated: $next"); }
-# ## PATH END ##
+}
 
-# ## GETOPT ##
-# my ($opt, $usage) = describe_options(
-#     '$0 %o <some-arg> file',
-#     [ 'no-dialog', "dont use dialog to show log",  ],
-#     [ 'no-follow',   "do not follow the log, just show it",   { default  => 79 } ],
-#     [],
-#     [ 'verbose|v',  "print extra stuff"            ],
-#     [ 'help',       "print usage message and exit" ],
-# );
-# say($usage->text), exit if $opt->help;
-# say("getopt: arguments processed: $#ARGV");
-# ## GETOPT END ##
 
-# ## ANSI* ##
-# # color
-# print color 'bold blue';
-# print "This text is bold blue.\n";
-# print color 'reset';
-# print "This text is normal.\n";
-# print colored("Yellow on magenta.", 'yellow on_magenta'), "\n";
-# print "This text is normal.\n";
-# print colored ['yellow on_magenta'], 'Yellow on magenta.', "\n";
-# print colored ['red on_bright_yellow'], 'Red on bright yellow.', "\n";
-# print colored ['bright_red on_black'], 'Bright red on black.', "\n";
-# print "\n";
-# # Strip all color escape sequences.
-# print colorstrip '\e[1mThis is bold\e[0m', "\n";
-# # Determine whether a color is valid.
-# my $valid = colorvalid('blue bold', 'on_magenta');
-# print "Color string is ", $valid ? "valid\n" : "invalid\n";
-# # Create new aliases for colors.
-# coloralias('alert', 'red');
-# print "Alert is ", coloralias('alert'), "\n";
-# print colored("This is in red.", 'alert'), "\n";
-# print BOLD, BLUE, "This text is in bold blue.\n", RESET;
-# # localized
-# {
-# 	local $Term::ANSIColor::AUTORESET = 1;
-# 	print BOLD BLUE "This text is in bold blue.\n";
-# 	print "This text is normal.\n";
-# }
-# print PUSHCOLOR RED ON_GREEN "This text is red on green.\n";
-# print PUSHCOLOR BRIGHT_BLUE "This text is bright blue on green.\n";
-# print RESET BRIGHT_BLUE "This text is just bright blue.\n";
-# print POPCOLOR "Back to red on green.\n";
-# print LOCALCOLOR GREEN ON_BLUE "This text is green on blue.\n";
-# # localized 
-# print "This text is red on green.\n";
-# {
-# 	local $Term::ANSIColor::AUTOLOCAL = 1;
-# 	print ON_BLUE "This text is red on blue.\n";
-# 	print "This text is red on green.\n";
-# }
-# print POPCOLOR "Back to whatever we started as.\n";
-# ## END ANSI ## 
+echo() {
+    if [[ $quiet_level -gt 0 ]]; then
+        return 127
+    else
+        builtin echo "$@"
+    fi
+}
 
-# ## CURSES ##
-# say("curses: entering setting");
-# my $debug = 0;  #1=yes 0=no
-# my $cui = Curses::UI->new( -color_support => 1, -clear_on_exit => 1, -debug => $debug, ); # this is where we gloss over setting up all the widgets and data structures + start the event loop
-# $cui->dialog("Hello, world!");
-# my $yes = $cui->dialog( 	-message => "Hello, world?", -buttons => ["yes","no"], -values  => [1,0], -title   => "Question", );
-# if ($yes) {	chomp(); } # whatever
-# $cui->error("It's the end of the\n"."world as we know it!");
-# $file = $cui->filebrowser(	-path => "/tmp", -show_hidden => 1, );
-# # Filebrowser will return undef if no file was selected.
-# if (defined $file) {    unless (open F, ">$file") {	print F "Hello, world!\n"; close F; } else { $cui->error(qq(Error on writing to "$file":\n$!)); }     }
-# $cui->status("Saying hello to the world..."); 		# code for saying "Hello, world!"
-# $cui->status("Saying goodbye to the world..."); 	# code for saying "Goodbye, world!"
-# $cui->nostatus;
-# $cui->progress( 	-max => 10, 	-message => "Counting 10 seconds...", );
-# for my $second (0..10) {	$cui->setprogress($second); sleep 1; }
-# $cui->noprogress;
-#            my @menu = (
-#                  { -label => 'File',
-#                    -submenu => [
-#                   { -label => 'Exit      ^Q', -value => \&exit_dialog  }
-#                                ]
-#                   },
-#                );
-# #$cui->addmenu(\@menu);
-# $cui->mainloop;
-# ## END CURSES ##
+# LINE-ERROR support
+# allows for more specific error codes that are somewhat useful
+setopt aliases
+error()
+{
+    local code=${1-254}
+    local floc=${2-global}
+    local desc=${3-undefined}
+    local noexit=${3-0}
+    local body
+    printf -v body "%s %%F{red}%%Berror(%s:%%I%d%%i): %s %%U(recoverable=%d)%%u%%f%%b" "$(date)" $code $desc $noexit
+
+}
+
+## MAIN PROGRAM
+
+if opts=( `getopt -n $0 -o hvqc:l:n: -l class:,level:,nice:,help,version,quiet -- "$@"` ); then
+    eval set -- "${opts[@]}"
+    while [[ $# -ge 0 ]]; do
+        curopt=$1
+        nextopt=${2-none}
+        shift
+        # handle --options and -o ptions here
+        case $curopt in
+            --class|-c)    params[class]=$nextopt; shift;;
+            --level|-l) params[level]=$nextopt; shift;;
+            --nice|-n) params[nice]=$nextopt; shift;;
+            --help|-h)    echo "$help_text"; exit 127;;
+            --version|-v) echo "$version_text"; exit 127;;
+            --quiet|-q) let quiet_level++;;
+            --) decho "done with options"; break;;
+            *)    decho "handling option: $curopt (next:$nextopt)";;
+        esac
+    done
+    # validate/setup variables
+    declare -g progname=$0(:t)
+    declare -g progpath=$0
+    declare -g progdir=$0(:h)k
+    [[ $params[class] == nil ]] && [[ $params[nice] == nil ]] && error 128 "must specify either a class or nice level"
+    [[ $params[class] != nil ]] && [[ $params[class] != idle ]] && [[ $params[level] == nil ]] && error 129
+
+    main "$@"
+else
+    error 130 "while parsing options got code $? from getopt"
+fi
+
+# BEGIN TEMPORARY STUFF
+#
+# DOC FOR NICE/RENICE/IONICE
+#
+#    NICE (new process only)
+#
+#        Usage: nice [OPTION] [COMMAND [ARG]...]
+#        Run COMMAND with an adjusted niceness, which affects process scheduling.
+#        With no COMMAND, print the current niceness.  Niceness values range from
+#        -20 (most favorable to the process) to 19 (least favorable to the process).
+#
+#        Mandatory arguments to long options are mandatory for short options too.
+#          -n, --adjustment=N   add integer N to the niceness (default 10)
+#              --help     display this help and exit
+#              --version  output version information and exit
+#
+#        NOTE: your shell may have its own version of nice, which usually supersedes
+#        the version described here.  Please refer to your shell's documentation
+#        for details about the options it supports.
+#
+#        GNU coreutils online help: <https://www.gnu.org/software/coreutils/>
+#        Full documentation at: <https://www.gnu.org/software/coreutils/nice>
+#        or available locally via: info '(coreutils) nice invocation'
+#
+#    IONICE
+#
+#        Usage:
+#         ionice [options] -p <pid>...
+#         ionice [options] -P <pgid>...
+#         ionice [options] -u <uid>...
+#         ionice [options] <command>
+#
+#        Show or change the I/O-scheduling class and priority of a process.
+#
+#        Options:
+#         -c, --class <class>    name or number of scheduling class,
+#                                  0: none, 1: realtime, 2: best-effort, 3: idle
+#         -n, --classdata <num>  priority (0..7) in the specified scheduling class,
+#                                  only for the realtime and best-effort classes
+#         -p, --pid <pid>...     act on these already running processes
+#         -P, --pgid <pgrp>...   act on already running processes in these groups
+#         -t, --ignore           ignore failures
+#         -u, --uid <uid>...     act on already running processes owned by these users
+#
+#         -h, --help             display this help
+#         -V, --version          display version
+#
+#        For more details see ionice(1).
+#
+#    RENICE    (existing processes only)
+#
+#        Usage:
+#         renice [-n] <priority> [-p|--pid] <pid>...
+#         renice [-n] <priority>  -g|--pgrp <pgid>...
+#         renice [-n] <priority>  -u|--user <user>...
+#
+#        Alter the priority of running processes.
+#
+#        Options:
+#         -n, --priority <num>   specify the nice increment value
+#         -p, --pid <id>         interpret argument as process ID (default)
+#         -g, --pgrp <id>        interpret argument as process group ID
+#         -u, --user <name>|<id> interpret argument as username or user ID
+#
+#         -h, --help             display this help
+#         -V, --version          display version
+#
+#        For more details see renice(1).
+#

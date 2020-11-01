@@ -1,0 +1,1 @@
+/home/osirisgothra/bin/terminal

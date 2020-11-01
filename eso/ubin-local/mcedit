@@ -50,5 +50,11 @@ use warnings;
 use v5.18;
 use strict;
 no warnings "experimental";
+use Cwd;
+
+my $old_dir=cwd();
+chdir('/src/mc/mcedit');
+
 
 system('/src/mc/mcedit/mcedit.sh');
+chdir($old_dir);

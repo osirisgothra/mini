@@ -1,0 +1,368 @@
+#!/bin/zsh
+if [[ $* =~ '^-?-s(uper-fast)?$' ]]; then
+    echo "executing multiprocess/background\n(kne broadcast=starting)\n"
+    ( kne &> /dev/null; echo "\n(kne broadcast=finished super-fast execution)\n"; ) &|
+    exit $?
+fi
+declare -g cleanup_pending=1
+declare -g tmpfile=$(mktemp)
+sanitize()
+{
+	# TODO:
+	#	SANITIZE KNERC
+	#
+}
+voke()
+{
+	# TODO: sanitize knerc
+	eval "$@"
+}
+cleanup()
+{
+	# only runs within the bounds of the program
+	# once outside, a INT/HUP/KILL is ignored since we are done anyway
+	if ((cleanup_pending)) {
+		echo "[0G[2KCaught interrupt!\nCleaning up and exiting...\n"
+		trap SIGINT SIGKILL SIGHUP
+		[[ -r $tmpfile ]] && rm $tmpfile && echo "removed tempfile: $tmpfile"
+		# TODO: put any extra oob cleanup code here
+		exit 127
+	} else {
+		:
+		# TODO: put any real oob cleanup code here
+	}
+}
+trap cleanup SIGINT SIGKILL SIGHUP
+
+# 1=synchronous service calls, 0=asynchronous(background) service calls, faster but no messages or codes, and no polling for subsockets/subservices (dependencies)
+
+declare -gi kne_scwait=0
+
+declare -ga author=(    "Gabriel T. Sharp"    "<osirisgothra@hotmail.com>" )
+declare -ga licenses=(    GNU_LGPL3    NON_PUBLIC )
+if [[ $1 =~ ^-?-i(n-place)? ]]; then
+    shift
+    INPLACEMODE=1
+else
+    INPLACEMODE=0
+fi
+
+# USERS: uncomment these to use them (or use 'env VAR=VAL kne')
+# KNE_QUIET=1
+# KNE_DEBUG=1
+
+declare -gi quietmode=${KNE_QUIET-0}
+declare -g logged="/tmp/kne.log"
+declare -gi maxsize=4
+declare -g sizeunit=k
+truncate $logged --size=$maxsize${(U)sizeunit[1]}
+declare -gi debugmode=${KNE_DEBUG-0}
+
+# utility (init value first time init only)
+declare -gi initvalue=255
+declare -gi lrc=$initvalue
+declare -ga lps=( $initvalue $initvalue )
+
+
+echo()
+{
+    print -P $@
+}
+
+ksvc()
+{
+    lrc=0 lps=0 pipestatus=( 0 )
+    () {
+        #killservice
+        #kills service and any dependancy that it complains about (sockets, services)
+        #kills any executables bearing the same name also
+        cur=0
+        tot=$#
+        ((debugmode)) && echo "\n"
+        okay=0
+        for x; do
+            let cur++
+
+            echo "killing service $x [operation $cur of $tot]"
+            # special cases where we want to kill WANTS
+            if [[ $kne_scwait == 1 ]]; then
+                m=( $(systemctl stop "$x" |& grep '.*\.(socket|service)$' -Po ) )
+                lps=$pipestatus lrc=$?
+                echo "pipestatus for $x: $pipestatus (ret=$?)"
+                if [[ ${#m} -gt 0 ]]; then
+                    echo "there are $#m subservices/sockets to kill... doing it now..."
+                    for n in $m; do
+                        echo "stopping subservice/socket $n..."
+                        sudo systemctl stop $m && let okay++
+                        lps=$pipestatus lrc=$?
+                    done
+                else
+                    echo "service kills complete for $x"
+                fi
+                echo "killing processes named $x, if any..."
+                sudo killall -KILL "$x" && let okay++
+                lps=$pipestatus lrc=$?
+                echo "done with $x"
+            else
+                systemctl stop "$x" &> /dev/null &|
+                m=( )
+                echo "background kne of $x in progress (disowned, kne_scwait==0)"
+            fi
+        done
+        # any amount of success return codes are good
+        if ((okay)); then
+            lrc=$(( okay + 1 + lrc))
+            return 0
+        else
+            # use lrc to elevate any 'good' status returns (but usually not)
+            return $lrc
+        fi
+    } "$@" 2>&1 >> $logged
+}
+
+if ((quietmode)); then
+    exec 2> /dev/null
+    exec 1> /dev/null
+else
+    startup_banner="\n[ %%F{1}/%%F{2}<%%F{3}N%%F{4}E%%F{5} /%%F{6}.%%F{17}0%%F{18} ] - Kill Non-Essential services\n(C)2019-20 $author\nAll Rights Reserved%%f\n%%F{12}%%B(logging errors to %s)%%f%%b"
+    if ((!debugmode)); then
+        
+        printf -v startup_banner_formatted $startup_banner screen\ \($(tty)\)
+        print -P $startup_banner_formatted
+    else
+        printf -v startup_banner_formatted $startup_banner $logged
+        print -P $startup_banner_formatted
+        exec 2> $logged
+    fi
+fi
+
+function ki()
+{
+    # ki [kind] [pid|name]
+    # kind = 0-none 1-svc-socket-pid 2=svc 3=socket 4=pid
+    case $1 in
+        4)  sudo killall -KILL "$2" &
+            ;;
+        0)        echo "%F{1}disabled: $2, %Bskipping%f%b"
+            ;;
+        1)
+                echo -n "%F{6}service, socket and process: $2 "
+                ((debugmode)) && {
+                    echo "..."
+                     ksvc "$2"  echo "(return=$? pipestatus=$pipestatus)"
+                } || {
+                     ksvc "$2" &> $logged && echo "%F{2}OK(rcps=$lrc$lps)%f" || echo "%F{2} status%F{5}=%F{2}$( printf "0x%04x" $(( $?$pipestatus$lrc$lps )) )%f"
+                }
+
+            # sockets need not be successful here...
+                sudo systemctl stop "${2}.socket" &> /dev/null
+            ;;
+        2)        echo -n "%F{6}service only: $2"
+                ((debugmode)) && echo "..."
+                sudo systemctl stop $2 && echo "%F{2}OK%f" || echo "%F{1}no-go($?)%f"
+            ;;
+        3)        echo -n "%F{6}socket only: $2"
+            # ...but here they do, because they are the only action:
+                ((debugmode)) && echo "..."
+                sudo systemctl stop ${2}.socket && echo "%F{2}OK%f" || echo "%F{1}no-go($?)%f"
+            ;;
+        *)        echo "[%F{5}unrecognized action ($1), skipping anything for $2.%f]"
+            ;;
+    esac
+}
+function pk()
+{
+    if [[ -n `pgrep $@` ]]; then
+        echo "pre/postkill: $@"
+        sudo killall -KILL $@
+    fi
+}
+function make_knerc()
+{
+    echo "press ENTER to make fresh .knerc"
+    read -sk1
+    echo '# .knerc
+# user scriptlet for kne
+# (required for kne to do anything)
+#
+# settings syntax:
+#  function  argument  (argument2) (...)
+#
+# functions:
+#  pk [process name]    -  kills a process by name (ie; "pk proftpd")
+#   ki [level] [rootname] - kills a target by name (see below for how)
+#
+# details:
+#
+#  function    ki [level] [rootname] 
+#    kills service [rootname] and derivitaves
+#    also kills any dependencies
+#  arguments
+#    level:
+#        0 - disable action (good for temporary disabling of items)
+#        1 - full kill of service and any same name or simmilar name processes
+#        2 - process only kill (no services)
+#        3 - socket only kill (no service or process)
+#      specifying anything else will result in an error
+#
+#  function  pk [name]
+#    kills by passing [name] to killall -KILL
+#    the signal is always KILL (9)
+#    this can be done before or after, but should not be used
+#    during a ki block since ki can be working with same processes
+#
+# file layout:
+#  pk name(s)  <- pre kills
+#  ki ...
+#  ki ...    <- the ki block
+#  pk name(s)  <- post kill
+#
+# executed from top to bottom
+# comments and language should follow sh syntax
+# however, this file is filtered to have only pk and ki commands execute
+# and any other arguments AFTER the last expected one will be ignored
+# admins: make sure you sanitize this script first for expansion as it is
+#      sourced at this time.
+# (example settings follow)
+
+pk dbus-daemon
+
+ki 1 lightdm
+ki 1 systemd-dbus
+ki 1 systemd-journal
+ki 1 systemd-udevd
+ki 0 systemd-resolved
+ki 1 systemd-timesyncd
+ki 0 accounts-daemon
+ki 0 acpid
+ki 1 avahi-daemon
+ki 1 cron
+ki 1 cupsd
+ki 1 dbus
+ki 1 dbus-daemon
+ki 1 NetworkManager
+ki 1 osspd
+ki 1 polkitd
+ki 1 rsyslogd
+ki 1 snapd
+ki 1 udisksd
+ki 1 wpa_supplicant
+ki 1 atd
+ki 1 cups-browsed
+ki 1 unattended-upgrades
+ki 1 vsftpd
+ki 1 ModemManager
+ki 1 colord
+ki 1 systemd
+ki 1 pulseaudio
+ki 1 tracker-miner-fs
+ki 1 dbus-daemon
+ki 1 gvfsd
+ki 1 gvfsd-fuse
+ki 1 tumblerd
+ki 1 at-spi-bus-launcher
+ki 1 rtkit-daemon
+ki 1 upowerd
+ki 1 anacron
+ki 1 cupsd
+
+pk dbus-daemon
+pk dbus-launcher
+pk anacron
+
+
+
+' &> ~/.knerc
+    echo "done"
+# NOTE: never add getty@tty1, unless you REALLY mean it
+#       (you will not have a primary console anymore, and kne needs it)
+}
+
+############################
+# MAIN PROGRAM             #
+############################
+test_tty() { echo "/dev/tty1"; }
+if ((INPLACEMODE)); then
+    # for those who hate scrolling
+    echo()     {    # ignores all options in $1
+                while true; do
+                    case $1 in
+                        -*)    shift;;
+                        *) break;;
+                    esac
+                done
+                builtin print -Pn "[s[2K$*[u"
+
+            }
+fi
+
+# failure test #2; test tty failure
+if ((KNE_FAIL_TEST2 == 1)); then
+	tty() {	echo "/dev/tty2"; }
+	echo "failure test 2 succeeded"
+elif ((KNE_FAIL_TEST1 == 1)); then
+	echo "failure test 1 succeeded"
+fi
+# failure test #1; test using override
+if pgrep lightdm; then
+	if [[ $KNE_FAIL_TEST1 != 1 ]] && ( [[ $KNE_OVERRIDE_TTY1 == 1 ]] || [[  $(tty) =~ tty1 ]] ); then
+    	echo "terminal checks: passed (lightdm is running though -- be warned!)"
+	else
+		((INPLACEMODE)) && unfunction echo
+		echo "lightdm running, inplacemode failed"
+		echo "terminal checks: failed"
+    	echo "please run from tty1 -- your tty is: $(tty)"
+		echo "kne should never be run from a pty, or a non-primary console"
+		echo "beware; if you should, you could have data loss, unexpected lockups, system failures, galore, you have been warn"
+		echo "to disable this check, you must use: \"env KNE_OVERRIDE_TTY1=1 kne\" "
+		echo "but is STRONGLY discouraged!"
+    	exit
+	fi
+else
+	echo "lightdm not running, skipping inplace fail test"
+fi
+
+if [[ $1 == --help ]]; then
+    print -P -- ""
+    print -P -- "syntax: $0 [--help|--makerc]"
+    print -P -- ""
+    print -P -- "--makerc           creates a new (overwrites!) ~/.knerc"
+    print -P -- "-i or --inplace    all echo commands will not scroll screen"
+    print -P -- "--help             you are reading it now!"
+    print -P -- ""
+    print -P -- "For more help, see 'man kne'."
+    print -P -- "%BJust kidding, there IS no manpage.. hahaha!!!%b"
+    print -P -- ""
+    print -P -- "Statuses:"
+    print -P -- " Normal (Green): Action Happened (a kill, stop, etc)"
+    print -P -- "  + Four digit code for normal/pipe/longret/longpipe"
+    print -P -- " Quiet (Green+Purple =)"
+    print -P -- "  + Code 0x457 = All Quiet (nothing needed to be done)"
+    print -P -- "  + Other Number = Quiet but Unusual Status, Probably Not a Problem!"
+    print -P -- ""
+    print -P -- "Function: if you hear a beep at the end, that means \"crecent fresh\" (this is a good thing)."
+    print -P -- ""
+    print -P -- "This program not intended for distribution, if you find and run it, dont blame me for the damages it might cause."
+	print -P -- "This work is only copyrighted to prevent it from being used without my permission in some other program without my knowing. If you must use my code please follow the procedures laid out on each individual LICENSE provided with from its original LOCATION."
+    print -P -- ""
+
+	
+    exit
+elif [[ $1 == --makerc ]] || ! [[ -r ~/.knerc ]]; then
+    make_knerc
+else
+    source ~/.knerc
+fi
+
+# cant beep without pcspkr and a console
+# SAFER, but more specific (possibly fails on some systems:) if [[ $(tty) =~ tty[0-9] ]]; then
+# BETTER: as long as nobody lies about their terminal
+if [[ $TERM =~ linux ]] || [[ $TERM =~ console ]]; then
+    sudo modprobe pcspkr
+    # note; might fail if /dev/input/event gets removed after services udev is stopped
+    # (: TAKE LITERALLY TOO :)
+    [[ $KNE_QUIET == 1 ]] || beep
+    sudo modprobe -r pcspkr
+fi
+cleanup_pending=0
+cleanup

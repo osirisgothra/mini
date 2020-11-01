@@ -1,0 +1,541 @@
+#!/bin/zsh
+#
+#    prun
+#    run a program with dmenu
+#    mini
+#    github/osirisgothra/mini.git/eso/ubin-local
+#
+#    Original Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Originally Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all projects can be
+#    obtained by visiting osirisgothra's repository:
+#
+#    <https://github.com/osirisgothra>
+#
+#    License: <https://www.gnu.org/licenses/gpl3>
+#
+#
+#	 INLINE REFERENCES (denoted by #)
+#
+#		 m-1: template output/term select block
+#			Ln1: select term from alternatives list, using last-term
+#		   	Ln4: in case termpath is invalid or unset
+#		 	Ln6-8: terminals used here MUST adhere to the XDG standard that
+#					uses command line options for execution -e, any other terms
+#		    		that do not will need a translation script, which will then
+#			  		have to be added to /etc/alternatives (see update-alternatives(1))
+#		 m-2: case $curopt block and for-done block that follows
+#		 	L@curoptblock:
+#					handle --options and -o ptions here
+#		 	L@last "for-done" block:
+#					verify/handle non-option arguments
+#
+#    HISTORY
+#
+#	 Sun 20 Sep 2020 08:42:19 PM EDT
+#            osirisgothra@ initially created this file
+#            with the original name, prun
+#   Mon 26 Oct 2020 10:40:49 AM EDT
+#            osirisgothra@ recovered this program from
+#            a severe crash that corrupted most the file
+#            and repaired it back to near-same state
+#            (80% file loss and rewrite)
+#            + added whitelisting (again)
+#            + added pretranslators (again)
+#            + added whitelisting rcfile, an example is in this directory with prun (example-prun-whitelistrc)
+#            + added -U and --update options (made them public) and caused them to not run prun afterward
+#              so they can be added to cron.daily or cron.weekly
+#              (updates are not done automatically because that would cut into the performance of this program
+#              which might seem trivial but has real measurable merit when dealing with systems that are high load).
+#            + added check for "unsavory" filenames that might butt heads with scripting (these are not 'usual' filenames, so there shouldnt be a problem for most users*)
+#
+#            * if you have a problem with unsavory filter, write me or do a pull request with your fix, im not doing it because ive no use for that at this time
+#              its written as a sanitizing method for now, to prevent hacking and thus increase security on the fly. If something more robust is needed, <insert comment here>, etc.
+#
+#            + the alpha stage is nearly done, ready to move into beta once all is checked and comitted
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#  (this is a historic marker: code=see library hall's detector)
+#
+##########################################
+###################### MODE OF EMULATION #
+##########################################
+emulate zsh
+
+##########################################
+############################ ZSH OPTIONS #
+##########################################
+
+setopt extendedglob
+setopt globassign
+setopt globdots
+setopt globsubst
+setopt kshglob
+setopt nullglob
+setopt promptsubst
+
+###########################################
+################### DISABLED ZSH BUILTINS #
+###########################################
+
+disable wait
+
+###########################################
+############################ DECLARATIONS #
+###########################################
+
+declare -g histfile="$HOME/.cache/prun_vhist"
+declare  -g winId="none"
+declare  -g termpath=""
+declare  -g waitprompt="press any key to end"
+declare -gi wait=0
+declare -gi nowait=0
+declare -gi debugging=0
+declare -gi term=0
+declare  -g cachefile=~/.config/bincache
+declare -ga opts
+declare -gi quiet_level=0
+declare  -g version_text="$(tput setaf 124)prun$(tput sgr0) Version 1.0 (C)2020 Gabriel T. Sharp, Licensed under GNU LGPL3 at https://gpl.gnu.org/gpl3.html"
+declare -ga dmenu_args=( -l $(( ${LINES-25} / 2 )) )
+declare -g exactcase=""
+declare -gi noerrors=0
+declare -gi loadlow=0
+declare -g loadlowprog="/dev/zero"
+declare -gA err=(	NONE			0
+					PROGERR			123
+					BADSEL			124
+					NOSEL			125
+					SPECIAL			126
+					GENERIC			127
+					PROGERR_BASE	128
+					UNDEFINED		192 )
+
+########################################
+############################ HELP TEXT #
+########################################
+
+declare  -g help_text="
+  Runs a program or shell agent using dmenu
+  looks like a duck, quacks like a duck, it must be a dmenu...
+MAIN SYNTAX
+	prun [OPTIONS] ARGUMENTS
+OPTIONS
+    --update     -U             update prun binary cache (not auto-updating lets prun execute faster)
+    --noerrors   -N             never return a bad status (always attempts to return 0*)
+    --loadlow    -L
+    --threshold      NUMBER      set lowload threshold (defaults to 2.5)
+    --window     -W             Embed the menu in the currently active window.
+    --help       -h             Show this help text.
+    --version    -v             Display version information & license, then exits.
+    --quiet      -q             Sets the quiet-ness level (0=non-debug messages, 1=total silence, 2=all messages).
+                                The quiet level is increased by 1 each time it is used (up to 2 times).
+    --debug      -d             Enable debug messages (same as using -qq).
+    --wait       -w             Wait for keypress then exit
+    --term       -t             Run inside an X terminal
+    --exact-case -c             Case is not ignored when searching in textbox
+    --never-wait -R          Never wait automatically when detecting X11 programs (reverses --wait)
+ARGUMENT TYPES
+	FILENAME	A filename that must exist or be writable by the current user.
+	STRING      A value usally with printable characters or formatting marks.
+LEGEND
+    [P] Full path to an executable
+    [X] X11 Window Manager or Wayland-Derived Manpositor
+NOTES
+	When using FILENAME, be sure it is a plain text file. It will be used instead of $cachefile
+LICENSE
+	GNU LGPL3 is available in full at the GNU GPL website, or through the google voice command 'show me GNU LGPL VERSION 3'
+
+"
+
+########################################
+############################ FUNCTIONS #
+########################################
+
+zprintf() { zenity --info --title="${2-prun message}" --text="$1"; }
+printf()  { ((quiet_level)) && return 127 || builtin printf "$@"; }
+iprintf() { [[ `tty` == 'not a tty' ]] && zprintf "$*" || printf "$@"; }
+dprintf() { ((debugging)) && builtin printf "$@\n"; }
+dfatal()  { code=${1-192}; shift
+			case ${code-1} in
+				1)
+					printf "fatal: general failure, no description given (args were: $0[$@])\n";;
+				*)
+					printf "fatal($code): $*\n";;
+			esac;
+			exit $code;
+}
+
+
+#exec 1>/tmp/prun_stdout 2>/tmp/prun_stderr
+
+update_bincache()
+{
+	if [[ $* =~ '--help' ]] || [[ $# -gt 0 ]]; then
+		[[ $* =~ '--help' ]] || printf "function $0 error: no parameters should be given!\n"
+		printf "function syntax: update-bincache\n"
+		printf "creates $cachefile with all names of binaries, duplicates removed\n"
+		printf "from your system path (at this time, PATH=$path).\n"
+		printf "creates $cachefile.tmp for sorting and deduplicating\n"
+		printf "uses dependencies: rm, printf(i), echo(i), sort, uniq, and, zsh (shell and utilit(i)es)\n"
+		printf "note: (i) = some dependencies may have alternates within zsh\n"
+		printf "see LICENSE for details, and README.md supplied for the github/osirisgothra/mini.git/eso/ubin-local\n"
+		exit 127
+	fi
+	plural_count() {
+		[[ $1 -eq 1 ]] && s="" || s="s";
+		printf "$1 ${2}${s}\n"
+	}
+	item_count() {	plural_count $1 "item" }
+	file_count() {	plural_count $1 "file" }
+	rm -f $cachefile
+	rm -f $cachefile.tmp
+	setopt globassign
+	for p ($path) {
+		if [[ -d $p ]] {
+			items=( $p/* )
+			printf "working in $p ($(item_count $#items))\n"
+			integer add=0 skip=0
+			for i ( "${(s: :)items[@]}" ) {
+				if [[ -x "$i" ]]; then
+				    # only use usual chars, nothing that would cause problems for a script, or is part of scripting language (like [)
+					if [[ "$i" =~ "^[-0-9A-Za-z\.\+_=@\#%\^\&\(\)\/]+$" ]]; then
+						i=$i(:t)
+						printf "$i\n" >> $cachefile.tmp
+					    let add++
+					else
+					    printf "unsavory filename skipped (though its executable): $i\n"
+					    let skip++
+					fi
+				else
+					let skip++
+				fi
+			}
+			printf "+- Added $(file_count $add) and skipped $(file_count $skip).\n"
+		}
+	}
+	printf "sorting index...\n"
+	cat $cachefile.tmp | sort | uniq > $cachefile && printf "index sorted" || printf "warning: got bad return code ($?), please check the error listed inside the bincache!\n"
+	printf "removing tempfile...\n"
+	rm -f $cachefile.tmp && "tempfile removed ok" || printf "failed to remove tempfile, please remove it yourself!\n"
+
+}
+
+########################################
+######################### MAIN PROGRAM #
+########################################
+
+if opts=( `getopt -n $0 -o a:s:UhvqdtwWcL:p: -l update,loadlow:,window,exact-case,prompt,agent,src,help,version,quiet,debug,term,wait -- "$@"` ); then
+	eval set -- "${opts[@]}"
+	while [[ $# -ge 0 ]]; do
+		curopt=$1
+		nextopt=${2-none}
+		shift						# see m-2
+		case $curopt in
+			--noerrors|-N)	let noerrors=1;;
+			--loadlow|-L)	if [[ -x $nextopt ]] {
+								loadlowprog=$nextopt
+								loadlow=1
+								shift
+							} else
+								printf "warning: loadlow program not found, it must be visible and executable\nno load checking will be done\n"
+								loadlow=0
+								shift
+							fi
+							;;
+			--never-wait|-R) 	let wait=0 nowait=1;;
+			--exact-case|-c)	exactcase=1;;
+			--window|-w) 	winId=${$(xprop -notype -root _NET_ACTIVE_WINDOW)[-1]};;
+			--src|-s) 		[[ -r $nextopt ]] && cachefile="$nextopt"; shift;;
+			--agent|-a) 	n=$(which $nextopt); [[ -x $n ]] && agent="$n"; shift;;
+			--wait|-W) 		let wait++;;
+			--term|-t) 		let term++;;
+			--prompt|-p) 	promptmsg=$nextopt; shift;;
+			--help|-h)		builtin echo "$help_text\n"; exit 127;;
+			--version|-v) 	builtin echo "$version_text\n"; exit 127;;
+			--quiet|-q) 	let quiet_level++;;
+			--debug|-d) 	let debugging++;;
+			--update|-U)    let update_bincache_now=1;;
+			--) 			dprintf "done with options"; break;;
+			*)				dprintf "handling option: $curopt (next:$nextopt)";;
+		esac
+	done
+	for arg; do
+		case $arg in
+			*)	dprintf "handling argument: $arg";;
+		esac
+	done
+else
+	dfatal $err[PROGERR] "error, code is $?, exiting with fail"
+fi
+printf "window id for attach: $winId, $winod\n"
+# attempt to attach to display forcefully (assumes single monitor system, multis should change it to :0.MONITORNUM)
+[[ $DISPLAY == "" ]] && { export DISPLAY=":0"; xhost +localhost }
+# if not embedded, use bottom of screen
+[[ $winId == "none" ]] && dmenu_args+=( "-b" )
+
+if ! [[ -r $cachefile ]] || ((update_bincache_now)); then
+    echo "updating bincache and removing history"
+    rm $histfile
+    # let user see messsages when they asked for an update or are debugging
+	if ((update_bincache_now || debugging)); then
+		update_bincache
+	else
+		update_bincache &> /dev/null
+	fi
+fi
+
+if [[ -r $histfile ]]; then
+	echo "organizing history"
+	tmpfile=$(mktemp)
+	if sort $histfile | uniq > $tmpfile; then
+		if [[ -r $tmpfile ]]; then
+			if rm $histfile; then
+				if mv $tmpfile $histfile; then
+					echo "history cleanup successful!"
+				else
+					echo "failed to move $tmpfile back to $histfile (disk space full?)"
+				fi
+			else
+				echo "unable to remove $histfile -- check your permissions!"
+			fi
+		else
+			echo "unable to read $tmpfile (needed to safely clean up cache, check permissions!)"
+		fi
+	else
+		echo "unable to sort the history file (sort/uniq returned $pipestatus and $?)"
+	fi
+	if [[ -r $histfile ]]; then
+		echo "adding local history to cache"
+	else
+		echo "$histfile will not be added because it cannot be read anymore"
+	fi
+else
+	echo "creating a brand new history file and calling it $histfile!"
+	if touch $histfile && [[ -r $histfile ]]; then
+		echo "success! new history file $histfile is ready for use..."
+	else
+		echo "FAILURE: $histfile not created, please check disk space and permissions!"
+		histfile=""
+	fi
+fi
+
+
+[[ $exactcase == "" ]] && dmenu_args+=( '-i' )
+[[ $promptmsg == "" ]] || dmenu_args+=( '-p' "$promptmsg" )
+[[ $winId == "none" ]] || dmenu_args+=( '-w' "$winId" )
+result="$(cat $cachefile $histfile | dmenu $dmenu_args)"
+dprintf "result=[$result]"
+[[ "$result" == "[" ]] && dfatal 126 "special case: [ cannot be used in prun because it is a language element"
+[[ "$result" == "" ]] && [[ `tty` =~ dev ]] && dfatal 125 "exiting (no selection)"
+[[ "$result" == "" ]] && dfatal 0 "non-error no item selected (but is ok because we arent going from terminal)"
+[[ -x $agent ]] && result="$agent $result"
+dprintf "compiled result=[$result]"
+# split as if z command, we even support inline comments!
+declare -ga results=( ${(Z:C:)result} )
+
+
+# whitelist
+#
+# the whitelist is only for disabling the terminal for programs that are known
+# to not be terminal applications (example, 'xcalc' is not a terminal applicaiton,
+# but 'calc' is.)
+#
+# Common use for end Users would be to add programs that you know do not
+# need a terminal to run (unless you want a debug window for stderr/out of course).
+#
+# Simply put, for programs that cause an annoying terminals to appear along with them
+# and have to be annoyingly closed after the program is done, these are canidates for
+# a whitelist entry.
+#
+# Because whitelist entries are a pain in the ass-ish, you could also source in a config
+# file, provided as a text of 2-per line like below, called .prun-whitelistrc. Just plain
+# text should be in the file, 2 entries per line. (comments are lines starting with #)
+#
+# Reasons the program cannot see it runs in a window of its own could be:
+# 1) Program uses a startup script first and launches different programs depending on the command line arguments.
+# 2) Program is an executable, but forks or exec's to another (not a library, bypassing ldd detection)
+# 3) Same as #2 or #1, but launches a chain of programs or scripts to start the real program (like firefox or chrome)
+# 4) Uses a nonstandard library that accesses X in some other way.
+# 5) A regular script that makes use of some X bindings for that language (lang-specific)
+# 6) Program is not a graphical, instead its a caller program calling the system/session dbus which causes a gui window to be launched on an already loaded library.
+# 7) Program causes some event, which in turn causes something else to be launched elsewhere (client/server situations)
+#                           program name        enabler state (1=whitelist on, 0=temp disable, 2=reserved for future use, same as 0 for now)
+# you could actually cut and paste these pairs into the .prun-whitelistrc file and they would still work, but they are hardwired and should stay here so
+# users can customize on a per-system basis).
+declare -gA whitelist=(     xterm               1
+                            uxterm              1
+                            localc              1
+                            lodraw              1
+                            google-chrome       1
+                            chromium-browser    1
+                            x-www-browser       1
+                            komodo              1
+                            komodoedit          1
+                            atom                1
+                            sublime             1
+                            sublimetext         1
+                            gvim                1
+                            dosbox              1
+                            gparted             1
+                            baobab              1
+                            terminology         1
+                            zenity              1
+                            gimp                1
+                            midori              1
+                            dillo               1
+                            surf                1
+                            netsurf             1
+                            KDiskFree           1
+                            konsole             1
+                            lo                  1
+                            firefox             1
+                            ocp                 1
+                            gvim                1
+                            java                1
+                            minetest            1
+                            jku                 0
+                           )
+if [[ -r ~/.prun-whitelistrc ]]; then
+    cat ~/.prun-whitelistrc | while read x y
+    do
+        if [[ $x =~ '^\s*#' ]]; then
+            # skipping comment line
+        else
+            echo "adding $x ($y) to whitelist"
+            if [[ $y =~ '^[0-2]$' ]]; then
+                whitelist[$x]=$y
+            else
+                echo "$y is out of range, it must be between 0 and 2"
+                echo "$x is not added to whitelist"
+            fi
+       fi
+    done
+fi
+# pretranslators (look below, its pretty self-explanitory)
+#
+#                           user types in       item gets translated to
+declare -gA pretranslators=(
+                            xterm               uxterm
+                            vim                 gvim
+                            edit                mousepad
+                            word                lowriter
+                            excel               localc
+                            pbrush              lodraw
+                            psp                 gimp
+                            photoshop           krita
+                            3dsmax              blender
+                            maya                modo
+                            wmplayer            vlc
+                            iexplore            midori
+                            calc                mate-calc
+                            charmap             gucharmap
+                            play                ocp
+                           )
+
+# TODO MOVE ME
+# do NOT loop this and try to make it recursive
+# this will cause races in feedback cycles if a user is careless...
+for x in ${(k)pretranslators}; do
+    y="${(v)pretranslators[$x]}"
+    if [[ "$results[1]" == "$x" ]]; then
+        print -P "%Bpretranslated $x to $y%b\n"
+        # discard arg1+replace with y
+        results[1]="$y"
+        # no need to continue
+        break
+    fi
+done
+result=$results[1]
+
+#############################################
+if [[ -r $result ]]; then
+	if [[ -d $result ]] || ! [[ -x $result ]]; then
+		# result is a path, or a nonexecutable file
+		# try to let xdg handle it as a last resort
+		xdg-open $results && exit 0
+		# if it failed, fall through and try something else (below)
+	fi
+fi
+
+if [[ `tty` == "not a tty" ]] && ((term < 1)); then
+
+	#zprintf "non-terminal detected"
+	if ! [[ -x $result ]]; then
+		wresult=`which $result`
+		if [[ -x $wresult ]]; then
+			result="$wresult"
+		else
+			zprintf "error $result or $wresult not found"
+			dfatal 124 "error: $result not found"
+		fi
+	fi
+
+	if ldd $result | grep -iq libX11; then
+		printf "no terminal, but this is a X program so it will not be switched\n"
+		#zprintf "no term+X prog"
+    elif [[ $whitelist[$result] == 1 ]]; then
+        printf "no terminal, not an X program, but it is in the whitelist"
+        #zprintf "no term+whitelist"
+        # force terminal off when in whitelist, waiting and nowaiting will be affected naturally
+        let term=0
+        let nowait=1
+        let wait=0
+	else
+		printf "no terminal tty, and this program appears to not have a link to X11 (or simmilar), enforcing auto-terminal...\n"
+		printf "and since it does not, we would want to wait for it if the user didnt say no\n"
+		#zprintf "no term+nonX prog"
+		let term++
+		((nowait <= 1)) && let wait++
+	fi
+else
+	printf "terminal %s detected" `tty`
+fi
+
+printf "entering final stage with:\n \nresults=${results[@]} \n\n"
+printf "main cmd=$results[1]\n"
+printf "args: ${#results[@]} arguments"
+let n=0
+for z in $results; do
+	printf "argument $n: $z\n"
+	let n++
+done
+### REMEMEBER:
+### do NOT use $result, it is just the exe name
+### the executable AND flags are in 'results'
+### yes it will work if you never want to use flags, but many times you will!
+###
+
+
+if ((term)); then														# note m-1
+	printf "entering term-assisted execution stage\n"
+	terms=( `update-alternatives --list x-terminal-emulator` )
+	if [[ -x $terms[1] ]] && [[ $term -le $#terms ]]; then
+		termpath=$terms[-term]
+	fi
+	[[ -x $termpath ]] || termpath=/usr/bin/xterm
+	case $termpath in
+		xterm|uxterm|rxvt|gnome-terminal|konsole)
+			termargs=( -t "$results" )
+			;;
+			*)
+			termargs=( )
+	esac
+	if ((wait)); then
+		"$termpath" $termargs -e "xtitle \"$results\"; $results; i3 fullscreen; echo \"$waitprompt\"; read -sk1"
+	else
+		"$termpath" $termargs -e "xtitle \"results\"; $results"
+	fi
+else
+	printf "entering stand-alone execution stage\n"
+	if ((wait)); then
+		eval $results
+		echo $waitprompt
+		read -sk1
+	else
+		eval $results
+	fi
+fi
+## if we are here, we made it through, we will want to add our new command to the history list
+echo "${results}" >> ~/.cache/prun_vhist
+

@@ -102,6 +102,7 @@ zmodload zsh/mathfunc
 maxf=5
 
 if ! o=( $(getopt -l help -o hqaf:la -n ${0}(:t) -- $@) ); then
+
 	exit $?
 fi
 function help()
@@ -188,6 +189,10 @@ if [[ -n $average ]]; then
 	# when using fields we will average out the fields used only
 
 	if [[ -n $fields ]]; then
+		if ((fields < 1)); then
+			echo "error: field value must be 1, 2, or 3!"
+			exit 125
+		fi
 		# ensure a is a floating point type so its values get divided properly
 		# this method also allows multiple fields just like before, in this case
 		# specifying a field more than once will give extra weight to that field

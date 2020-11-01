@@ -1,0 +1,172 @@
+#!/bin/zsh
+# vim: ft=zsh:et:nowrap:hls:sw=4:ts=4:ai:bs=2:fen:fdm=indent:fdl=4:fdo=all:fcl=all:siso=25:so=12:fo=cqlBj
+#  NB! be very careful to not mix up fdo and fo, fdl and fcl, they are only one letter off but do very
+#      different things (ie, fdo=all enables fold opening, fo=all gets truncated to fo=al, which enables
+#      destructive autoreformatting of lines into a paragraph which in turn decimates code blocks!).
+
+#
+#    fstab
+#    fstab editor
+#    mini
+#    "mini" projects, esoteric binary/source/scripts
+#
+#    Copyright (C) 1995-2020 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#   
+#    COMMENTS
+#
+#       Vim Users   -   See SOF/BOF and read warning about condensed modeline terms.
+#
+#    STATUS
+#       
+#       File Status -   Script is currently in-progress and NOT finished. (8/3/2020)
+#
+#    HISTORY
+#
+#	 Mon 03 Aug 2020 01:16:58 PM EDT
+#            osirisgothra@ initially created this file
+#            with the original name, fstab
+#
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#
+
+
+# Get Options from Command Line for fstab 
+
+declare -ga opts
+declare -gi quiet_level=0
+declare -g  version_text="$(tput setaf 124)fstab$(tput sgr0) Version 1.0 (C)2020 Gabriel T. Sharp, Licensed under GNU LGPL3 at https://gpl.gnu.org/gpl3.html"
+declare -ga longopts=( diff     T   "diff fstab and mtab (non-commented and empty lines)"
+                       help     h   "this help text"
+                       home     H   "copy to HOME and edit that instead"
+                       mtab     m   "open mtab instead of fstab"
+                       quiet    q   "increase quiet level by one (quiet level is always zero if left alone)"
+                       temp     t   "copy to tempdir and edit that instead"
+                       version  v   "display version information and exit (also shows license info)"
+                       view     V   "just view the fstab (comments/empty lines stripped out)"
+                     )
+ds=""
+
+for long short desc in $longopts; do
+    ds+="\t--${long} or -${short}\t\t$desc\n"
+done
+opt_text="$ds"
+
+declare -g  help_text="fstab
+fstab
+
+SYNTAX
+
+	fstab [OPTIONS] ARGUMENTS
+
+OPTIONS
+
+    $opt_text
+
+GLOSSARY OF TERMS
+
+    HOME        The current user's home folder
+    TEMPDIR     Usually /tmp, /bin/mktemp is used to get the tempdir's location on your system.
+	FILENAME	A filename that must exist or be writable by the current user.
+	PATHNAME	A relative or absolute path that must exist or be creatable.
+	STRING		A readable string, it must not contain any unreprintable characters.
+	NUMBER		An integer, usually between -32767 and 32767.
+	BOOLEAN		A true/false value, represented as 0 for false, and any other value for true.
+	FLOAT		A floating point single or double precision value, it is precise down to about 5 ot 6 decimal places.
+	ENG			Scientific notation, expressed in powers (3x10^4 is written as 3.4)
+	DEG			Like GRAD/RAD, but expressed in degrees (hours, minutes, seconds) so 3 5'5\" is written as \"3.5.5\" 
+    GPL         General Public License
+    GNU         The recursive acronym \"[G]NU [N]ot [U]nix\" referrs to 'GNU' itself, recursively forever.
+    LGPL        The lesser GPL (License).
+    L?GPLn      For example: \"LGPL3\", is the same as saying \"Lesser General Public License version 3.0\".
+    ZX          Acronym meaning 'ZSH-X', which means 'Z shell eXtended', Z is the last available letter.
+    Z           Z in ZSH means the 'last' or 'final' word when it comes to shells out there.
+    ZSH-X       Same as ZX (See: ZX)
+    ZSH         Used in Z and ZX (See: ZX, Z), Same as the Z in ZX (but not the Z in ZSH!).
+
+LICENSE
+
+	GNU LGPL3 is available in full at the GNU GPL website, or through the google voice command 'show me GNU LGPL VERSION 3'
+
+"
+
+case $# in 0) skipwarn=1;; esac
+
+echo() {
+	if [[ $quiet_level -gt 0 ]]; then
+        return 127 
+	else 
+		builtin echo "$@"
+	 fi 
+}
+
+if opts=( `getopt -n $0 -o $shortopts -l ${(j:,:)longopts} -- "$@"` ); then
+	eval set -- "${opts[@]}"
+	while [[ $# -ge 0 ]]; do
+		curopt=$1
+		nextopt=${2-none}
+		shift
+		# handle --options and -o ptions here
+		case $curopt in
+            --mtab|-m) usemtab=1;;
+            --diff|-d) usediff=1;;
+            --view|-V) viewonly=1;;
+            --temp|-t) temponly=1;;
+            --home|-h) homeonly=1;;
+
+			--help|-h)	echo "$help_text"; exit 127;;
+			--version|-v) echo "$version_text"; exit 127;;
+			--quiet|-q) let quiet_level++;;
+			--) echo "done with options"; break;;
+			*)	echo "handling option: $curopt (next:$nextopt)";;
+		esac	
+	done
+	for arg; do
+		# verify/handle non-option arguments
+		case $arg in
+			*)	echo "handling argument: $arg";;
+		esac
+	done		
+	
+else
+	echo "error, code is $?, exiting with fail"
+fi
+
+[[ $skipwarn == 1 ]] || echo "warning: options are not implemented yet"
+
+((usemtab)) && nano --syntax=rc /etc/mtab && exit
+((homeonly)) && cp /etc/fstab ~/fstab.tmp && nano --syntax=rc $_ && exit
+((temponly)) && cp /etc/fstab /tmp/fstab.tmp && nano --syntax=rc $_ && exit
+((usediff)) && vimdiff /etc/fstab /etc/mtab && exit
+((viewonly)) && vim -R /etc/fstab && exit
+echo "defaulting to admin edit of /etc/fstab (no other specification on command line)"
+sudo nano --syntax=rc /etc/fstab
+
+
+#	template output completed (code=OK(ERROR_NONE))
+#
+#

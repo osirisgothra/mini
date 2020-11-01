@@ -64,21 +64,51 @@ I3RC=~/.i3rc
 
 # pre-run checks
 if [[ "$1" =~ ^[0-9][0-9]\ [:A-Z0-9a-z]*\ ?$ ]]; then
-	echo "looking for $1 in workspaces (it had the workspace format)..."
-	if grep -Pq '^\s*set \$.*'"$1" "$I3RC"; then
-		echo "is a valid workspace defined in your .i3rc"
-		TARGETWORKSPACE="${1%% } "
+	mustexist=yes
+	if [[ $1 =~ ::$ ]]; then
+		# workspaces ending with '::' dont have to exist
+		__workspace="${1%%::}"
 		shift
-		case $- in 	*i*)
-						echo "running \"$*\" in \"$TARGETWORKSPACE\" by request of call stack:"
-						echo "$(callers)";;
-					*)
-						echo "running \"$*\" in \"$TARGETWORKSPACE\" by request of calling process, $PPID, (`ps -p $PPID -o cmd=`)";;
-		
-		esac
+		set -- "$__workspace" "$@"
+		mustexist=no
 	fi
-	i3 workspace "$TARGETWORKSPACE"
-	( command "$@" &> /tmp/xr-output-last.log & disown ) &> "/tmp/xr-docmd_func-output-last"
+	if [[ $mustexist == yes ]]; then
+		echo "looking for $1 in workspaces (it had the workspace format)..."
+		if grep -Pq '^\s*set \$.*'"$1" "$I3RC"; then
+			echo "is a valid workspace defined in your .i3rc"
+			TARGETWORKSPACE="${1%% } "
+			shift
+			case $- in 	*i*)
+							echo "running \"$*\" in \"$TARGETWORKSPACE\" by request of call stack:"
+							echo "$(callers)";;
+						*)
+							echo "running \"$*\" in \"$TARGETWORKSPACE\" by request of calling process, $PPID, (`ps -p $PPID -o cmd=`)";;
+			
+			esac
+		fi
+	else
+		echo "assigning workspace $1 (doesnt have to exist)"
+		TARGETWORKSPACE="${1%% }"
+		shift
+	fi
+	( dbus-launch "$@" &> /tmp/xr-output-last.log & disown ) &> "/tmp/xr-docmd_func-output-last"
+	SECONDS=0
+	until pgrep "$1" &> /dev/null; do
+		# sleep gives up timeslice
+		# sync ensures all disk writes are committed
+		sleep 0.5
+		sync
+		# timeout so we dont wait forever
+		if [[ $SECONDS -gt 10 ]]; then
+			break
+		fi
+	done
+	# NB: switching to workspace then starting does not work
+	#     because it takes far longer to run dbus than to pool it
+	# put the active window in its place
+	i3 move workspace $TARGETWORKSPACE
+	# then go there
+	i3 workspace $TARGETWORKSPACE
 	rc=$?
 	i3 mode default
 	# this part supports both interactive and noninteractive

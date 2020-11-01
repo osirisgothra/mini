@@ -1,0 +1,262 @@
+#!/bin/zsh
+# ^  in case this doesnt work or gets changed somehow linked to sh
+# v- check to make sure we are running zsh and not sh
+emulate sh
+printf "checking shell\n"
+if test "x${ZSH_VERSION}" = "x";  then
+	printf "This script requires zsh, and zsh must be at least version 3.0 in order to run correctly!\n"
+	exit 127
+fi
+printf "checking version\n"
+# v- by this point here, ZSH_VERSION is set, $0 contains /path/to/zsh
+if test ${ZSH_VERSION%%.*} -lt 3; then
+	printf "This zsh version $ZSH_VERSION is too old, script requires zsh => 3.0 in order to run correctly!\n"
+	exit 126
+fi
+printf "setting mode of operation\n"
+# v- by this point, zsh is running, and its either v3.0 or newer, safe to end sh emulation
+emulate zsh
+printf "$ZSH_VERSION detected\n"
+# v- lets see if a file exists or not
+#    we'll create any nonexisting files and make them executable so we dont have to later (since i usually make executables with nano)
+#    we'll use a blacklist for certain types
+#    this will automatically skip switch items or numerical ones
+if [[ $* =~ not.found ]] || [[ $* =~ aliased.to ]] || [[ $* =~ '^\s*\S+\s*\(\)' ]]; then
+	echo "\n"
+	echo "error: command line looks like a failed or obscure output from the which command from either the shell or zsh(1), this wont end well (stopping here)"
+	echo "--- extraneous body follows! ---"
+	i=0
+	for n ; do
+		echo "[line $i]: $n"
+		let i++
+	done
+	echo "--- end extranious body text ---"
+	echo "\n"
+	exit 122
+fi
+
+declare -ga nano_nonexec=( '.txt' '.md' 'README' '.html' '.htm' '.ini' 'rc' '.cnf' '.conf' 'tab' '(more to come, add  them here)' )
+for x ( ${*%%-*} ) {
+	if [[ -e $x ]]; then
+		printf "not setting $x to anything (exists)\n"
+	else
+		printf "nonexistent, attempting to resolve...\n"
+		nonexec_score=0
+		for y ( $nano_nonexec ) { [[ $x =~ ${y}$ ]] && let nonexec_score++; }
+		if ((nonexec_score)); then
+			printf "skipped %s (nonexec score of %d\n" $x $nonexec_score
+		else
+			printf "creating %s and setting executable: %s" $x $(touch $x && chmod a+x $x && printf ok || printf failed:$?)
+		fi
+	fi
+}
+
+#    nano
+#    start nano depending on situation
+#    mini/eso/ubin-local
+#    esoteric scripts and projects
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sun 16 Aug 2020 12:08:46 PM EDT
+#            osirisgothra@ initially created this file
+#            with the original name, nano
+#
+#	 PURPOSE
+#
+#    This program is a shim for nano(1) and does not intercept any command
+#    line options ever and never will. It is transparent and has only one
+#    purpose: to assign two different configurations depending on the state
+#    of the terminal:
+#			1) direct/no emulator (console, serial, etc) terminal
+#           2) terminal emulator mode (terminal emulators that run under Xorg, for example: xterm, uxterm, rxvt, Eterm, xfce4-terminal, gnome-terminal, konsole, etc)
+#			3) (PLANNED) hardware terminal manager (fbterm, vesaterm, etc)
+#           4) (PLANNED) terminal under another programs control (vimterm, vim-console, rekonq, kde terminal interfaces, X terminal interface, tmux, screen)
+#
+#	USER CONFIG
+#
+#		You can set the variables below to control where/how your items are used.
+#
+#	SETUP
+#
+#		New to this program? Just MOVE your .nanorc to .nanorc-x, and then copy that
+#       file to .nanorc-console. You can edit them independently for X or console
+#		respectively. Once you do that, just run the script and it will do the
+#		rest. If you change variables below, you will of course have to change
+#		the above steps to match the new configuration.
+#
+#		NB: if either .nanorc-* get deleted, nanorc will stop working, recreate them
+#           to fix that problem. Also, do not place anything at ~/.nanorc or it
+#			will cause nano to not launch! You can still run nano normally by
+#           using /bin/nano directly, of course. (/bin/nano is the POSIX standard
+#			location and it is has been standardized over the last 30 years of its
+#			existence, so its a safe bet it will be there).
+#
+#		I did not write nano(1), only this script (nano(1gts)), so give nano
+#		authors credit and see their manpage (man://1/nano).
+#
+#  (template+header created using template(1gts) by Gabriel T. Sharp)
+#
+
+# settings
+
+# pts_assume_gui   if the terminal is using pseudoterminal (slave/master) assume gui mode
+# gui_term		   terminal you want to use when in a gui terminal of any kind (defaults to xterm-256color)
+# con_term		   the terminal identifier used by console terminals (usually 'linux' (the default),'cons25', 'cons50', 'console', ..)
+# nano_target      the fqdn to the nano binary (must be the binary, not a script)
+# gui_file         the .nanorc to use when within an X terminal/session
+# con_file         the .nanorc to use within the console terminal
+# rc_file          the name of the (usually ~/.nanorc) configuration file to DELETE AND COPY OVER
+# ignore_terms		list of terminals to ignore
+#
+# gui means framebuffer also when pts_assume_gui is present
+# TODO: add detection for fbterm/frambuffers
+#
+
+# pre-translate (works for zsh only but does not check, so dont be dumb and
+# try to specify zsh-like responses from the command line!)
+# case one: <prog_name>: aliased to <executable_prog_name>
+#           it must be a name resolvable as an executable file
+#           if it isnt, its ignored
+if [[ $* =~ ^[^:]+:\\saliased\\sto\\s(.*) ]]; then
+	_nohit=1
+	print -fP "detect zsh-style alias string (used with which FILE, usually)..."
+	print -fP "attempting to match against [$match] within string [$*]"
+	_pmatch=${match[1]}
+	if [[ -r $_pmatch ]] && [[ -x $_pmatch ]]; then
+		for _type in `mimetype -a $_pmatch -l en`; do
+			if [[ $_type == text/plain ]]; then
+				print -fP "translating to $_pmatch aliased"
+				set -- "$_pmatch"
+				_nohit=0
+				break
+			fi
+		done
+	fi
+	if ((_nohit)); then
+		print -fP "\n"
+		print -fP "%F{50}warning:"
+		print -fP "%F{62}- [$*] appears to be a zsh alias string"
+		print -fP "%F{74}- ^ is not aliased to an executable/readable file"
+		print -fP "%F{86}  neither/nor is plain text (mimetype text/plain)"
+		print -fP "%F{98}- ^ might not edit how you expect [press enter to continue, ctrl+c to abort]"
+		read -sk1
+	fi
+fi
+
+
+
+pts_assume_gui=1
+gui_term="xterm-256color"
+ignore_terms=( stterm st fbterm ansi vt100 vt350 )
+con_term="linux"
+nano_target="/bin/nano"
+gui_file=~/.nanorc-x
+con_file=~/.nanorc-console
+rc_file=~/.nanorc
+
+# CHECK USER'S TEMPLATE FILES (for gui and console modes, you need one each)
+
+for chk in "$gui_file" "$con_file"; do
+	if ! [[ -s "$chk" ]] || [[ -d "$chk" ]] || ! [[ -r "$chk" ]]; then
+		printf "fatal: cannot read $chk, make sure its there and you have permission to read it\n"
+		exit
+	else
+		printf "$chk verified ok\n"
+	fi
+done
+
+# MAKE ROOM FOR A LINK FROM/TO .NANORC AND USER'S TEMPLATE FILE
+
+if [[ -L "$rc_file" ]]; then
+	rm -f "$rc_file" &> /dev/null
+elif [[ -d "$rc_file" ]]; then
+	printf "fatal: .nanorc is a directory, this is not good, fix that please!\n"
+	exit 127
+elif [[ -f "$rc_file" ]]; then
+	printf "fatal: .nanorc is not a link, please rename it so we can make the links for this program (cannot continue)\n"
+	exit 128
+fi
+printf "\"$rc_file\": verified slot is available\n"
+
+# CHECK WHETHER TO USE GUI OR CONSOLE CONFIGURATION
+
+# if ignore list match, hardware variables to short out all other checks:
+# - force to gui config
+# - force either to be gui config
+# - force either to use TERM
+for x in $ignore_terms; do
+	if [[ $x == $TERM ]]; then
+		export gui_term=$TERM
+		export con_term=$TERM
+		export con_file="$gui_file"
+		break
+	fi
+done
+if xwininfo -root &>/dev/null || ( [[ `tty` =~ pts ]] && ((pts_assume_gui)) ); then
+	# gui mode
+	printf "selecting gui as target (${gui_term})\n"
+
+	export TERM=${gui_term}
+	ln -s "$gui_file" "$rc_file"
+else
+	[[ $TERM == "" ]] && export TERM=${con_term}
+	ln -s "$con_file" "$rc_file"
+fi
+
+if [[ -r "$rc_file" ]]; then
+	# never use /usr/bin/nano, it is not backwards compatible with older distributions (the location not the filename)
+	printf "passing arguments ${(qq)@} to $nano_target\n"
+	# quotes not needed for zsh, bash ports will need to add them
+	[[ $TERM == ${con_term} ]] && mterm=${con_term} || mterm=${gui_term}
+	printf "term is $TERM, mterm is $mterm\n"
+    h=0
+    for x; do
+        [[ -r "$x" ]] && ( ! [[ -w "$x" ]] ) && { let h++; }
+    done
+    ((h > 0)) && extra_args="sudo" || extra_args=""
+
+	#launch zsh way
+
+    env TERM=$mterm ${extra_args} $nano_target $@
+
+	# TODO: maybe detect these, if we actually want them (not right now we dont, its /for/ zsh so we should be using zsh!)
+	#launch bash way
+	# env TERM=$mterm "${extra_args[@]}" "$nano_target" "$@" # bash only#
+	#launch generic way
+	# TERM=$mterm
+	# export TERM
+	# _bin="${extra_args[@]} $nano_target"
+	# _par="$@"
+	# $_bin $_par
+
+else
+	printf "error: \"$rc_file\" unavailable (proceeding anyway in case of a rofs!)\n"
+	$nano_target $@
+fi

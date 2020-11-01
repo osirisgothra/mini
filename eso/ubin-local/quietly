@@ -212,12 +212,31 @@ else
 		target=none
 	done
 	if [[ $target == none ]]; then
+		# TODO: get rid of echos where not needed
 		echo "no target was found - aborted"
 		if [[ -x /usr/lib/command-not-found ]]; then
 			echo "you have a cnf-handler, passing this on to ulcnf..."
-			/usr/lib/command-not-found "$linkbase"
+			if (( `loadavg -a -f1` > 1.50 )); then
+				echo "system load is higher than normal so cnf will not be shown"
+			else
+				/usr/lib/command-not-found "$linkbase"
+			fi
 		else
 			echo "no cnf handlers found (or click here: http://www.google.com/search?q=get+$linkbase)"
+		fi
+		if [[ -L "$0" ]]; then
+			print -P "%F{red}quietly%F{blue}<->%F{green}$0%f is %Bnot%b valid\n%F{green}remove its link now %f[%F{green}y/[n]%f]%B?%b"
+			read -sq
+			case $REPLY in
+				y|Y)	printf " YES\nremoving $0 in 4 seconds..."; sleep 4
+						cp "$0" "/tmp/last_quietlylink_removed.q"
+						rm "$0" && echo "ok" || echo "failed, remove it manually!"
+						;;
+				n|N)	printf "NO\nskipping removal\n"
+						;;
+			esac
+		else
+			print -P "%F{red}quietly%F{blue}<->%F{green}$0%f is %Bnot%b valid, but is also a %Uphysical%u file, you must delete it yourself for safety reasons"
 		fi
 		exit err_fnf
 	else

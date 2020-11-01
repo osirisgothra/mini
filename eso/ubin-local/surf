@@ -1,106 +1,68 @@
-#!/bin/bash
+#!/bin/zsh
+# rewrite of ~/bin/surf
+# for zsh, a bit smarter but more hardwired
+# also, no need to make cache or anything its faster now
+# requires also the program 'qfork' (distributed with this script)
 
-# try to find it quickly in usual locations
-if [[ -x /usr/bin/surf ]] && ! diff "$BASH_SOURCE" "/usr/bin/surf"; then
-	if [[ $SURF_NO_LOOK_IN_USUAL_SPOT -eq 1 ]]; then
-		echo "warn: found in usual spot but SURF_NO_LOOK_IN_USUAL_SPOT=1 is set. however, if it is the only result it might be chosen anyway."
-	else
-		echo "short-circuting: surf found in usual spot, using it"
-		echo "(disable this by defining SURF_NO_LOOK_IN_USUAL_SPOT=1)"
-		exec /usr/bin/surf "$@" || exit $?
-	fi
+# check for qfork
+if ! [[ $(qfork --marco) == "pollo" ]]; then
+	echo "qfork is not installed, it is REQUIRED"
+	exit 127
 fi
 
+# set debug=1 to show debug messages, or debug=0 to not
+# use the DEBUG_SURF if using env
+declare -gi debug=0
+# overrides above, dont change this!
+# second incantation "0" is not the same as "" and unset, it MUST exist to be considered!!
+[[ $DEBUG_SURF == 1 ]] && debug=1
+[[ $DEBUG_SURF == 0 ]] && debug=0
+decho() { [[ $debug == 1 ]] && echo "$(date): $@"; }
 
-TTY="$(tty)"
-
-function kdialog()
-{
-	# only use kdialog IF we dont have a tty (like running from an X based launcher)
-	if [[ $TTY =~ (pts|tty) ]]; then
-		case $1 in
-			--msgbox)	shift; printf "[44m[1m[ $* ][0m\n";;
-			*) printf "kdlg: $*\n";;
-		esac
-	else
-		command kdialog "$@"
-	fi
-}
-
-
-function errexit()
-{
-	kdialog --msgbox "cant find surf anywhere! $*"
-	echo "CANT FIND SURF!"
-	exit 1
-}
-
-if [[ -r ~/.config/surflocation ]]; then
-	SURFCACHE=~/.config/surflocation
+# resolve our script to physical path for later
+decho -ne "resolving $0 to "
+declare -g __this=`readlink -e "$0"`
+declare -g __expected_mimetype="application/x-executable"
+if [[ $__this == $0 ]]; then
+	decho "[same script, ok]"
 else
-	SURFCACHE="/tmp/surfloc.cached"
+	decho "$__this (fully dereferenced link)"
 fi
 
-if [[ ! -r "$SURFCACHE" ]]; then
-	kdialog --msgbox "I am going to look for surf for you, and save the location!"
-	echo "$SURFCACHE not found, looking for surf..."
-	# note: "nlocate" does NOT search for just files (stupid right?) so we have to check em ourselves
-	declare -a files=( `locate */surf` )
-	declare -i index=0
-	echo
-	echo "Heres the list: ${files[@]}"
-	echo
-	while true; do
-		nextfile=${files[index]}
-		echo "now checking: $nextfile - to see if it is a file/executable/nondirectory"
-		if [[ -f "$nextfile" ]] && [[ -x "$nextfile" ]] && [[ ! -d "$nextfile" ]]; then
-			if diff "$nextfile" "$BASH_SOURCE"; then
-				echo "$nextfile is THIS script, obviously not what we are looking for"
+declare -ga prefixes=( / /usr ~/ ./ )
+declare -ga minfixes=( " " "local" "share" "src" "src/fork" "src" "src/fork" "src/clone" ".local" ".local/share" )
+declare -ga suffixes=( /bin /surf "/" /sbin )
+for p ( $prefixes ) {
+for m ( $minfixes ) {
+for s ( $suffixes ) {
+	[[ $p == " " ]] && p=""
+	[[ $m == " " ]] && m=""
+	[[ $s == " " ]] && s=""
+
+	f="$p$m$s"
+	g="${f//\/\///}"
+	if [[ -d $g ]] && [[ -x $g/surf ]]; then
+		g="${g%/}/surf"
+		# resolve all links to their dirs so checks will test if it is the caller script
+		g=`readlink -e "$g"`
+		if [[ -d $g ]]; then
+			decho "$g is a directory"
+		else
+			decho "$g is executable, examining..."
+			if [[ $g = $__this ]]; then
+				decho "this is the currently running script, skipping"
 			else
-				if file "$nextfile" | grep ELF; then
-					echo "$nextfile verified as an ELF binary"
-					break
-				else
-					echo "$nextfile is a script (possibly a different/modified version of THIS script)"
+				__mimetype=`mimetype --output-format "%m" "$g"`
+				decho "mimetype is $__mimetype"
+				if [[ $__mimetype == $__expected_mimetype ]]; then
+					echo "found $g which is $__mimetype match, passing your arguments to it..."
+					qfork $g "$@"
+					exit $?
 				fi
 			fi
 		fi
-		let index++
-		echo "no go, going to the next one.. (number $index in the list)"
-		if [[ $index -gt "${#files[@]}" ]]; then
-			# /dev/null is guarenteed to NEVER be executable POSIX-HFS specifications
-			echo "FAILED, could NOT find one, so we have to use /dev/null to trip the checker"
-			nextfile=/dev/null
-			break
-		fi
-	done
-	SURFLOC="$nextfile"
-	if [[ ! -x "$SURFLOC" ]]; then
-		errexit
 	fi
-	kdialog --msgbox "we made it, it was found at $SURFLOC and will be stored in $SURFCACHE until the next system reboot clears the cache"
-	echo "found surf at $SURFLOC"
-	echo "recording cache to $SURFLOC"
-	echo "$SURFLOC" > "$SURFCACHE"
-else
-	SURFLOC=`cat $SURFCACHE`
-	if [[ ! -x "$SURFLOC"  || ! -f "$SURFLOC" || -d "$SURFLOC" ]]; then
-		rm -f "$SURFCACHE"
-		errexit "The cache file was found, but it pointed to somewhere that didnt execute, the cache file has been deleted, try running again to perform the initial search"
-	elif diff "$SURFLOC" "$BASH_SOURCE"; then
-		rm -f "$SURFCACHE"
-		errexit "The cache file points to this script, not okay (removing script file -- please try again)"
-	elif file "$SURFLOC" | grep ELF; then
-		echo "cached file $SURFLOC is an executable, binary file. Using it as the target file (and keeping in cache)"
-	else
-		echo "file $SURFLOC is not a binary executable, removing it (please try again!)"
-		rm -f "$SURFCACHE"
-		errexit "failed to execute any valid cache file, please start this program again to rescan!"
-	fi
-fi
-# at this point $SURFLOC will have a valid, executable location, no matter what
-# execution problems are now the problem of the binary, not us
-# our script is called 'surf' so we can safely 'exec' into it to keep
-# the expected PID when we were launched, this is required for startup
-# notification on some systems to work correctly (and monitoring apps)
-exec "$SURFLOC" "$@"
+}
+}
+}
+

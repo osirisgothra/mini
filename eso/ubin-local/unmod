@@ -63,7 +63,8 @@ my $cui = Curses::UI->new( -clear_on_exit => 1, -debug => $debug, );
 # structures :)
 # start the event loop
 
-$cui->mainloop;
+#$cui->mainloop;
+
 $cui = Curses::UI->new();
 $cui->dialog("Hello, world!");
 

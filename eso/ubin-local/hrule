@@ -1,0 +1,24 @@
+#!/bin/zsh
+# syntax: hrule [str] [width=tw] [height=1] (tw: terminal width reported)
+emulate zsh
+
+zmodload zsh/terminfo
+
+declare -ga defstr="=-=+=-"
+declare -ga str="${1-$defstr}"
+declare -ga w=$terminfo[cols]
+declare -ga h=$terminfo[lines]
+declare -ga c=$terminfo[colors]
+
+function errexit() {	echo $LINENO; exit 1; }
+
+[[ $w < 5 ]] && errexit "terminal too thin: $w"
+[[ $h < 3 ]] && errexit "terminal too short: $h"
+[[ $c < 1 ]] && errexit "terminal cant properly give a color reading ($c)"
+errexit test
+
+
+
+
+
+

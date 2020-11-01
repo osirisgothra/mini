@@ -1,0 +1,87 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+use Curses::UI;
+use v5.20.2;
+no warnings "experimental";
+use feature "signatures";
+use vars { $menu, $editor, $win, $cui };
+
+$cui = new Curses::UI( -color_support => 1 );
+
+
+my @menu = 	(
+				{ 	-label 		=> 	'File',
+					-submenu	=> 	[
+									{ -label => 'About	F1', -value => \&about_dialog },
+									{ -label => 'Exit	^Q', -value => \&exit_dialog },
+									]
+				},
+
+				{ 	-label 		=> 	'Help',
+					-submenu	=> 	[
+									{ -label => 'Topics		^F2', -value => \&about_dialog },
+									{ -label => 'Contents	^F1', -value => \&exit_dialog },
+									]
+				},
+
+			);
+
+sub exit_dialog()
+{
+	my $ret = $cui->dialog(	-message 	=>	"Quit Really??",
+							-title		=>	"Are You Certain?",
+							-buttons	=>  [ 'yes', 'no'],
+						   );
+	exit(0) if $ret;			   
+}
+sub about_dialog()
+{
+	$cui->dialog(	-message 	=>	"Sample Curses App",
+					-title		=>	"scapp 1.0 (for use with perltemplate-curses",
+					-buttons	=>  [ 'dismiss' ],
+			   );
+}
+sub create_menu()
+{
+	return $cui->add(	'menu','Menubar',
+						-menu => \@menu,
+						-fg => "blue",
+					);
+}
+sub create_window()
+{	
+	return $cui->add(	'win1','Window',
+						-border => 1,
+						-y		=> 1,
+						-bfg	=> 'red',
+					);
+}					
+sub create_widget($tgt)
+{
+	return $tgt->add(	"text","TextEditor",
+						-text => "Here is some text\n" .
+								 "and some more"
+					);
+}					
+sub keybindings()
+{
+	$cui->set_binding( sub {$menu->focus()}, "\cX");
+	$cui->set_binding( \&exit_dialog, "\cQ");
+	$cui->set_binding( \&about_dialog, "F1");	
+}
+
+my $menu = create_menu();					
+my $win = create_window();
+my $editor = create_widget($win);
+
+keybindings();
+
+$editor->focus();
+$cui->mainloop();
+
+
+
+
+

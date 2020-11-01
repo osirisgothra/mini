@@ -1,7 +1,209 @@
-#!/bin/bash
+#!/usr/bin/perl
+#
+# FILE
+#    mansh
+#    man shell?
+#
+# PROJECT
+#    mini
+#	 eso-ubin-local
+#
+# AUTHOR / COPYRIGHT
+#
+#    Copyright (C) 2020, 
+#
+#    Written by  osirisgothra@larnica.(none)
+#    Latest versions of this and all of 's projects can be
+#    obtained from:
+#
+#     <<projbranch>>
+#
+#    Documentation Available At:
+#
+#     <http://www.github.com/osirisgothra/mini.git>
+#
+# LICENSE
+#
+#    mini/mansh  is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  NOTES
+#
+#     * TODO: move 'use' statements to top if you want to keep them**
+#    ** this feature will be added to the next version of perltemplate (hopefully)
+#   *** warnings are disabled for experimental and once because they are pretty
+#       annoying here, you might want to re-enable them for your own program
+#       to do this during testing and development.
+#
+#  HISTORY
+#
+#	Sat Oct 24 13:52:01 2020
+#         osirisgothra@larnica.(none) created this file using the template generator 'perltemplate'
+#         and named it mansh for the project '<projname'.
+#
+#
+# (created with perltemplate by Gabriel T. Sharp <osirisgothra@hotmail.com>)
+#
 
-LEVEL=ROOT
-MANPROMPT='$LEVEL $USER $HOSTNAME # '
-while true; do
-	eval echo -ne $MANPROMPT
-	read -a MPCMD
+use warnings;
+use v5.18;
+use strict;
+no warnings "experimental";			# 	allow given/when/default and smartmatching without their warnings***
+no warnings "once";					# 	allow variables to be used just once without warning***
+
+
+## ANSI* ##
+use Term::ANSIColor 4.0  qw ( colorstrip color colored uncolor coloralias :constants colorvalid :pushpop );
+
+sub colordemo() 
+{
+    # color
+    print color 'bold blue';
+    print "This text is bold blue.\n";
+    print color 'reset';
+    print "This text is normal.\n";
+    print colored("Yellow on magenta.", 'yellow on_magenta'), "\n";
+    print "This text is normal.\n";
+    print colored ['yellow on_magenta'], 'Yellow on magenta.', "\n";
+    print colored ['red on_bright_yellow'], 'Red on bright yellow.', "\n";
+    print colored ['bright_red on_black'], 'Bright red on black.', "\n";
+    print "\n";
+    # Strip all color escape sequences.
+    print colorstrip '\e[1mThis is bold\e[0m', "\n";
+    # Determine whether a color is valid.
+    my $valid = colorvalid('blue bold', 'on_magenta');
+    print "Color string is ", $valid ? "valid\n" : "invalid\n";
+    # Create new aliases for colors.
+    coloralias('alert', 'red');
+    print "Alert is ", coloralias('alert'), "\n";
+    print colored("This is in red.", 'alert'), "\n";
+    print BOLD, BLUE, "This text is in bold blue.\n", RESET;
+    # localized
+    {
+    	local $Term::ANSIColor::AUTORESET = 1;
+    	print BOLD BLUE "This text is in bold blue.\n";
+    	print "This text is normal.\n";
+    }
+    print PUSHCOLOR RED ON_GREEN "This text is red on green.\n";
+    print PUSHCOLOR BRIGHT_BLUE "This text is bright blue on green.\n";
+    print RESET BRIGHT_BLUE "This text is just bright blue.\n";
+    print POPCOLOR "Back to red on green.\n";
+    print LOCALCOLOR GREEN ON_BLUE "This text is green on blue.\n";
+    # localized 
+    print "This text is red on green.\n";
+    {
+    	local $Term::ANSIColor::AUTOLOCAL = 1;
+    	print ON_BLUE "This text is red on blue.\n";
+    	print "This text is red on green.\n";
+    }
+    print POPCOLOR "Back to whatever we started as.\n";
+    ## END ANSI ## 
+}
+
+
+## CURSES ##
+use Curses::UI;
+say("curses: entering setting");
+my $debug = 0;  #1=yes 0=no
+my $cui = Curses::UI->new( -color_support => 1, -clear_on_exit => 1, -debug => $debug, ); # this is where we gloss over setting up all the widgets and data structures + start the event loop
+$cui->dialog("Hello, world!");
+my $yes = $cui->dialog( 	-message => "Hello, world?", -buttons => ["yes","no"], -values  => [1,0], -title   => "Question", );
+if ($yes) {	chomp(); } # whatever
+$cui->error("It's the end of the\n"."world as we know it!");
+$file = $cui->filebrowser(	-path => "/tmp", -show_hidden => 1, );
+# Filebrowser will return undef if no file was selected.
+if (defined $file) {    unless (open F, ">$file") {	print F "Hello, world!\n"; close F; } else { $cui->error(qq(Error on writing to "$file":\n$!)); }     }
+$cui->status("Saying hello to the world..."); 		# code for saying "Hello, world!"
+$cui->status("Saying goodbye to the world..."); 	# code for saying "Goodbye, world!"
+$cui->nostatus;
+$cui->progress( 	-max => 10, 	-message => "Counting 10 seconds...", );
+for my $second (0..10) {	$cui->setprogress($second); sleep 1; }
+$cui->noprogress;
+           my @menu = (
+                 { -label => 'File',
+                   -submenu => [
+                  { -label => 'Exit      ^Q', -value => \&exit_dialog  }
+                               ]
+                  },
+               );
+#$cui->addmenu(\@menu);
+$cui->mainloop;
+## END CURSES ##
+
+## OPEN3 ##
+print "do open3 example? [y/[n]]";
+$_ = readline();
+if (/y/) {
+	use IPC::Open3  qw( open3 );
+	my $pid = open3( \*CHLD_IN, \*CHLD_OUT, \*CHLD_ERR, 'xcalc','-fg','red' );
+	my @handles = ( \*CHLD_IN, \*CHLD_OUT, \*CHLD_ERR );	
+	my($wtr, $rdr, $err);
+	use Symbol "gensym"; $err = gensym;
+	$pid = open3($wtr, $rdr, $err, 'xcalc','-fg','red' ); 
+	waitpid( $pid, 0 );
+	my $child_exit_status = $? >> 8;
+}
+## END OPEN3 ##
+
+## PATH ##
+use Path::Tiny;
+# creating Path::Tiny objects
+print("for this to work, must have /tmp/foo.txt and /tmp/foo/bar.txt first, attempt will be made to create them...");
+sleep(1);
+my $data1 = `ls -l /`;
+my $data2 = `ls /etc`;
+path('/tmp/foo/bar.txt')->spew($data1);
+path('/tmp/foo.txt')->spew($data2);
+my $dir = path("/tmp");
+my $foo = path("foo.txt");
+my $subdir = $dir->child("foo");
+my $bar = $subdir->child("bar.txt");
+# stringifies as cleaned up path
+my $file = path("./foo.txt");
+say $file; # "foo.txt"
+# reading files
+my $guts = $file->slurp;
+$guts = $file->slurp_utf8;
+my @lines = $file->lines;
+@lines = $file->lines_utf8;
+my ($head) = $file->lines( {count => 1} );
+my ($tail) = $file->lines( {count => -1} );
+say "head";
+say $head;
+say "tail";
+say $tail;
+say "write data...";
+# writing files
+my @data = qw ( sample data );
+$bar->spew( @data );
+$bar->spew_utf8( @data );
+# reading directories
+for ( $dir->children ) { say("children: $_"); }
+my $iter = $dir->iterator;
+while ( my $next = $iter->() ) { say("iterated: $next"); }
+## PATH END ##
+
+## GETOPT ##
+use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
+my ($opt, $usage) = describe_options(
+    '$0 %o <some-arg> file',
+    [ 'no-dialog', "dont use dialog to show log",  ],
+    [ 'no-follow',   "do not follow the log, just show it",   { default  => 79 } ],
+    [],
+    [ 'verbose|v',  "print extra stuff"            ],
+    [ 'help',       "print usage message and exit" ],
+);
+say($usage->text), exit if $opt->help;
+say("getopt: arguments processed: $#ARGV");
+## GETOPT END ##

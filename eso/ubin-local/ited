@@ -2,6 +2,7 @@
 # vi: mls=2:hls:fdo=insert:fcl=all:fdl=2:fen:fdm=marker:fmr=#<,>#:fdm=syntax:cc=160:siso=50:so=$COLUMNS:ft=zsh:ts=4:sw=4:et:bs=2
 #
 emulate zsh
+print -P  "ppid: $(readlink -e /proc/$PPID/exe)"
 #
 #    ited
 #    edit inventorytweaks rules/sorting/config files in currently running modpack (see requirements)
@@ -40,27 +41,17 @@ emulate zsh
 #            osirisgothra@ initially created this file
 #            with the original name, ited
 #
-# TARGET NOTES
+#	NOTES:
 #
-# 	EXECUTIVE STATE CHANGES
-#		marking single existing file executable
-#			- mode of 'ited' changed to u+rwx/og+rx.. []
-#		completed (0)
-# 	ARGUMENTUAL ANALYSIS
-#       remaining arguments:
-#			no arguments to list
-#       disposition:
-#			4 were used during execution of template
-#   		0 were extra and/or unexpected
-# 	TEMPLATE SUMMARY OF GENERATION
-#	     outcome: good
-#	     errors: 0
-# 	FINAL NOTE
-#	     template program under renovation
-#        you should REMOVE the TARGET NOTES section once youve reviewed this!
-#		 (Sat 27 Jun 2020 12:21:15 PM EDT): osirisgothra ignored the final note and left this behind for
-#		           the user(s) to see, how embarassed I am for the author!
-#
+#		TODO:
+#			- see inline code for TODO messages
+#			- sanitization of arguments if we ever use them
+#			- = = of $0 because it could be unsafe (maybe)
+#			- verify prerequisites are what we expect (version checks and/or mimetype checks, permissions)
+#			- verify permissions on all files involved in high-level calls
+#		DONE:
+#			Q: verification of the jku_gamedir script (make sure its really the correct script)
+#				A: using another tool called mgamedir which is much faster for both calls, may combine these later
 #
 #  (this template+header was created using the template generator by Gabriel T. Sharp)
 #
@@ -68,19 +59,31 @@ emulate zsh
 #
 #
 
+# zsh check
+
 [[ $zsh_eval_context =~ toplevel ]]  || echo "fatal: zsh(1) required!"
 
+# required modules 
+
+zmodload zsh/terminfo
+zmodload zsh/termcap
+zmodload zsh/mathfunc
+
+
 # functions
+sc() { echoti sc; }
+rc() { echoti rc; }
+ce() { echoti cuu 0; }
 
 function print() 
-{ 
-        builtin print -P "$@"
-}
+{                         
+	builtin print -P "$@" 
+}                         
+  
 
 # prologue variables
 
-
-declare -ga prerequisites=( zsh jku_gamedir java perl which find sed grep pgrep ps basename dirname realpath nano )
+declare -ga prerequisites=( zsh mgamedir java perl which find sed grep pgrep ps basename dirname realpath nano )
 declare -gi errors=0
 
 setopt kshglob
@@ -95,64 +98,221 @@ setopt kshglob
 setopt noxtrace
 _debug=0
 
+# cuu (up cursor) / sc (save cursor position) / rc (restore cur. pos)
+echoti cuu 2
+echoti sc
+echocip() { # echo clearing to eol + inplace (no cursor change)
+	echoti sc
+	if [[ $1 == -n ]] || [[ $1 == -ne ]]; then shift
+		pat="$1"
+		shift
+		set -- "$pat\n" "$@"
+	elif [[ $1 =~ ^-.* ]]; then	shift
+	fi
+	printf "$@"
+}
+
 # required externals
 
+integer n=${#prerequisites}
+integer i=0
 for x ($prerequisites)  {
-							print "checking for required components..."
+							# the two IF statements with i++ are intended to allow the user to see the stage start from 0% and end at 100% during the run
+
+							if [[ $i -gt 0 ]]; then let i++; fi
+							integer p=$(( i*100 / n ))
+							print -P "$(rc)checking for required components...${p}%% $(ce)"
                             if [[ -x `which -p "$x"` ]]  {
                                     [[ $_debug == 1 ]] && print "%BFound:%b $x"
                             } else {
                                         print "%F{124}%Berror:%b %U$x%u is required but is NOT found%f"
                                         let errors++
                             }
+							if [[ $i -le 0 ]]; then let i++; fi
 }
+echo "\n"
+
+# ask mgamedir if minecraft is running
+if [[ `mgamedir is_running` == "no" ]]; then
+	echo "minecraft not running"
+	if [[ -w $ITED_ROOT/config/InvTweaksRules.txt ]]; then
+		echo "setting mgamedir stand-in because ITED_ROOT is set to a valid directory"
+		mgamedir()
+		{
+			case $1 in
+				dir)	echo "$ITED_ROOT";;
+				name)	echo "User-specified manual directory";;
+				*)		echo "N/A";;
+			esac
+			return 0
+		}
+	else
+		echo "Please either: \n\t1) run minecraft before using this program\n\t2) specify a base directory in ITED_ROOT\n"
+		exit 1
+	fi
+fi
 
 # epilogue variables
 
-declare -gx gamedir="$(jku_gamedir)"
-declare -gx gamename="$(jku_gamedir -g)"
+# CHANGED: 1) gamename/gamedir depends now on mgamedir instead of jku_gamedir (see above)
+#          2) dcrg avoids reuse of text
+# TODO:  write real process monitoring progress meter
+
+dcrg="detecting currently running game"
+print -P "$(sc)$dcrg (5%)..."
+#declare -gx gamedir="$(jku_gamedir)"
+declare -gx gamedir=$(mgamedir dir)
+print -P "$(rc)$dcrg (55%)...$(ce)"
+#declare -gx gamename="$(jku_gamedir -g)"
+declare -gx gamename=$(mgamedir name)
+print -P "$(rc)$dcrg (75%)...$(ce)"
 declare -gx progname=$(basename $0)
 declare -gx progpath=$(realpath $(dirname $0))
+print -P "$(rc)$dcrg (100%)...$(ce)\n"
 
-# modules
-
-zmodload zsh/mathfunc
-zmodload zsh/termcap
 
 # program
 
-function t() { for x { echotc "$x" } }
+function t()																																				
+{ 
+ 	for x { echotc "$x" }
+} 
 
 
-function main()
-{
-    [[ $_debug == 1 ]] && print "prog name=$progname path=$progpath"
-    print "found running game in '$gamedir' called '$gamename'"
+function main()                                                                                                                                              
+{ 
+	# 0=nobackup 1=copy to cache ~/.cache/ited/backup
+
+	io_backup=0
+	io_useconfig=0
+
+	wants_config_file=""
+	# see attached ini example at end of file
+	# perl .ini reading
+	# [needs no modules and works with perl5 released on ubuntu 9.04 or newer, tested]
+	# read from .itedrc, [Files] section, any valid filenames that exist (can be zero length)
+	declare -ga extrafiles=( `perl -wne '$n=$_; chomp($n); print if /^\s*\[Files\]\s*(#.*|)$/ ... /\[/ and not /([\[#]|^\s*$)/ and -r $n and -f $n' /home/osirisgothra/.itedrc` )
+	# reads from .itedrc [Config] section, values are converted to lowercase
+	# VALUE=1 would be io_value=1, MY=VALUE is io_my=value, and so on
+	# naturally because of this, filenames are not in this section at all
+	eval `perl -wne 'printf(lc("io_$_")) if /^\s*\[Config\]/ ... /\[/ and not /([\[#]|^\s*$)/ and /^[^#]*\S=\S/' /home/osirisgothra/.itedrc`
+	# rc file's config value overrides the command line:
+	(( io_useconfig )) && ITED_USE_CONFIG_FILE=1
+	print "found running game in '$gamedir' called '$gamename'"
 	_configdir="$gamedir/config"
-	_files=( --syntax=invtweaksrules $_configdir/InvTweaksRules.txt 
-			 	$_configdir/InvTweaksTree.txt
-			 	$_configdir/InvTweaks.cfg		)
-	echo -n "detecting nano settings..."
-	for x in ~/.nanorc /etc/nanorc /var/nano/nanorc ~/.config/nano/nanorc ~/.config/nanorc ~/.config/.nanorc; do
-		if [[ -r $x ]]; then
-			_conf="$x"
-			break
-		fi
-	done
-	[[ -r "$_conf" ]] || echo "fatal: cannot locate nano config file -- please create one or reinstall nano"
-	if ! grep -q invtweaksrules\.nanorc $_conf; then
-		echo "invtweaksrules syntax rule not installed, color support will be limited!"
+
+	# sanitize invalid values to zero if needed
+	[[ "$ITED_USE_CONFIG_FILE" =~ ^[01]$ ]] || ITED_USE_CONFIG_FILE=0
+	# dont need quotes for it here, its been sanitized, but i use them anyway in case code structure changes
+	if [[ "$ITED_USE_CONFIG_FILE" == 1 ]]; then
+		print -P  "using config file at user request of ITED_USE_CONFIG_FILE"
+		wants_config_file="$_configdir/InvTweaks.cfg"
 	else
-		echo "configuration ok, full color supported"
+		print -P  "ITED_USE_CONFIG_FILE is zero, InvTweaks.cfg will not be included"
 	fi
-	print "initializing nano..."
-	nano $_files
-	print "cleaning up..."
-	unset IFS
-	
+    [[ $_debug == 1 ]] && print "prog name=$progname path=$progpath"
+    
+	_nanoflags=(  --syntax=invtweaksrules )
+
+	if [[ $ITED_SWAP_LAST_ENTRIES == "1" ]]; then
+		_files=(	${wants_config_file}
+				 	$_configdir/InvTweaksTree.txt
+				 	$_configdir/InvTweaksRules.txt
+					$extrafiles
+				)
+	else
+		_files=(	${wants_config_file}
+				 	$_configdir/InvTweaksRules.txt
+				 	$_configdir/InvTweaksTree.txt
+					$extrafiles
+				)
+	fi
+	if ((io_backup)); then
+		backupdir=~/.cache/ited/backups
+		if mkdir -p $backupdir; then
+			if cp --dereference $_files $backupdir; then
+				echo "made backup: ok"
+			else
+				echo "fatal error: cannot backup to $backupdir (check space, permissions, etc)"
+				exit 128
+			fi
+		else
+			echo "fatal error: cannot create backup path $backupdir (check permissions, space, etc)"
+			exit 129
+		fi
+	else
+		echo "skipping backup (no Backup key in config file, or no config file)"
+	fi
+	if [[ $1 =~ ^--?v(im)? ]]; then
+		if [[ $1 =~ n$ ]]; then
+			# VIM - CLI NORMAL
+			print -P  "using vim (normal) as requested  --vimn/-vn"
+			vim -o $_files
+		elif [[ $1 =~ g$ ]]; then
+			# VIM - GUI (GVIM)
+			print -P  "using vim (gui gtk/gnome/athena/etc) as requested --vimg/-vg"
+			gvim -o $_files
+		else
+			# VIM - TINY (MINIMAL)
+			print -P  "using vim (tiny) as requested --vim/-v"
+			vim.tiny -u /dev/null $_files
+		fi
+	else
+
+		print -Pn "%F{124}detecting nano settings...%f"
+		for x in ~/.nanorc /etc/nanorc /var/nano/nanorc ~/.config/nano/nanorc ~/.config/nanorc ~/.config/.nanorc; do
+			if [[ -r $x ]]; then
+				_conf="$x"
+				break
+			fi
+		done
+		[[ -r "$_conf" ]] || print -P  "%F{red}fatal: cannot locate nano config file -- please create one or reinstall nano%f"
+		if ! grep -q invtweaksrules\.nanorc $_conf; then
+			print -P  "invtweaksrules syntax rule not installed, color support will be limited!"
+		else
+			print -P  "configuration ok, full color supported"
+		fi
+		print "initializing nano..."
+		nano $_nanoflags $_files
+		print "cleaning up..."
+		unset IFS
+	fi
 }
 
 # entry point
+print -P  "starting main program handoff"
 main "$@"
+print -P  "returned ok"
 
-
+## INI EXAMPLE
+## REMOVE THE LEADING "## " (no quotes) FROM ITS TEXT BELOW TO USE CONFIG FILE
+## BE SURE TO NAME IT $HOME/.itedrc (ie, for root its /root/.itedrc))
+##-----BEGIN INI EXAMPLE (NEXT LINE IS LINE 1 (or 0 with base0))--------------
+## #
+## # .itedrc
+## # ited configuration
+## #
+## # Sections denoted with [section_name] on a line
+## # values are either in the form of 'FILENAME"
+## # or "NAME=VALUE"
+## # Valid Sections:
+## #	Name			Contains Items of Type		Description
+## #	[Files]			FILENAME					Files to load also, after the last file but before the configuration
+## #												there is no limit to how many you can load, they can even be empty but must be readable plain text files.
+## #	[Config]		NAME=VALUE					Most options go here
+## #
+## # Options (for Config)
+## #
+## #	Name			Value(s) Accepted			Description
+## #	UseConfig		1 or 0						if 1, loads the InvTweaks.cfg file also (changes value of wantsconfig internally)
+## #	Backup			1 or 0						copy files opened to ~/.cache/ited-backups first
+##
+##
+## [Config]
+## UseConfig=0
+## Backup=1
+##
+##
+## [Files]
+## /home/osirisgothra/in/config/moditems.txt
+#----------END EXAMPLE FILE--------_CUT_-----------------------------_CUT_----------------_CUT_------------------------

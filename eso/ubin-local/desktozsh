@@ -1,0 +1,14 @@
+#!/bin/zsh
+for item; do
+	if [[ -r $item ]]; then
+	# TODO: (not really though) you can add .desktop entry validators here if you wish
+	#       but the program using this snippet really should be doing that itself
+	#		also, this could be sped up by using zsh flags more liberally, if you are
+	#		pressed for speed and have time, you could move everything out of perl (more code lines though)
+	#		perl does add about 0.05s overhead here (thisline+1) and here (thisline+2)
+		noglob eval declare -gA entry=( $(cat $item | perl -wne 'if (/=/) { s/(^.*)(=)(.*)/"$1" "$3"/g; print; }') )
+		declare -p entry | perl -wpe 's/entry/'$item'/g'
+	else
+		echo "error: $item cannot be read (check the filename/type and try again)"
+	fi
+done

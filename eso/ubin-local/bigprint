@@ -1,0 +1,13 @@
+#!/bin/zsh 
+#          a        b       c
+#     |12345678|12345678|12345678 
+scan1="	XXXXXX	XXXXX																										"
+scan2="	XX	XX	X	 X																									"
+scan3=" XXXXXX	X	 X																										"
+scan4="XX	 XX	XXXXX																										"
+scan5="XX	 XX	X	 X																										"
+scan6="X 	  X	X	 X																										"
+scan7="X      X	XxxxxX																												"
+scan8="																													"
+
+echo $a

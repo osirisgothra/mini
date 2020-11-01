@@ -1,0 +1,226 @@
+#!/bin/zsh
+
+# important: do not use internal printf, it cannot handle 128 bit long integers (127 bit signed/128 bit unsigned) that are needed in kernels 3.14+
+# tested on kernels v5.2 through v5.6 but should work per the docs on versions no earlier than v3.14 or better
+# may work on older kernels, but some tweaking to the signal values will be needed
+
+# syntax: toggle-process SWITCHES [pid] [...]
+#       ___________
+#      (___START__ )
+#          \\X//
+#   ________\V/__________
+#  /         V           \
+#  |        \ /          |
+# \|/        V           |
+#  V        \ /          |
+# for each reXaining "X" |argument:
+#  |   validate it as a p|id:
+#  |           does the p|rocess exist in /proc/X?
+#  |           is X great|er than 300?
+#  | .-------- NO YES    |
+# \|/              |     |
+#  X               v     |
+# for each valid pid:    |
+#  X   get the statuscode|"x<y"
+#  V       if x is D, t, |Z or X, warn user and skip (disk sleep(D), trace-stop(via TSTP), zombie(Z), or dead(X)) -- some others may do this too (see below details), this is done by the next two lines exclusively
+#  |        |            |
+#  |        +--if x is T,| then send pid signal 'SIGCONT'
+#  |           if x is R |or S, then send pid signal 'SIGSTOP'
+#  v                     |
+# for each non-valid pid:|
+#      warn the user that the pid is invalid and skip to next
+#		more args?       |
+#		NO	YES ---------`
+#       |
+#      \|/
+#  _____V_____
+# (__E__N__D__)
+#
+#
+
+# an open list to allow translating from statecode to statename, or vice-versa
+declare -gA statelist=(	Running R
+                    Dead X
+                    Sleeping S
+                    Stopped T
+                    TraceStop t
+                    DiskSleep D
+                    Zombie Z
+					R Running
+                    X Dead
+                    S Sleeping
+                    T Stopped
+                    t TraceStop
+                    D DiskSleep
+                    Z Zombie )
+declare -gi MIN_PID=300
+declare -gi MAX_PID=4194304
+declare -gi showstatebody=0
+declare -ga astat=( nil )
+declare -gi min=1 fivemin=2 qtrhour=3 unused=4 lastpid=5
+declare -gA pstat=( created false )
+declare -ga kernel_ver=( ${(s:.:)$(uname --kernel-release)} )
+# get loadavgs
+declare -ga loadavg=( $(</proc/loadavg) )
+printf "starting: system reporting average load of %1.2f over last minute\n" $loadavg[$min]
+printf "last pid to be made was %d, this pid is parent->child %d->%d \n" $loadavg[$lastpid] $PPID $$
+
+# get max pid from system if we can
+if [[ -r /proc/sys/kernel/pid_max ]]; then
+	MAX_PID=$(</proc/sys/kernel/pid_max)
+	printf "successfully retrieved max_pid from your system (max_pid=%d)\n" $MAX_PID
+else
+	printf "using hard default max_pid=%d because it cannot be read from the system\n" $MAX_PID
+fi
+
+
+# disablers #-> why
+
+		#-> internal printf does NOT support %ll (long-long or large long integers) or %llu the coreutils /bin/printf calls printf(3) directly so it supports whatever the kernel needs (including the ll's and the llu's)
+disable printf
+		#-> used in language features
+disable hash
+
+# functions
+
+makestatvar()
+{
+	pid=$1
+	case $# in
+		1)
+		astat=( $(</proc/$1/stat) )
+		pstat=(
+				pid $(printf "%d" ${astat[1]})
+				comm $(printf "%s" ${astat[2]})
+				state $(printf "%c" ${astat[3]})
+				ppid $(printf "%d" ${astat[4]})
+				pgrp $(printf "%d" ${astat[5]})
+				session $(printf "%d" ${astat[6]})
+				tty_nr $(printf "%d" ${astat[7]})
+				tpgid $(printf "%d" ${astat[8]})
+				flags $(printf "%u" ${astat[9]})
+				minflt $(printf "%lu" ${astat[10]})
+				cminflt $(printf "%lu" ${astat[11]})
+				majflt $(printf "%lu" ${astat[12]})
+				cmajflt $(printf "%lu" ${astat[13]})
+				utime $(printf "%lu" ${astat[14]})
+				stime $(printf "%lu" ${astat[15]})
+				cutime $(printf "%ld" ${astat[16]})
+				cstime $(printf "%ld" ${astat[17]})
+				priority $(printf "%ld" ${astat[18]})
+				nice $(printf "%ld" ${astat[19]})
+				num_threads $(printf "%ld" ${astat[20]})
+				itrealvalue $(printf "%ld" ${astat[21]})
+				starttime $(printf "%llu" ${astat[22]})
+				vsize $(printf "%lu" ${astat[23]})
+				rss $(printf "%ld" ${astat[24]})
+				rsslim $(printf "%lu" ${astat[25]})
+				startcode $(printf "%lu" ${astat[26]})
+				endcode $(printf "%lu" ${astat[27]})
+				startstack $(printf "%lu" ${astat[28]})
+				kstkesp $(printf "%lu" ${astat[29]})
+				kstkeip $(printf "%lu" ${astat[30]})
+				signal $(printf "%lu" ${astat[31]})
+				blocked $(printf "%lu" ${astat[32]})
+				sigignore $(printf "%lu" ${astat[33]})
+				sigcatch $(printf "%lu" ${astat[34]})
+				wchan $(printf "%lu" ${astat[35]})
+				nswap $(printf "%lu" ${astat[36]})
+				cnswap $(printf "%lu" ${astat[37]})
+				exit_signal $(printf "%d" ${astat[38]})
+				processor $(printf "%d" ${astat[39]})
+				rt_priority $(printf "%u" ${astat[40]})
+				policy $(printf "%u" ${astat[41]})
+				delayacct_blkio_ticks $(printf "%llu" ${astat[42]})
+				guest_time $(printf "%lu" ${astat[43]})
+				cguest_time $(printf "%ld" ${astat[44]})
+				start_data $(printf "%lu" ${astat[45]})
+				end_data $(printf "%lu" ${astat[46]})
+				start_brk $(printf "%lu" ${astat[47]})
+				arg_start $(printf "%lu" ${astat[48]})
+				arg_end $(printf "%lu" ${astat[49]})
+				env_start $(printf "%lu" ${astat[50]})
+				env_end $(printf "%lu" ${astat[51]})
+				exit_code $(printf "%d" ${astat[52]})
+			 )
+		;;
+		*) printf "fatal: makestatvar cannot be called with %d parameters" $#
+			exit 129
+		;;
+	esac
+}
+
+# TEST POINT
+# test with an invalid string:
+#declare -ga kernel_ver=( 3.10.5-lubuntu9 4 0 )
+# valid but old
+#declare -ga kernel_ver=( 3 10 5-lubuntu9 4 0 )
+
+if [[ ${kernel_ver[1]} =~ ^[0-9]+$ ]] &&  [[ ${kernel_ver[1]} =~ ^[0-9]+$ ]]; then :; else
+	printf "\nfatal: kernel version string $kernel_ver cannot be parsed, this program is only for linux!\n"
+	exit 127
+fi
+float kernel_version=$(( $kernel_ver[1].$kernel_ver[2] ))
+float kernel_version_min=3.14
+if [[ $kernel_version -ge $kernel_version_min ]]; then
+	printf "\nkernel version verified: %1.2f\n" $((kernel_version))
+	printf "kernel version string: %-20s\n" ${(j:.:)kernel_ver}
+else
+	printf "\nkernel version v%1.2f is too old, the program will not \noperate correctly and requires at least v%1.2f to run.\n" $((kernel_version)) $((kernel_version_min))
+	exit 128
+fi
+
+declare -gi m=0
+declare -gi n=0
+# TEST POINT
+# alter command line if wanted
+# set -- my args are bad ones and below 299 or 1
+# or ok but not allowed
+# set -- 1 2 3 4
+
+for arg; do
+	if [[ $arg =~ ^[0-9]+$ ]] && [[ $arg -gt $MIN_PID ]] && [[ -r /proc/$arg/stat ]]; then
+		let m++
+		# TEST POINT
+		# show task body for state
+		# showstatebody=1
+		printf "checking pid $arg...\n"
+		makestatvar $arg
+		if ((showstatebody)); then
+			printf "state var body:\n"
+			n=0
+			for key in ${(k)pstat}; do
+				printf "     keyname: %-25s value: %s\n" "$key" "${pstat[$key]}"
+				let n++
+			done
+			printf "%d elements listed.\n" $n
+		fi
+		ps=$pstat[state]
+		if [[ $ps =~ ^[TSR]$ ]]; then
+			printf "pid %d has proper state (%s, which means %s), proceeding with toggle...\n" $arg $ps ${statelist[$ps]}
+			if [[ $ps =~ T ]]; then
+				# stop->start
+				printf "sending SIGCONT to $arg..."
+				kill -SIGCONT $arg && printf "ok\n" || printf "fail\n"
+			else
+				# run->stop
+				printf "sending SIGSTOP to $arg..."
+				kill -SIGSTOP $arg && printf "ok\n" || printf "fail\n"
+			fi
+			printf "All operations on PID %d are done.\n" $arg
+		else
+			printf "PID %d is in an improper state (%s), skipping toggle.\n" $arg ${statelist[$ps]}
+		fi
+	else
+		[[ $arg -le $MIN_PID ]] && printf "%d is out of range of minimum (%d)\n" $arg $MIN_PID
+		[[ -r /proc/$arg/stat ]] || printf "%d has no readable stats or is invalid\n" $arg
+		[[ $arg =~ ^[0-9]+$ ]] || printf "%s is not in proper numeric (non-fractional, non-floating) format, it must be a positive nonfractional integer\n" $arg
+		[[ -d /proc/$arg ]] || printf "pid %d does not exist\n" $arg
+		[[ $UID -ne 0 ]] && printf "if you used a proper PID, try using sudo to elevate your access rights (regular users may not view protected processes)\n"
+		[[ $UID -eq 0 ]] && printf "no access restrictions (you are superuser), this is not a permissions problem\n"
+	fi
+done
+printf "%d arguments parsed ok\n" $m
+printf "%d arguments rejected\n" "$(( $# - $m ))"
+
+

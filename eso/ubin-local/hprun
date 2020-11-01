@@ -1,0 +1,8 @@
+#!/bin/sh
+# vim: ft=sh:et:ts=4:sw=4:bs=2:ls=2:nofen:cc=80
+#     hprun: run a process as high as possible io and niceness without changing the euid and home dirs.
+# copyright: (C) 1995-2021 and written by Gabriel Thomas Sharp <21shariria@gmail.com>.
+#    source: <https://github.com/osirisgothra/mini.git/eso/ubin-local> 	license: <https://www.gnu.org/licenses/lgpl>.
+#   created: as "hprun" Mon 12 Oct 2020 11:57a-edt by osirisgothra@hotmail.com.
+#     notes: 1) do not use any other type of shell, use real sh or dash,  2) keep comments out of here and in hprun-README.md.
+exec sudo ionice -n 1 -c 1 nice -n -20 sudo -u $USER "$@"

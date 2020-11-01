@@ -90,6 +90,10 @@
 # diskfree=0.0 memfree=0.0 swapfree=0.0 cpu=0.0
 # repeat {
 while true; do
-	echo "$(date +%c)"
-	sleep 1	
+	if [[ -r ~/.status_command_child_ignore ]] || ! [[ -r ~/bin/status_command_child ]]; then
+		echo	"$( (loadavg; date) | tr '\n' ' ' )"
+	else
+		[[ -r ~/bin/status_command_child ]] && source ~/bin/status_command_child
+	fi
+	sleep 1
 done

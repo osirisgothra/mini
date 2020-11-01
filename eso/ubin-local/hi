@@ -31,7 +31,7 @@
 #    with this program; if not, write to the Free Software Foundation, Inc.,
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
-#    HISTORY
+#    HISTORY			LEGEND: +addition  -removal  =change  %sidenote
 #
 #	 Mon Jan 15 10:13:22 EDT 2019
 #            + osirisgothra@larnica initially created this file
@@ -54,61 +54,58 @@
 #			       + scan limiter (scans only range n<->m)
 #				   + added mono and none for color modes (none only useful for isolated matches!)
 #			
+#	Sat 15 Aug 2020 09:25:18 PM EDT (osirisgothra)
+#			-	removed help text from header (you just use --help now!)
+#			+	added constants and some signatures
+#			+   added NOTES section below
+#
+# 	NOTES		LEGEND: (PKG::|FUNC::)(sig::)?LINENO ("sig" and PKG cannot both be used, when sig is used, line referrs to the line number within the signature, not the function block)
+#
+#		
+#			showhelp::sig::0
+#
+#	
+#
 #
 #  (this header was created using the template generator by Gabriel T. Sharp)
 #
-#   hi [-clnvw] [long options...] [perlregex] ...
-#	                        
-#	output options          
-#	                        
-#	-n INT --charcount INT    numerical value to limit each line to
-#	                          number of characters from start, negative
-#	                          measures from end
-#	-c STR --color STR        colorized output mode: color(default) none,
-#	                          or mono
-#	-l --l-isolate            show only lines that have highligts on them
-#	-w --w-isolate            show only highligted text/words
-#	                        
-#	miscellaneous           
-#	                        
-#	-v --verbose              print extra stuff
-#	--help                    print usage message and exit
-#	
-#	highlight groups ( [group] ... )
-#	see below for string explaining groups		
-#	                        
-# (regenerate above using ins->file->cmd->hi->--help
-#
+
+
+package Term::ANSIColor::Highlighter::Main;
 
 use warnings;
-use v5.20;
 use strict;
+use v5.20;
+use vars 	 qw@ $usage $groups_desc @;
+use constant {
+	true		=>	1,
+	allon 		=> 	3,
+	nil 		=> 	undef,
+	false 		=> 	0,
+	tristate 	=> 	2,
+	 FALSY		=>	"	falser"
+};
+
+### MODULES
+####################################################################################################################
+
 use Getopt::Long::Descriptive;
 use Path::Tiny qw( path );
 use Term::ANSIColor 4.00 qw( uncolor colorstrip colorvalid coloralias :constants :pushpop );
+
+### FEATURES
+####################################################################################################################
+
 use feature 'signatures';
 no warnings 'experimental::signatures';
 
-sub amatch 
-{
-	my $src = shift;
-	my @items = @_;
-	my @rets = ();
-	for (@items) {
-		unshift(@rets,$_) if /^$src/;
-	}
-	return @rets;
-}
+### INIT -- Getopt::Long::Descriptive
+####################################################################################################################
 
-my %presets = (		markdown => [ '[[:punct:]]', '\b[0-9]+\b', '\*\*\*.*\*','\*\*', ],
-					ini		 => [ '\A\s*\S+(?==)', '(?<==)[^#;]+', '[#;]+[^\'"]+.*\z', '\A\s*\[[A-Za-z_][A-Za-z_0-9]+\]' ],
-					simple	 => [ '[[:punct:]]', '[[:digit:]]', '\b[-A-Z]+\b', '\b\d+\b', '\A[[:punct:]\h]+\z' ],
-					ccomment => [ '\/\*.*?\*\/', '\/\/.*' ],
-					scomment => [ '#[^"\']+*$' ],
-				   pycomment => [ '\A\s*"{2,}\s?.*' ],
-					perl	 => [ 'scomment', '<keywords todo>', ]
-				);
-			
+# TODO: decide if we want to add it as an argument or use '-p simple' instead (both do about the same but push@ARGV is a bit ugly
+if ( @ARGV < 1 ) { push(@ARGV,"simple"); }
+
+# TODO: decide on podizing or manifying (or texInfo?)
 my $progname = path($0)->basename();
 my $groups_desc = <<FEOF
 
@@ -143,9 +140,29 @@ my $groups_desc = <<FEOF
 
     flags
 
-        Allowed flags are 'egorms'. This is subject to change.
-        Please read 'perldoc perlre' for more on this. Most
-        users will find that the default, 'g' is just fine.
+        Allowed flags are 'msixpogcalud'. This is subject to change.
+        Most of the time, you will find that the default, 'g' is just fine.
+        Flags that are supported (from perlreref(3pm)):
+
+           m  Multiline mode - ^ and \$ match internal lines
+           s  match as a Single line - . matches \\n
+           i  case-Insensitive
+           x  eXtended legibility - free whitespace and comments
+           p  Preserve a copy of the matched string -
+              \${^PREMATCH}, \${^MATCH}, \${^POSTMATCH} will be defined.
+           o  compile pattern Once
+           g  Global - all occurrences
+           c  don't reset pos on failed matches when using /g
+           a  restrict \\d, \\s, \\w and [:posix:] to match ASCII only
+           aa (two a's) also /i matches exclude ASCII/non-ASCII
+           l  match according to current locale
+           u  match according to Unicode rules
+           d  match according to native rules unless something indicates
+              Unicode
+
+        It is advised that you should avoid the flags "poc", because their
+        effects cannot be controlled externally by users.
+
         Most of the other flags are only useful for those who
         are customizing this program from within (developers).
         Any not-allowed flags or ones that just dont exist
@@ -155,19 +172,20 @@ my $groups_desc = <<FEOF
         with caution if you are a regular user.
 FEOF
 ;
-
-my $opt;
-my $usage;
-
-($opt, $usage) = describe_options( "$progname %o [group(s)]",
-									  [], ["output options"], [],
+my ($opt, $usage) = describe_options( "$progname %o [group(s)]",
+									  [], ["output options"], [],						
+									  [], ["color"], [],						
 									  ['colorseed|S=i',"seed to use for the random color generator, use same value if you want to get the same random color sequence every time (default is -1 which picks a random seed)", { default => -1 } ],
 									  ['charcount|n=i',"numerical value to limit each line to number of characters from start, negative measures from end", { default => 0 } ],
 									  ['color|c=s',"colorized output mode: color(default) none, or mono", { default => 'color' }, ],
+									  [], ["i/o handling"], [],						
 									  ['l-isolate|l', "show only lines that have highligts on them"],
 									  ['w-isolate|w', "show only highligted text/words"],
 									  ['substitute|s', "strings are substituted in the form: 'org_expr/replacement_text'"],
 									  ['flags|f=s', "flags to send to regex parser (egomrs)", { default => 'g' }],									 
+									  [], ["presets"], [],						
+									  ['use-preset|p=s', "preset expressions to be used (use -P to get entries, see 'presets' below).", { default => '__none__' } ],
+									  ['presets|P', "list available presets that can be used with -p" ],
     								  [], ["miscellaneous"], [],
 									  ['verbose|v', "print extra stuff"],
                                       ['help', "print usage message and exit"],
@@ -175,138 +193,283 @@ my $usage;
 
 
 
-sub showhelp($ = 0) {
-	my $skipexit = shift // 0;
-	say( $usage->text);
-	#say	($usetext); # =~ s/([[:punct:]])/[38;5;234m$1[0m/g );
-	say ($groups_desc);
-	exit 127 unless $skipexit;
+### SUBROUTINES
+#####################################################	###############################################################
+my $terminal = undef;
+say("$ENV{COLUMNS} before");
+if ( $ENV{COLUMNS} =~ /^[0-9]+$/ ) {
+	$ENV{COLUMNS}--;
+}
+say("$ENV{COLUMNS} after");
+sub termsetup
+{
+    require Term::Cap;
+	require POSIX;
+	warn("TERM not set, things may not go well") unless defined $ENV{TERM};
+	my $termios = new Posix::Termios;
+	$termios->getattr();	
+    $terminal = Tgetent Term::Cap { TERM => $ENV{TERM}, OSPEED => $termios->getospeed() };
+    $terminal->Trequire(qw/ce ku kd/);
+	# from abstract
+    #$terminal->Tgoto('cm', $col, $row);
+    #$terminal->Tputs('dl', $count);
+    #$terminal->Tpad($string, $count, $FH);
+
 }
 
-showhelp if $opt->help;				# show --help content and exit when --help is specified on the CLI
+sub amatch 
+{
+	my $src = shift;
+	my @items = @_;
+	my @rets = ();
+	for (@items) 
+	{
+		unshift(@rets,
+	$_) if /^$src/;
+	}
+	return @rets;
+}
 
-
-srand($opt->colorseed) unless $opt->colorseed == -1;	# seed for color randomizer: gets randomized seed if not touched here
-my $flags = $opt->flags;
-print("$flags became...");
-$flags =~ s/[^egomrs]//g;							# remove forbidden characters from
-print("$flags\n");
-
-my $grouplimiter = 1;
-my $groups = $#ARGV+1;
-my $grouplimit = 40000;
-my @group = @ARGV;
-my $color = $opt->color;
-my $show_matching_line_only = $opt->l_isolate // 0;
-my $show_matching_word_only = $opt->w_isolate // 0;
-my @colortbl = qw( 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 );
+sub showhelp($ = 0) 	# showhelp::sig::0
+{
+	my $skipexit = shift // 0;
+	say($usage->text);
+	say($groups_desc);
+	exit(127) unless $skipexit;
+}
 
 sub errdef
 {
-		showhelp(1);
-		my $a = int(shift) // 127; 
-		my $msg = shift // "unspecified error";  
-		print("error($a): $msg\n"); 
-		exit($a); 
+	showhelp(1);
+	my $a = int(shift) // 127; 
+	my $msg = shift // "unspecified error";  
+	print("error($a): $msg\n"); 
+	exit($a); 
 }
-errdef(122,"color (or -c) must contain unique enough characters to match against 'color', 'mono', or 'none'\n") unless scalar(amatch($opt->color,"color","mono","none")) > 0;
-errdef(121,"too many arguments (> $grouplimit)") if $groups > $grouplimit && $grouplimiter == 1;
-errdef(120,"nothing to highlight") if $groups < 1;
-errdef(119,"l-isolate and w-isolate are mutually exclusive, please use one or the other") if $show_matching_line_only && $show_matching_word_only;
-
-# first translate preset if present
-if(0) {
-for my $arg (@ARGV)
+sub set_default_groups
 {
-	for my $preset (keys(%presets)) {
-		say("checking argument $arg against preset $preset");
-		if ( $preset eq $arg )
-		{
-			say("match, adding expressions...");
-			for my $ex (%presets{$preset})
-			{
-				say("add: $ex");
-			}
-			say("done adding $arg preset expression(s)");
-		}
+	if ( $opt->use_preset eq "__none__" ) {
+		say "using default preset";
 	}
-	say("done checking presets against $arg")
-}
- } # disabled until completed
-
-
-# TODO: use Term::Cap to do this /IF/ it ends up being needed (at this time its not)
-my $term_colors=`tput colors`;
-if (  ($term_colors-16) > $groups )	# enough colorful colors to facilitate a good color table?
-{
-	my $start=17;                                   
-	my $stop=$term_colors if $term_colors < 230;	#\ clamp hi limit to 230 because
-	$stop=230 if $term_colors > 230;				#/ we do not want the greys that live there
-	$stop=$term_colors if $term_colors > 512;	# true color terminal override
+	else
+	{
+		say "using selected preset: ". $opt->use_preset;
+	}
 	
-	my @colortbl=();
-	for (my $x=0; $x < $groups; $x++)
-	{
-		$colortbl[$x] = ( ((rand() * 230-17) + 17) ) ;	 # 17 - 230 range (colorful colors only)
-	}
 }
 
+### PRESET HANDLER
+####################################################################################################################
 
-while (<STDIN>)
+
+my %presets = (		markdown => [ '[[:punct:]]', '\b[0-9]+\b', '\*\*\*.*\*','\*\*', ],
+					ini		 => [ '\A\s*\S+(?==)', '(?<==)[^#;]+', '[#;]+[^\'"]+.*\z', '\A\s*\[[A-Za-z_][A-Za-z_0-9]+\]' ],
+					simple	 => [ '[:,\?\!\@\#\$\%\|\^\(\)\{\}]',  '\b[-A-Z]+\b', '\b\[a-z]+\b' ],
+					ccomment => [ '\/\*.*?\*\/', '\/\/.*' ],
+					scomment => [ '#[^"\']+*$' ],
+				   pycomment => [ '\A\s*"{2,}\s?.*' ],
+  					ckeywords => [ '\b(void|static|int|const|long|short|double|float|bool|void|if|then|else|elseif|switch|return|struct|union|cast|char|wchar|(un)?signed|case|do|while|until|goto|null|undef|0L|0UL|L".*")\b', 'dynamic_cast'  ],
+
+					perl	 => [  '^\s*[A-Za-z_0-9]+(?=\()', '\b(warning|use|strict|no|package|sub|my|our|carp|croak|warn|die|exit|if|else|elsif)\b', "[:,.-+\/\\\$\@\%\=\>\<,]","[\(\)\{\}]", '^\s*[[:punct:]]include', ';\s*\$', '"[^\"]+\"' ],
+				);
+my %metapresets = (	cpp => [ "perl", "ccomment", "ckeywords" ] );
+
+my ($preset_name, $preset_array, $preset_element, $preset_new_presetlist_ref) = ( "", [], "", [] );
+for $preset_name ( keys( %metapresets ) ) {
+	my $preset_new_presetlist_ref = [ ];
+	for $preset_array ( @{ $metapresets{$preset_name} } ) 		{
+	for $preset_element ( @{ $presets{$preset_array} } )    		{
+			push( @{ $preset_new_presetlist_ref }, $preset_element );		
+											};};
+	$presets{$preset_name} = $preset_new_presetlist_ref;
+	$preset_new_presetlist_ref = undef;			# dec refcount cleanly
+}
+my $fmtstr = undef;
+sub cr { say(""); }
+sub hr
 {
-	my $i = 0;
-	my $mcolor = undef;
-	my $matched = 0;
-	my $matchtext = "";
-	my $ccolor = "";
-	my $creset = "[0m";		 
-	my $orgline = $_;
-	my $restline = $_;
-	# exit(1) # test point - keep commented unless testing
-	if ($opt->charcount > 0)
-	{
-		#positive: pos(0),count
-		$_ = substr($orgline,0,$opt->charcount);
-		$orgline = substr($orgline,$opt->charcount);
+	my $LINE_CHAR = shift // "-";
+	my $SW = shift // $ENV{COLUMNS} // 80;
+	my $PERLINE = $SW / length($LINE_CHAR);
+	printf($LINE_CHAR x $SW . "\n") unless $SW < 1;
+	say("ERROR: HR bad params SW=$SW LINECHAR=$LINE_CHAR PERLINE=$PERLINE") unless $SW > 0;
+
+}
+sub elide
+{
+	my $str = shift;	
+	my $echar = shift // "...";
+	my $ELN = length($echar);
+	my $SW = shift // $ENV{COLUMNS} // 80;
+	if ( length($str) > $SW ) {
+		my $start = substr($str,0,($SW/2)-$ELN);
+		my $end = substr($str,length($str)-($SW/2)+$ELN);
+		return( $start . "$echar"  . $end );
+	} else {
+		return $str;
 	}
-	elsif ($opt->charcount <= 0)
-	{
-		$_ = substr($orgline,$opt->charcount);
-		$orgline = substr($orgline,0,$opt->charcount);
-	}
-	# exit(1) # test point - keep commented when not testing this block
-	while ($i < $groups) 
-	{
 		
-		my $cgroup = $group[$i];
-		#say($cgroup);
-		$ccolor = "[38;5;${colortbl[$i]}m";
-		$mcolor //= $ccolor;
-		if ($i > 200) {
-			my $j = $colortbl[$i / 200];	
-			$ccolor .= "[48;5;${j}m";
-		}
-		$ccolor = $mcolor if $color =~ /mono/;
-		$ccolor = "" if $color =~ /none/;
-		$ccolor = $ccolor if $color =~ /color/;	# gfcs
-		eval '$matched = ( s/($cgroup)/${ccolor}${1}${creset}/'.$flags.' )';;
-		$matchtext .= (length($matchtext) > 0 ? " " : "") . "${ccolor}${1}${creset}" if defined($1);
-		$i++;
-	}	
-	#exit(1);	# test point, keep commented when not testing
-	if ($show_matching_word_only) 	# $show_matching_word_only -> show matches from groups only (invalidates $show_matching_line_only)
-		{ print("$matchtext\n") unless length($matchtext) <= 0; }
-	else  # $show_matching_line_only -> show matching lines only
-	{ 
-		unless ($matched == 0 && $show_matching_line_only == 1)
+}
+sub showprs
+{
+	my $SW = ( $ENV{COLUMNS} // 80 ) - 10;	
+	my $SWPAD = 4;
+	my $SW1 = int($SW / 4);		# 25% to the name field
+	my $SW2 = $SW - ($SW1 - $SWPAD);
+	my $SWPAD_CHAR = " ";
+	my $SWPAD_CHARS = $SWPAD_CHAR x $SWPAD;
+	#printf("sw=%s sw1/sw2=%s/%s swpad=%s",$SW,$SW1,$SW2,$SWPAD);
+	$fmtstr = "%-${SW1}s${SWPAD_CHARS}%-${SW2}s\n";
+	hr; printf($fmtstr, "PRESET NAME","MATCH CRITERIA"); hr;
+	my ($pnum,$cnum)=(0,0);
+	for ( keys(%presets) ) {
+		my @dat =  @{ $presets{$_} };
+		my $first = shift(@dat);
+		printf(	$fmtstr, $_, elide($first,"...",$SW2) );
+		printf( $fmtstr, "", elide($_,"...",$SW2) ) for @dat;
+		$pnum++;	 												# $pnum = $pnum + 1;				updated for newer perl
+		$cnum+=(scalar(@dat) + 1);										# $cnum = $cnum + scalar(@dat) + 1;		the +1 is for the $first entry, always works because every entry MUST have a nonempty value
+		printf( "\n" );	
+	}; hr;
+	printf("%d presets and %d criterias listed",$pnum,$cnum); cr;hr;cr;
+	
+	exit(0);
+}
+			
+
+
+
+
+### MAIN PROGRAM #########################################################################################################################
+
+{
+	showprs if $opt->presets;
+	showhelp if $opt->help;				# show --help content and exit when --help is specified on the CLI
+	srand($opt->colorseed) unless $opt->colorseed == -1;	# seed for color randomizer: gets randomized seed if not touched here
+	my $flags = $opt->flags;
+	my $oldflags = $flags;
+	$flags =~ s/[^egomrs]+//g;							# remove forbidden characters from
+	
+	if ( $oldflags eq $flags ) {
+		say("flags ok") if $opt->verbose;
+	} else {
+		say("WARNING: invalid characters detected in flags passed ($oldflags) and has been corrected to ($flags)");
+	}
+		
+
+	set_default_groups unless @ARGV;
+
+	my $grouplimiter = 1;
+	my $groups = $#ARGV+1;
+	my $grouplimit = 40000;
+	my @group = @ARGV;
+	my $color = $opt->color;
+	my $show_matching_line_only = $opt->l_isolate // 0;
+	my $show_matching_word_only = $opt->w_isolate // 0;
+	my @colortbl = qw( 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 );
+	
+	errdef(122,"color (or -c) must contain unique enough characters to match against 'color', 'mono', or 'none'\n") unless scalar(amatch($opt->color,"color","mono","none")) > 0;
+	errdef(121,"too many arguments (> $grouplimit)") if $groups > $grouplimit && $grouplimiter == 1;
+	errdef(120,"nothing to highlight") if $groups < 1;
+	errdef(119,"l-isolate and w-isolate are mutually exclusive, please use one or the other") if $show_matching_line_only && $show_matching_word_only;
+
+	# presets
+	#while(0) {	# keep commented out, unless bypassing preset feature (must also uncomment closing } way   \v/ over there)
+		for my $arg (@ARGV)
 		{
-			if ($opt->charcount > 0)	# [matchtext]remainder
-			{
-				print($_); print($orgline);
+			for my $preset (keys(%presets)) {
+				# say("checking argument $arg against preset $preset");	# uncomment for preset/metapreset testing\v/
+				if ( $preset eq $arg )							{
+					# say("match, adding expressions...");				# uncomment for preset/metapreset testing\v/
+					for my $ex ( @{ (%presets{$preset})[1] } )	{
+						# say("add: $ex");								# uncomment for preset/metapreset testing\v/
+						push(@group,$ex);
+						$groups = $groups+1;					}
+					# say("done adding $arg preset expression(s)");		# uncomment for preset/metapreset testing\v/
+																}
+				}
+				# say("done checking presets against $arg")				# uncomment for preset/metapreset testing\v/
+		}
+	#}			# comment out unless bypassing preset features		<<                         <<
+	#exit(12);	# test point, keep commented when not testing
+
+
+	# FIX: fixed unintended closure on @colortbl within next if() statement just before its contained for() statement
+	# TODO: use Term::Cap to do this /IF/ it ends up being needed (at this time its not)
+	my $term_colors=`tput colors`;
+	if (  ($term_colors-16) > $groups )	# enough colorful colors to facilitate a good color table?
+	{
+		my $start=17;                                   
+		my $stop=$term_colors if $term_colors < 230;	#\ clamp hi limit to 230 because
+		$stop=230 if $term_colors > 230;				#/ we do not want the greys that live there
+		$stop=$term_colors if $term_colors > 512;	# true color terminal override		
+		@colortbl=();
+		for (my $x=0; $x < $groups; $x++)
+		{
+			$colortbl[$x] = ( int((rand() * 230-17) + 17) ) ;	 # 17 - 230 range (colorful colors only)
+			say("$x index, added ". $colortbl[$x] . " to colortable") if $opt->verbose;	# keep commented out unless testing
+		}
+	}
+	# exit(15); # test point - testing color table (see above code)
+
+
+	while (<STDIN>)
+	{
+		my $i = 0;
+		my $mcolor = undef;
+		my $matched = 0;
+		my $matchtext = "";
+		my $ccolor = "";
+		my $creset = "[0m";		 
+		my $orgline = $_;
+		my $restline = $_;
+		# exit(1) # test point - keep commented unless testing
+		if ($opt->charcount > 0)
+		{
+			#positive: pos(0),count
+			$_ = substr($orgline,0,$opt->charcount);
+			$orgline = substr($orgline,$opt->charcount);
+		}
+		elsif ($opt->charcount <= 0)
+		{
+			$_ = substr($orgline,$opt->charcount);
+			$orgline = substr($orgline,0,$opt->charcount);
+		}
+		# exit(1) # test point - keep commented when not testing this block
+		while ($i < $groups) 
+		{
+			
+			my $cgroup = $group[$i];
+			#say($cgroup);
+			$ccolor = "[38;5;$colortbl[$i]m";
+			#say("\nusing: $colortbl[$i] for $ccolor\n");
+			$mcolor //= $ccolor;
+			if ($i > 200) {
+				my $j = $colortbl[$i / 200];	
+				$ccolor .= "[48;5;${j}m";
 			}
-			else
+			$ccolor = $mcolor if $color =~ /mono/;
+			$ccolor = "" if $color =~ /none/;
+			$ccolor = $ccolor if $color =~ /color/;	# gfcs
+			eval '$matched = ( s/($cgroup)/${ccolor}${1}${creset}/'.$flags.' )';;
+			$matchtext .= (length($matchtext) > 0 ? " " : "") . "${ccolor}${1}${creset}" if defined($1);
+			$i++;
+		}	
+		#exit(1);	# test point, keep commented when not testing
+		if ($show_matching_word_only) 	# $show_matching_word_only -> show matches from groups only (invalidates $show_matching_line_only)
+			{ print("$matchtext\n") unless length($matchtext) <= 0; }
+		else  # $show_matching_line_only -> show matching lines only
+		{ 
+			unless ($matched == 0 && $show_matching_line_only == 1)
 			{
-				print($orgline,$_);
+				if ($opt->charcount > 0)	# [matchtext]remainder
+				{
+					print($_); print($orgline);
+				}
+				else
+				{
+					print($orgline,$_);
+				}
 			}
 		}
 	}

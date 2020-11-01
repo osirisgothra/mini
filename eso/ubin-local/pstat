@@ -1,0 +1,100 @@
+#!/bin/zsh
+# variableizes status of process
+if [[ $1 == --vars ]]; then
+	PSTAT_VARS=1
+	shift
+elif [[ $1 == --item ]]; then
+	shift
+	export PSTAT_USING_ITEMS=1
+	pstat --vars $@ | grep -P '^'$2
+	exit $?
+fi
+if [[ $# -eq 0 ]] || [[ $* =~ ^-?-h(elp)?$ ]]; then
+	print -P "%F{120}syntax%F{119}: %F{118}${0##*/}%F{116} PID %B%U[PID, [...]]%b%u%f"
+	exit 127
+fi
+
+
+while [[ $# -gt 0 ]]; do
+	if [[ $1 =~ ^[0-9]+$ ]] && [[ -d /proc/$1 ]]; then
+		declare -a s=( $(</proc/$1/stat ) )
+		declare -A stats=(	pid 		$s[1]
+							comm 	 	$s[2]
+							state 	 	$s[3]
+							parent 	 	$s[4]
+							pgrp 	 	$s[5]
+							sessionid 	$s[6]
+							tty_nr 	 	$s[7]
+							tpgid 	 	$s[8]
+							flags 	 	$s[9]
+							minflt 	 	$s[10]
+		                    cminflt 	$s[11]
+		                    majflt 	 	$s[12]
+		                    cmajflt 	$s[13]
+		                    utime 	 	$s[14]
+		                    stime 	 	$s[15]
+		                    cutime 	 	$s[16]
+		                    cstime 	 	$s[17]
+		                    priority 	$s[18]
+		                    nice 	 	$s[19]
+		                    num_threads $s[20]
+		                    itrealvalue $s[21]
+		                    starttime   $s[22]
+		                    rss 	 	$s[24]
+		                    rsslim 	 	$s[25]
+		                    startcode 	$s[26]
+		                    endcode 	$s[27]
+		                    startstack 	$s[28]
+		                    kstkesp 	$s[29]
+		                    kstkeip 	$s[30]
+		                    signal 	 	$s[31]
+		                    blocked 	$s[32]
+		                    sigignore 	$s[33]
+		                    sigcatch 	$s[34]
+		                    wchan 	 	$s[35]
+		                    nswap 	 	$s[36]
+		                    cnswap 	 	$s[37]
+		                    exit_signal $s[38]
+		                    processor 	$s[39]
+		                    rt_priority $s[40]
+		                    policy 	 	$s[41]
+		                    delaybiots 	$s[42]
+		                    guest_time 	$s[43]
+		                    cguest_time $s[44]
+		                    start_data 	$s[45]
+		                    end_data 	$s[46]
+		                    start_brk 	$s[47]
+		                    arg_start 	$s[48]
+		                    arg_end 	$s[49]
+		                    env_start 	$s[50]
+		                    env_end 	$s[51]
+		                    exit_code 	$s[52]
+		                )
+
+
+		# TODO: maybe allow use of this instead
+
+		declare -A term_aliases=(	delaybiots	"delay_blockio_ticks" )
+		if [[ $PSTAT_VARS == 1 ]]; then
+			for n in ${(k)stats}; do
+				print "${n}=\"${stats[$n]}\""
+			done
+		else
+			declare -p stats
+		fi
+	else
+		if [[ 1 == $PSTAT_USING_ITEMS ]]; then
+			:
+			# ignore silently, we are subcalled
+		else
+			case $1 in
+				-*)
+					print -P "%Berror: $1 is not a valid option (use --help for syntax)%b";;
+				*)
+					print -P "%Berror: $1 is not a valid task number (see --help for syntax usage)%b";;
+			esac
+		fi
+	fi
+
+	shift
+done

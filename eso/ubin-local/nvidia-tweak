@@ -80,7 +80,7 @@ assign_attribute()
 # SCRIPTSTART
 
 echo -ne "loading configuration and sending to X driver..."
-nvidia-settings -l && echo "ok" || echo "(possibly failed? error code is $?)"
+#nvidia-settings -l && echo "ok" || echo "(possibly failed? error code is $?)"
 
 # Visual Only Settings
 assign_attribute DigitalVibrance $ROBUST_VIBRANCE

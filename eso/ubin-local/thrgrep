@@ -55,67 +55,112 @@
 #	STARTOFFILE, HERE			|  added template, use for short comments only
 #
 #   ==========================================================================  
-#	
 #
-#  TARGET NOTES
+#	SCRIPT COMMENTS/FOOTNOTES -- UNSORTED:
 #
-# 	EXECUTIVE STATE CHANGES
-#		marking single existing file executable
-#			- mode of 'thrgrep' changed to u+rwx/og+rx.. []
-#		completed (errors: 0)
+#	TODOs: !=doing ?=undone X=unimportant
+#		consolodation
+#			! move non-functions to end or into main() except for global declarations
+#			! move too-long comments into header (currently doing)
+#			? move too-long header items into readme (not done yet)
+#			X move too-long readme items into an official documentation (may never be done)
 #
-# 	ARGUMENTUAL ANALYSIS
-#       remaining arguments:
-#			0 arguments, with 0 error argument(s)
-#       disposition:
-#			4 were used during execution of template
-#   		0 were extra/unexpected error(s)
+#   "SEMI" UNSORTED NOTES:
 #
-# 	TEMPLATE SUMMARY OF GENERATION
-#	 final outcome: good
-#     total errors: 0
+#	Once sorted, place in SCRIPT COMMENTS or FOOTNOTES (at eof)
 #
-# 	FINAL NOTES
-#		 (Sun 14 Jun 2020 07:17:29 PM EDT): osirisgothra reammended the target results 
 #
-#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#		tests:
+#			comment these out and put in footnotes
+#			first incantation of cecho/c
+#			cecho 39 5 "the quick brown fox: jumped over, the; 123456789 lazy / d0gs!?"
+#			second incantation (random)
+#			cecho "the quick brown fox: jumped over, the; 123456789 lazy / d0gs!?"
+#		assert-syntax:
+#			assert(directive,value) (works for all but developer tool(s) below)
+#		developer tools:
+#			assert(avg_op,opname,target,value) --> [[ value OPERATION target ]]
+#			(where OPERATION is opname replaced at runtime)
+#			(note: avg_op is not usually to be used directly by user)
+#		int gather(type)
+#			type: owned all root service system siblings parent-siblings toplevel bottomlevel detached tty stopped stopping zombied
+#			int: 0=ok !0=error (1=unspecified error, return code possible from last program executed)
+#			type(s) implemented so far: (uncoded: owned all root) (coded: NONE YET)
+#		init_presets:
+# 			mapfile PRESETS <$presetconfig ## DISABLED (due to lack of support for named array entries)#
+#		renice syntax:
+#
+#			renice [-n] <priority> [-p|--pid] <pid>...
+#			renice [-n] <priority>  -g|--pgrp <pgid>...
+#			renice [-n] <priority>  -u|--user <user>...
+#			ionice -c <0|1|2|3|none|realtime|best-effort|idle> -n <0|1|2|3|4|5|6|7> -p|--pid <pid> --t|--ignore
+#			ionice -c <0|1|2|3|none|realtime|best-effort|idle> -n <0|1|2|3|4|5|6|7> -P|--pgid <pgrp> --t|--ignore
+#			ionice -c <0|1|2|3|none|realtime|best-effort|idle> -n <0|1|2|3|4|5|6|7> -u|--uid <uid> --t|--ignore
+#			ionice -c <0|1|2|3|none|realtime|best-effort|idle> -n <0|1|2|3|4|5|6|7> </path/to/command> --t|--ignore
+#			ionice --help|-h|-V|--version
+#		lines in for x in $NAMES, last 2:
+#			2 away: (deb...echo..thrgr...@) we do, here (recalls self, but not in same symbol space)
+#			1: (thr...@) if we had to continue inner_loop, we would actually do inner_loop-1 here (but that wouldnt be needed since its our loop anyway)
+#		just before assert()
+#			a block for self-threading was removed, see thrgrep.removed
+#		debug():
+#			note 1 - completely transparent if not enabled, let all status codes, second line==fall through the cracks!
+#			note 2 - positioning is important, if any debug messages are used further up, the function should be moved so it is defined prior to its use!
+#					 (this is noted here because debug() has moved from its original location once already at least)
+#					 see TODO: consolodate
+#		cecho:
+#			 -echo params go here- "string"
+#			dont use the first 16 colors, or the 16 grays at the end
+#			(only use "chroma-vibrant" colors)
+#		self variables:
+#			do not change these unless you know what you are doing and understand the risks in doing so:
+#			they do not affect the system once thrgrep is completed, it disappears anyway. This just helps
+#			this process complete a bit faster. Multiple self calls will not trip this as per checking var.
+#
+#			important self var descriptions:
+#
+#			self_nice		niceness of thrgrep script
+#			self_class		io class (idle, realtime, best-effort, none)
+#			self_class_level	(0-7 or just 0 for idle and none)
+#			self_thrgrep_threshold	system load is at or lower, will not self thrgrep (-1 means disable and never use, 255 means disable and always use)
+#
+# 	FINAL NOTES (date -- who -- what)
+#		Sun 14 Jun 2020 07:17:29 PM EDT):
+#			osirisgothra
+#				reammended the target results
+#		Mon 14 Sep 2020 01:12:04 PM EDT:
+#			osirisgothra
+#				final code cleanup
+#				bugfixes
+#				finished making 2020 updates and making sure it still works
+#				this is the last change for this program (its being overridden by tg2(zsh) and tg3(perl)*
+#				*=tg3 will eventually replace tg2, however, tg2 is unfinished
+#		  (this template+header was created using the template generator by Gabriel T. Sharp)
 #
 #	template output completed (code=OK(ERROR_NONE))
 #
 #
 
+# usage analysis***
+[[ -r ~/.iamosirisgothra ]] || { echo "\n NB: not intended for release of any kind use at own risk, or not at all! (ctrl+break aborts) you will have to read code to disable this message if you are not me "; [[ `tty` =~ not ]] || sleep 15; }
 
+# setup terminal
 
+stty sane || { echo "cannot set keyboard mode"; exit 127; }
+otty=$(tty)
+
+# zmodules required
+
+zmodload zsh/terminfo
+zmodload zsh/mathfunc
+
+declare -gi tg_no_color=1
+declare -gi tg_debug_enable=0
 declare -gi MAXINT=32767
 declare -g docloc="/usr/share/doc/paradisim/mini/ubin-local/thrgrep"
 declare -g presetconfig="$HOME/.thrgreppresetrc"
-
-! [[ -r ~/.iamosirisgothra ]] && { echo "\n NB: not intended for release of any kind use at own risk, or not at all! (ctrl+break aborts) you will have to read code to disable this message if you are not me \n"; sleep 15; }
-
-# zmodules required 
-
-zmodload zsh/terminfo 
-zmodload zsh/mathfunc
-
-# store original tty caller
-otty=$(tty)
-# restore terminal setup (keyboard mainly)
-stty sane
-
-
-
+declare -g tg_presets_parsed=0
 declare -g unset_state="$(uuidgen)"
-
-
-# do not change these unless you know what you are doing and understand the risks in doing so:
-# they do not affect the system once thrgrep is completed, it disappears anyway. This just helps
-# this process complete a bit faster. Multiple self calls will not trip this as per checking var.
-#	self_nice		niceness of thrgrep script
-#	self_class		io class (idle, realtime, best-effort, none)
-#	self_class_level	(0-7 or just 0 for idle and none)
-#	self_thrgrep_threshold	system load is at or lower, will not self thrgrep (-1 means disable and never use, 255 means disable and always use)
-#
-#
 declare -gi self_nice=-16
 declare -g self_class=realtime
 declare -g self_class_level=2
@@ -124,16 +169,26 @@ declare -gF self_load=${$(</proc/loadavg)[1]}
 declare -gi maxstep=2
 declare -gi gstart=17
 declare -gi del=15
+declare -gxA BUILTIN_PRESETS=( "rtfast"		"-12 realtime 2"
+								"rtgood"	"-14 realtime 4"
+							 	"normal"	"0 best-effort 5"
+								"lazy"		"12 idle 0"
+							 	"javafast"	"java -14 realtime 5"
+							 	"xorg"		"Xorg -14 realtime 2"  )
+declare -gxA PRESETS=( )
+declare -gxA err=(	unk		"127?unspecified error" )
 
 cecho()
 {
-	# dont use the first 16 colors, or the 16 grays at the end
-	# (only use "chroma-vibrant" colors)
+	if [[ $tg_no_color -eq 1 ]]; then
+		builtin echo "$@"
+		return $?
+	fi
+
 	dir=${RANDOM: 0:1}
 	let del--
 	if [[ $del -le 0 ]]; then
 		del=${RANDOM: 0:2}
-	
 		if [[ $dir -ge 5 ]]; then
 			dir=6
 		else
@@ -164,64 +219,53 @@ cecho()
 	esac
 
 	cur=$start
-	for ((x=0;x<$#str;x++)); do		
+	for ((x=0;x<$#str;x++)); do
 		ch=${str: x:1}
 		c $cur
 		let cur+=$step
 		printf "%s" "$ch"
 	done
-	
-}
-c() { echoti setaf ${1-7}; [[ $# -gt 1 ]] && { echoti setab ${2}; shift 2; if [[ $# -gt 0 ]]; then echoti $@; fi; }; }
 
-# tests (comment these out)
-# first incantation of cecho/c
-#cecho 39 5 "the quick brown fox: jumped over, the; 123456789 lazy / d0gs!?"
-# second incantation (random)
-#cecho "the quick brown fox: jumped over, the; 123456789 lazy / d0gs!?"
+}
+c()
+{
+	echoti setaf ${1-7}
+ 	[[ $# -gt 1 ]] && {
+		echoti setab ${2}
+ 		shift 2
+ 		if [[ $# -gt 0 ]]; then
+			echoti $@
+ 		fi
+ 	}
+}
+
 
 echo() {
 	case $# in
-	1)	cecho "$@"; builtin echo "";;
+	1)	cecho "$@"; ((tg_debug_enable)) || builtin echo "";;
 	*)	builtin echo "$@";;
 	esac
 }
 
-
-if [[ $THRGREP_CHANGED_MY_PRI != 1 ]]; then
-	if ( [[ $self_load -le $self_thrgrep_threshold  ]] && [[ $self_thrgrep_threshold -le 254 ]] ) || [[ $self_thrgrep_threshold -le -1 ]]; then
-		if [[ $self_thrgrep_threshold -le -1 ]]; then
-			echo "skipping self threshold (its hard-disabled in the script: $0)"
-		else
-			echo "skipping self threshold because threshold is $self_thrgrep_threshold and load is $self_load"
-		fi
-	else
-		if [[ $self_thrgrep_threshold -ge 255 ]]; then
-			echo "setting self priority (it is hard coded in the script: $0)"
-		else
-			echo "setting self priority (to survive a high load ($self_load, greater than the $self_thrgrep_threshold limit) situation)..."
-		fi
-		echo "***beginning self priority***"
-		export THRGREP_CHANGED_MY_PRI=1
-		tg_name=${0##*/}
-		"$0" "$tg_name" -16 realtime 2
-		r=$? ps=$pipestatus
-		echo "***self priority setting ends***"
-		echo "self I/O and NICE setting completed (errors=$r, pipestatus=$ps ($#ps in pipeline))"
+debug()
+{
+	# see note about debug() above
+	# see note in debug() about positioning (also above)
+	if ((tg_debug_enable)); then
+		act=$1
+		shift
+		case "$act" in
+			echo) cecho "debug($SECONDS,$PWD,$?,$pipestatus): $*";;
+			traceon) set -x;;
+			traceoff) set +x;;
+			*) echo "warning: $act is an invalid debug action! (debug: $*)";;
+		esac
 	fi
-else
-	echo "skipping self threshold because: threshold delegation has already executed and we are it (tasking $$ to adjust ${PPID}'s level)"
-fi	
-
+}
 
 assert()
 {
-	# syntax: assert(directive,value) (works for all but developer tool(s) below)
-	#   developer tools:
-	#     assert(avg_op,opname,target,value) --> [[ value OPERATION target ]]
-	#			(where OPERATION is opname replaced at runtime)
-	#			(note: avg_op is not usually to be used directly by user)
-	#
+
 	directive="${1-$unset_state}"
 	shift
 	case $directive in
@@ -278,43 +322,39 @@ xassert()
 		read -sk1
 	fi
 }
-if [[ $1 == custom ]]; then
-	ib() {
-			stty sane > $otty
-			echo -e "\n\nabout to execute \"$0(${(j:,:)${(qq)@}})\"" | hi "[\"'][^\"']+[\"']"  > $otty
-			echo -e "\ndetail:\n\n\tPrompt=[$1]\n\tDefaultValue=[$2]\n\tTestAgainst=[$3]\n\n" > $otty
-			read -sk1
-			response="$unset_state"
-			# common dialog settings (here only)
-			local comm=( --cancel-label Back --no-lines --output-fd 1 --backtitle "\"${THRGREP_BACKTITLE-Press Cancel or Break anytime to abort custom selection process}\"" )
-			xassert filled "$3"
-			xassert empty "$4"
-			until [[ $response =~ ${3} ]]; do
-				[[ $response != "$unset_state" ]] && {
-					dialog $comm --msgbox "$response is not a valid option (expects a match to regex: $3)" 0 0
-				}
-				response=`dialog $comm --inputbox "$1" 0 0 "$2"`
-			done
-		}
+
+ib()
+{
+		stty sane > $otty
+		echo -e "\n\nabout to execute \"$0(${(j:,:)${(qq)@}})\"" | hi "[\"'][^\"']+[\"']"  > $otty
+		echo -e "\ndetail:\n\n\tPrompt=[$1]\n\tDefaultValue=[$2]\n\tTestAgainst=[$3]\n\n" > $otty
+		read -sk1
+		response="$unset_state"
+		# common dialog settings (here only)
+		local comm=( --cancel-label Back --no-lines --output-fd 1 --backtitle "\"${THRGREP_BACKTITLE-Press Cancel or Break anytime to abort custom selection process}\"" )
+		xassert filled "$3"
+		xassert empty "$4"
+		until [[ $response =~ ${3} ]]; do
+			[[ $response != "$unset_state" ]] && {
+				dialog $comm --msgbox "$response is not a valid option (expects a match to regex: $3)" 0 0
+			}
+			response=`dialog $comm --inputbox "$1" 0 0 "$2"`
+		done
+}
+
+customui()
+{
 	# remember DIALOGRC to be set before call(s) for custom colors!
 	declare -gx proc=`ib "RegEx for Processes to Match" ".*"` || exit 127
 	declare -gx nlvl=`ib "Process Niceness, -19 (fastest) to 19 (slowest)" "^-?1?[0-9]\$"` || exit 127
 	declare -gx iogrp=`ib "Process IO Group (realtime,best-effort,idle)" "best-effort" "^(realtime|best-effort|idle)\$"` || exit 127
 	declare -gx iopri=`ib "Process IO Priority (0=none 1=lowest .. 5*=normal .. 7=highest)" "5"` || exit 127
-exit 111
+	exit 111
 	dialog --prgbox $((LINES-4?LINES-4:24)) $((COLUMNS-4?COLUMNS-4:80)) "Applying Custom Preset" "thrgrep $proc $nlvl $iogrp $iopri"
-fi
 
+}
 
-declare -gxA BUILTIN_PRESETS=( "rtfast"		"-12 realtime 2"
-								"rtgood"	"-14 realtime 4"
-							 	"normal"	"0 best-effort 5"
-								"lazy"		"12 idle 0"
-							 	"javafast"	"java -14 realtime 5"
-							 	"xorg"		"Xorg -14 realtime 2"  )
-declare -gxA PRESETS=( )
-declare -gxA err=(	unk		"127?unspecified error" )
-function crash()
+crash()
 {
 	case ${1-none} in
 		none) 	echo "fatal error: crashing (no error description given (cmdline=$*)!"
@@ -329,25 +369,15 @@ function crash()
 	esac
 }
 
-function gather()
-{	#    int gather(type)
-	#	 type: owned all root service system siblings parent-siblings toplevel bottomlevel detached tty stopped stopping zombied
-	#	  int: 0=ok !0=error (1=unspecified error, return code possible from last program executed)
-	# type(s) implemented so far: (uncoded: owned all root) (coded: NONE YET)
+gather()
+{
 	case ${1-unk} in
 		unk)	echo "no type given - program error - exiting (${?-no return code available}/${pipestatus-no pipe status})"; exit ;;
 		*) echo "unsupported: $1"; return 1;;
 	esac
 
 }
-local function debug()
-{
-	#completely transparent if not enabled, let all status codes
-	#fall through the cracks!
-	if ((tg_debug_enable)); then
-		cecho "debug($SECONDS,$PWD,$?,$pipestatus): $*"
-	fi
-}
+
 assert()
 {
 	local R=$? PS=$pipestatus USCOR="$_" BS="$0"
@@ -377,17 +407,21 @@ assert()
 		esac
 	fi
 }
+
 init_presets()
 {
+	((tg_presets_parsed == 1)) && return 0
+	declare -g tg_presets_parsed=1
+
 	local nopresets=0
 	if [[ -r $presetconfig ]]; then
 		 eval "typeset -gxA PRESETS=( `cat $presetconfig | grep '^\".*" ".*"'` )"
-#		mapfile PRESETS <$presetconfig ## DISABLED (due to lack of support for named array entries)
+
 		if [[ ${#PRESETS[@]} -lt 1 ]]; then
 			echo "$presetconfig did not contain any valid presets!"
 			let nopresets++
 		else
-			echo "$#PRESETS preset(s) loaded from $presetconfig"
+			echo "($tg_presets_parsed) $#PRESETS preset(s) loaded from $presetconfig"
 		fi
 	else
 		let nopresets++
@@ -398,7 +432,7 @@ init_presets()
 		declare -gA PRESETS=( "${(kv)BUILTIN_PRESETS[@]}" )
 	fi
 }
-function has_preset()
+has_preset()
 {
 	select_preset "$1"
 	if [[ $PRESETVAL != "" ]]; then
@@ -408,10 +442,10 @@ function has_preset()
 	fi
 	# (1==false 0==true)
 }
-function select_preset()
+select_preset()
 {
 	for x in "${(k)PRESETS[@]}"; do
-		debug echo "checking $1 against $x"
+		debug echo "checking '${1}' against '${x}'"
 		if [[ $1 == $x ]]; then
 			echo "found $x = $PRESETS[$x]"
 			PRESETNAME="$x"
@@ -422,186 +456,199 @@ function select_preset()
 		fi
 	done
 }
-init_presets
-if ! has_preset "$1"; then
-	echo "processing as normal command line (no known preset named)"
-else
-	echo "about to use preset $PRESETNAME with value of $PRESETVAL"
-	assert '[[ $PRESETVAL != "" ]]'
-	if [[ "$2" != "" ]]; then
-		searchterm="$2"
-	else
-		searchterm=""
-	fi
-	[[ $# -gt 2 ]] && { echo "warning: more arguments on command line in preset mode---they will be ignored"; }
-	echo "transform from preset: $PRESETNAME -> $PRESETVAL"
-	if [[ $PRESETVAL =~ , ]]; then
-		echo "detected meta-preset, running as subcommand..."
-		for x in ${(s:,:)PRESETVAL}; do
-			echo "delegating thrgrep $x..."
-			command "$0" "$x"
-		done
-		exit 122
-	fi
-	if [[ $searchterm != "" ]]; then
-		eval set -- $searchterm $PRESETVAL
-	else
-		eval set -- $PRESETVAL
-	fi
-
-	echo "injecting into normal command..."
-fi
-
-if [[ $1 == "list" ]]; then
-	# declare -p PRESETS
-	pp=0
-	echo "known presets"
-	echo "---------------------------------------------------"
-	for p in "${(k)PRESETS[@]}"; do
-		echo "$p[[20C${PRESETS[$p]}"
-		let pp++
-	done
-	echo "---------------------------------------------------"
-	echo "$pp preset(s)"
-
-fi
 
 usage()
 {
-cat <<-EOF
-					usage: thrgrep "search-regex"
-					   or: thrgrep "search-regex" [nice]
-					   or: thrgrep "search-regex" [nice] [be-ionice]
-					   or: thrgrep "search-regex" [nice] [class] [ionice]
-					   or: thrgrep [preset]
+	cat <<-EOF
+						usage: thrgrep "search-regex"
+						   or: thrgrep "search-regex" [nice]
+						   or: thrgrep "search-regex" [nice] [be-ionice]
+						   or: thrgrep "search-regex" [nice] [class] [ionice]
+						   or: thrgrep [preset]
 
-					presets are in the form of command assigning to a thrgrep
-					syntax as stated above (except for the preset one of course)
-					an example shown here:
-						thrgrep javafast		<- typed
-					inside .thrgreppresetrc or BUILTIN_PRESETS:
-ORIGINALLY (when bash was the scripting language):
-						[presetname]='commandline'
-CHANGE:
-						presetname 'commandline'
-						presetname subpreset1, subpreset2, ...
+						presets are in the form of command assigning to a thrgrep
+						syntax as stated above (except for the preset one of course)
+						an example shown here:
+							thrgrep javafast		<- typed
+						inside .thrgreppresetrc or BUILTIN_PRESETS:
+	ORIGINALLY (when bash was the scripting language):
+							[presetname]='commandline'
+	CHANGE:
+							presetname 'commandline'
+							presetname subpreset1, subpreset2, ...
 
-					where "search-regex" is any regular expression(s) that are
-					supported by pgrep (see pgrep(1) for details), and [nice] is
-					an integer value, lowest values being highest priority. Accepted
-					values are from -20 to 19, which is the lowest priority. Also,
-					the [be-ionice] is a value 0-5 which defines which "Best Effort"
-					classed nice-ness for io priority via ionice. The fourth incantation
-					allows for the change of this ionice class to one of the three
-					accepted classes known for ionice (realtime, best-effort, or idle).
+						where "search-regex" is any regular expression(s) that are
+						supported by pgrep (see pgrep(1) for details), and [nice] is
+						an integer value, lowest values being highest priority. Accepted
+						values are from -20 to 19, which is the lowest priority. Also,
+						the [be-ionice] is a value 0-5 which defines which "Best Effort"
+						classed nice-ness for io priority via ionice. The fourth incantation
+						allows for the change of this ionice class to one of the three
+						accepted classes known for ionice (realtime, best-effort, or idle).
 
-					values accepted are subject to change with the programs that are used
-					here, please refer to each separate program for up-to-date information
-					on it's possible arguments:
+						values accepted are subject to change with the programs that are used
+						here, please refer to each separate program for up-to-date information
+						on it's possible arguments:
 
-					[nice]			see nice(1) and renice(1)
-					[(be-)ionice]	see ionice(3)
-					[class]			see ionice(3) or ioprio(3)
-					"search-regex"	see pgrep(1) and perlreref(2) for detailed info on regexes
+						[nice]			see nice(1) and renice(1)
+						[(be-)ionice]	see ionice(3)
+						[class]			see ionice(3) or ioprio(3)
+						"search-regex"	see pgrep(1) and perlreref(2) for detailed info on regexes
 
-					regular expressions are NOT checked for syntax validity by this program
-					please make sure you test them in pgrep before bringing them here as there
-					may be problems when using extraneous expressions as an input expression.
+						regular expressions are NOT checked for syntax validity by this program
+						please make sure you test them in pgrep before bringing them here as there
+						may be problems when using extraneous expressions as an input expression.
 
-					written for bash-perl programming environments
-EOF
+						written for bash-perl programming environments
+	EOF
+
 }
 
-# renice [-n] <priority> [-p|--pid] <pid>...
-# renice [-n] <priority>  -g|--pgrp <pgid>...
-# renice [-n] <priority>  -u|--user <user>...
-# ionice -c <0|1|2|3|none|realtime|best-effort|idle> -n <0|1|2|3|4|5|6|7> -p|--pid <pid> --t|--ignore
-# ionice -c <0|1|2|3|none|realtime|best-effort|idle> -n <0|1|2|3|4|5|6|7> -P|--pgid <pgrp> --t|--ignore
-# ionice -c <0|1|2|3|none|realtime|best-effort|idle> -n <0|1|2|3|4|5|6|7> -u|--uid <uid> --t|--ignore
-# ionice -c <0|1|2|3|none|realtime|best-effort|idle> -n <0|1|2|3|4|5|6|7> </path/to/command> --t|--ignore
-# ionice --help|-h|-V|--version
-
-if [[ $* =~ --help ]] || [[ $# -eq 0 ]]; then
-	echo -e "\nat least 1 argument is required!\n"
-	usage
-	exit 0
-fi
-
-CMD="$1"
-shift
-echo "using $CMD as criteria"
-THREADS=( $(pgrep -w $CMD) )
-if [[ $CMD == "all" ]]; then
-	echo "special criteria 'all' found (meaning: all threads under current user)"
-	BLACKLIST=( '\(sd' '^systemd' '^dbus-' )
-	NAMES=( $(awk '{ print $2 ; }' <<< `pgrep -u1000 -l`) )
-	# 2(0) <- loop distance-from-right(left-depth) \v/
-	for x in $NAMES; do
-								#1(1)
-		for y in $BLACKLIST; do
-									#0(2)
-			if [[ $x =~ $y ]]; then
-				echo "cannot do $x, its a blacklist item"
-				continue 2
-			fi
-		done
-        # echo "we should thrgrep $x $@"
-		# we do, here (recalls self, but not in same symbol space)
-		# debug only: # echo thrgrep $x $@
-		thrgrep $x $@
-		# if we had to continue inner_loop, we would actually do inner_loop-1 here (but that wouldnt be needed since its our loop anyway)
-	done
-	exit 0
-elif [[ ${#THREADS[@]} -eq 0 ]]; then
-	echo "no threads found under the given critieria: $CMD"
-	exit 1
-else
-	if [[ $UID -eq 0 ]]; then
-		echo "running as root, running in normal mode..."
-		pfx=command
+main()
+{
+	init_presets
+	echo "$0(${(j:,:)@}) =>"
+	if ! has_preset "$1"; then
+		debug echo "processing as normal command line (no known preset named)"
 	else
-		echo "running as a non-root user, switching to sudo mode..."
-		pfx=sudo
+		debug echo "about to use preset $PRESETNAME with value of $PRESETVAL"
+		assert '[[ $PRESETVAL != "" ]]'
+		if [[ "$2" != "" ]]; then
+			searchterm="$2"
+		else
+			searchterm=""
+		fi
+		[[ $# -gt 2 ]] && { debug echo "info: more arguments on command line in preset mode---they will be ignored"; }
+		debug echo "transform from preset: $PRESETNAME -> $PRESETVAL"
+		if [[ $PRESETVAL =~ , ]]; then
+			debug echo "detected meta-preset, running as subcommand..."
+			for x in ${(s:,:)PRESETVAL}; do
+				debug echo "delegating thrgrep $x..."
+				# NB: RECURSION INTO SELF
+				$0 "$x"
+			done
+			exit 122
+		fi
+		if [[ $searchterm != "" ]]; then
+			eval set -- $searchterm $PRESETVAL
+		else
+			eval set -- $PRESETVAL
+		fi
+		debug echo "injecting into normal command..."
 	fi
-fi
-std_out="/dev/stdout"
-err_out="/dev/null"
 
-( for THREADID in "${THREADS[@]}"; do
-	
-	case $# in
-		0)	# display only
-			echo "$THREADID"
-			;;
-		1)	# renice only
-#			[[ $1 =~ ^-?[0-9]+$ ]] || die "bad nice level value: $1"
-#			[[ $THREADID =~ ^[0-9]+$ ]] || die "thread id not legal (numeric decimal integers only): $THREADID"
-			$pfx renice -n $1 -p $THREADID 2>$err_out 1>$std_out 
-			;;
-		2)	# renice | besteffort-prio
-			$pfx renice -n $1 -p $THREADID 2>$err_out 1>$std_out
-			$pfx ionice -c best-effort -n $2 -p $THREADID 2>$err_out 1>$std_out
-			;;
-		3)	# renice | class + prio
-			#echo "pfx=\"$pfx\", declaration follows:"
-			#declare -p pfx
-			#echo "$pfx renice -n $1 -p $THREADID 2>$err_out 1>$std_out"
-			$pfx renice -n $1 -p $THREADID 2>$err_out 1>$std_out
-			#echo "$pfx ionice -c $2 -n $3 -p $THREADID 2>$err_out 1>$std_out"
-			$pfx ionice -c $2 -n $3 -p $THREADID 2>$err_out 1>$std_out
-			;;
-		*)
-			usage
-			break
-			;;
-	esac
-
-done ) | while read r; do
-			echo "$r"
+	if [[ $1 == "list" ]]; then
+		# declare -p PRESETS
+		pp=0
+		echo "known presets"
+		echo "---------------------------------------------------"
+		for p in "${(Oik)PRESETS[@]}"; do
+			echo "$p[[20C${PRESETS[$p]}"
+			let pp++
 		done
+		echo "---------------------------------------------------"
+		echo "$pp preset(s)"
 
-exit $?
-#################################### /\F    N   S/\ #####################################################
-#### DO NOT PLACE CODE BELOW HERE ##/  \O T/\O E/  \### END OF PROGRAM ########## KEEP ABOVE HERE #######
-####################################    \O/  \T/    #####################################################
+	fi
 
+	if [[ $* =~ --help ]] || [[ $# -eq 0 ]]; then
+		echo -e "\nat least 1 (up to 3) arguments required!\n"
+		usage
+		exit 0
+	fi
+
+	CMD="$1"
+	shift
+	debug echo "using $CMD as criteria"
+	THREADS=( $(pgrep -w $CMD) )
+	if [[ $CMD == "all" ]]; then
+		debug echo "special criteria 'all' found (meaning: all threads under current user)"
+		BLACKLIST=( '\(sd' '^systemd' '^dbus-' )
+		NAMES=( $(awk '{ print $2 ; }' <<< `pgrep -u1000 -l`) )									#2(0) <- loop distance-from-right(left-depth) \v/
+		for x in $NAMES; do																		#1(1)
+			for y in $BLACKLIST; do																#0(2)
+				if [[ $x =~ $y ]]; then
+					debug echo "skipping $x because it is a blacklist item!"
+					continue 2
+				fi
+			done
+	        debug echo "we should thrgrep $x $@"
+			debug echo thrgrep $x $@
+			# NB: RECURSION INTO SELF
+			echo "we are: 0=$0 x=$x #=$# @=$@"
+			$0 $x $@
+		done
+		exit 0
+	elif [[ ${#THREADS[@]} -eq 0 ]]; then
+		echo "error: no threads found under the given critieria, '$CMD'"
+		exit 1
+	else
+		if [[ $UID -eq 0 ]]; then
+			debug echo "running as root, running in normal mode..."
+			pfx=command
+		else
+			debug echo "running as a non-root user, switching to sudo mode..."
+			pfx=sudo
+		fi
+	fi
+	std_out="/dev/stdout"
+	err_out="/dev/null"
+
+	( for THREADID in "${THREADS[@]}"; do
+		case $# in
+			0)	# display only
+				echo "$THREADID"
+				;;
+			1)	# renice only
+				if ((currently_disabled_enable)) {
+					[[ $1 =~ ^-?[0-9]+$ ]] || die "bad nice level value: $1"
+					[[ $THREADID =~ ^[0-9]+$ ]] || die "thread id not legal (numeric decimal integers only): $THREADID"
+				}
+				$pfx renice -n $1 -p $THREADID 2>$err_out 1>$std_out 
+				;;
+			2)	# renice | besteffort-prio
+				$pfx renice -n $1 -p $THREADID 2>$err_out 1>$std_out
+				$pfx ionice -c best-effort -n $2 -p $THREADID 2>$err_out 1>$std_out
+				;;
+			3)	# renice | class + prio
+				debug echo "pfx=\"$pfx\", declaration follows:"
+				debug echo $(declare -p pfx)
+				debug echo "$pfx renice -n $1 -p $THREADID 2>$err_out 1>$std_out"
+				$pfx renice -n $1 -p $THREADID 2>$err_out 1>$std_out
+				debug echo "$pfx ionice -c $2 -n $3 -p $THREADID 2>$err_out 1>$std_out"
+				$pfx ionice -c $2 -n $3 -p $THREADID 2>$err_out 1>$std_out
+				;;
+			*)	# invalid | show usage
+				echo "requires 1-3 arguments to run! (we have $#)"
+				n=1
+				for x; do
+					echo "arg $n = \"$x\""
+					let n++
+				done
+					
+				usage
+				break
+				;;
+		esac
+
+	done ) | while read r; do
+				# final modifications can be made to stream here (output stream)
+				print -P "${r}%f%b%u"
+			done
+
+	exit $?
+	
+}
+
+# PROGRAM START ##################
+
+case $1 in
+	custom)	customui "$@";;
+	     *)     main "$@";;
+esac
+
+######## END PROGRAM GLOBAL AREA #
+
+		#################################### /\F    N   S/\ #####################################################
+		#### DO NOT PLACE CODE BELOW HERE ##/  \O T/\O E/  \### END OF PROGRAM ########## KEEP ABOVE HERE #######
+		####################################    \O/  \T/    #####################################################

@@ -1,0 +1,96 @@
+#!/bin/zsh
+
+# see annotations at end for description (A-004-008)
+
+setopt aliases
+setopt interactivecomments
+setopt nointeractive
+setopt extendedglob
+setopt nozle
+
+
+start=${1-1}
+end=${2-255}
+increment=${3-1}
+xw=${4-8}
+sw=${5-1}
+cx=${6-0}
+colorize=${7-1}
+
+
+if (( start > end )) && (( increment > -1 )); then	# see A-009
+	echo "error: increment must be negative if start > end"
+	increment=$((increment*-1))
+fi
+if (( increment == 0 )); then
+	echo "error: increment cannot be zero"
+	exit 128
+fi
+if ((sw < 1)) && ((xw < 1)); then
+	exit
+fi
+if ((colorize > 2)) || ((colorize < 0)); then
+	echo "error: must use 0 (nocolor) 1 (fgcolorize) or 2 (bgcolorize)"
+	exit 129
+fi
+for x in {$start..$end..$increment}; do # see A-010
+	if ((colorize >= 1)); then
+		if ((sw == 0)); then
+			printf "\e[$((2+colorize))8;5;${x}m%${xw}s\e[0m" "${x[1,xw]}"
+		else
+			printf "\e[$((2+colorize))8;5;${x}m%${xw}s\e[0m%${sw}s" "${x[1,xw]}" " "
+		fi
+	else
+		if ((sw == 0)); then
+			printf "%${xw}s" "${x[1,xw]}"
+		else
+			printf "%${xw}s%${sw}s" "${x[1,xw]}" " "
+		fi
+	fi
+	cx=$((cx+xw+sw))
+	if (( (cx+sw+xw) >= COLUMNS)); then
+		printf "\n"
+		cx=0
+	fi
+done
+
+
+# annotations:
+# A-010
+# because of the way printf deals with %0s along with " " this special case gets dealt with separately, to ensure
+# that an extra space does not get inserted when the user explicitly turns off spacing by giving us a zero
+# for the said parameter (param 5). Some environments will work if the change is made from " " to "", but this is not
+# specified in the documentation as an intentional behavior and is avoided to keep the program syntatically sounded.
+# A-009
+# exit early when nothing to be done
+# A-008 "program description"
+# simple, slightly better seq
+# with a few less features: no fpu support
+#        and more features: supports specific spacing
+#							and colorizing
+# A-007 "syntax description"
+# simplex syntax (TODO: add getopt to handle this instead, so we dont always need 7 params for color control, etc)
+# A-006 "syntax synopsis/summary"
+# definition: exseq [START#] [END#] [INCREMENT#] [VALUE FIELD WIDTH] 
+#                      [SPACING BETWEEN VALUES] [STARTING COLUMN!] [COLORIZE?]
+# A-005 "syntax parameters detail"
+# parameter name				explanation (default value)
+# [START#]						Number (or character) to start at. (1)
+# [END#]						Number (or character) to stop at. (255)
+# [INCREMENT#]					No. of numbers or characters to skip per iteration. (1)
+# [VALUE FIELD WIDTH]           Number of character spaces to reserve for displaying the values (8)
+# [SPACING BETWEEN VALUES]      Fixed number of spaces to have between each value (1)
+# [STARTING COLUMN!]            Where should we start X out as being (usually not needed, just have it as 0)
+# [COLORIZE?]					1=colorized color codes (numbers only!) 0=disable color (1)
+# A-004 "syntax params footnotes"
+# footnotes: early exit will happen if parameters do not make any sense at all (A-009)
+# A-003 "early development notes"
+# this is considered build zero (alpha) so dont expect much in the way of replacing /bin/seq any time soon
+# A-002 "requirements"
+# requires zsh 5.1.1 (developed for this version)
+# A-001 "author"
+# authored by Gabriel Thomas Sharp <osirisgothra@hotmail.com>
+# A-000 "LICENSE"
+# this program falls under the license in github.com/osirisgothra/mini, which currently is the GNU LGPL v3
+# please see http://gpl.gnu.org/lgpl3 for details.
+# <<END OF FILE>> if this line is missing you are missing part of the file!

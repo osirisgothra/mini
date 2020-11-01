@@ -90,13 +90,32 @@ my ($opt, $usage) = describe_options(
 print($usage->text), exit if $opt->help;
 my @terms = @ARGV || die("\nno search terms provided!!! please see --help for details\n${!}\nreturning with code: $?\n\n");
 
-# see (NOTES: built-in names)
-my @binames_g = qw( firefox chromium-browser midori dillo konqueror rekonq opera google-chrome xombrero safari );
-my @binames_t = qw( links2 elinks links lynx GET );
+# builtin names (any name with same char will be uppercased, then ignored (for now)
+# keep them in alphabetic order
+my @names_builtin_g = qw( chromium-browser firefox google-chrome dillo konqueror midori opera rekonq safari xombrero );
+# by convention, UPPERcase names will refer to text, lowercase to gui, on consoles, no gui at all, but lowercase for terms
+my @names_builtin_t = qw( elinks GET links links2 lynx wget );
 
+# if we have update-alternatives and it has browsers configured, use those instead of the built-in names
 # the proper names list OR auto-assign the built-in names to each if not available
-chomp ( my @names_g = `update-alternatives --list x-www-browser` // @binames_g,
-	    my @names_t = `update-alternatives --list www-browser` 	 // @binames_t);
+chomp ( my @names_g = `update-alternatives --list x-www-browser` // @names_builtin_g,
+	    my @names_t = `update-alternatives --list www-browser` 	 // @names_builtin_t);
+
+# create mappings using one of (first one to not have a dupe in @maps_[gx] will be used)
+# 1)	first character
+# 2)	first character, inverted case
+# 3)	first two chars
+# 4)	full name (letters only)
+# 5)	use list index number (as a last resort, plus warning)
+my @maps_g= ();
+my @maps_t= ();
+#sub assignmapping {
+#	my @srcvar = @_
+#;
+
+	
+
+
 
 # home
 my $home = path($ENV{HOME});
@@ -114,11 +133,39 @@ say "\nbrowsers (CLI or (n)curses):";
 say for @names_t;
 my $total = @names_t + @names_g;
 say("this script (or link thereof) name is $base");
+
+use feature 'signatures';
+
+sub proc_running($name)
+{
+}
+
 my $g = "x-www-browser";	# set defaults for graphical browser
 my $t = "www-browser";      # and text browser (see below)
+my $mode = "undetermined";  # will be either text|graphical
+my $prefix = "?";
+my %debinfo = ( runtime => 0,
+                lasturl => "?",
+                lastuid => -1,
+                lastgid => -1,
+              );
+              
 
 if ( -l $name ) {
 	say("$base is a soft link to another file, interpreting as a magic link..");
+	given ($name)
+	{
+	    # TODO: add text/gui diffs
+	    when (/^[A-Z]/)             # upper case (means text mode (when running X only))
+	    {
+	        $mode = "text";
+	    }
+	    when (/^[a-z]/)
+	    {
+	    }
+        die("Your link name, $name, has an invalid prefix, it must be a lower or uppercase letter.");	    
+	}
+	for my $target ( @names_g )
 	# magic links work this way:
 	#
 	# BL[extradata]	
@@ -140,12 +187,10 @@ if ( -l $name ) {
 	# OSX. (Also, the bash version is depreciated and gets no more updates other
 	# than bugfixes).
 	#
-	my $browser = substr($name,0,1);
 
+	
 
 } else {
-	say("$base is a hard link to an inode, using default targets...");
-	
+	say("$base is a hard link to an inode, using default targets...");	
 }
-
 

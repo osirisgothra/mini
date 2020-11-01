@@ -1,0 +1,55 @@
+#!/bin/zsh -r
+#
+# usage: user@host> source zsh-extravars run
+#    or: user@host> source zsh-extravars show
+#    or: zsh-extravars show         <----.
+#    or: zsh-extravars				<- same as each other
+#
+# never: zsh-extravars run			<- do not use this syntax!
+#
+case ${1-show} in
+	show)	cat $0 | perl -ne 'print if /begin_show/ .. /end_show/ and not /begin_show|end_show/'
+			case $- in *i*) return $?;; *) exit $?;; esac;;
+	run)	shift;;
+	*)		echo "ERROR: must be either no arguments, or an arg of 'run' or 'show' (default) (cmdline=[$0 $*]) ";;
+esac
+case $- in
+	*i*)	;;
+	*) echo "ERROR: you musnt execute unless you use show, do not use run in this state! (hint: use source or dont specify run!)"
+		exit 127;;
+esac
+####### guarenteed run state: interactive and shell environment #############
+# begin_init
+declare ze_filename="$0"
+function ze-edit()
+{
+	oldsha=`shasum $ze_filename`
+	if nano "$ze_filename" && [[ $oldsha != `shasum $ze_filename` ]]; then
+		if read -sq "?file changed, do a running source? [y/[n]]:"; then
+			case $? in
+				0)	# yes
+					source "$ze_filename" run
+					;;
+				1)	# no
+					echo "no running, heres the result:"
+					source "$ze_filename" show
+					echo "end of result list"
+					;;
+				*)	echo "user used special key, breaking program..."
+					case $- in *i*) return $?;; esac
+					exit $?
+					;;
+			esac
+		fi
+	fi
+		
+	
+}
+# end_init
+# begin_show
+
+declare -gA mem=( $(gawk '{ print $1" "$2; }' /proc/meminfo | tr -d ':') )
+declare -ga lavg=( $(</proc/loadavg) )
+# end_show
+
+# note: do not put stuff between begin_show/end_show that is not assignment statements
