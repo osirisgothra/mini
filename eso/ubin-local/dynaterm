@@ -1,0 +1,172 @@
+#!/usr/bin/perl
+# ┏━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+# ┃         FILE┋ dynaterm                                                        ┃
+# ┃        USAGE┋ dynaterm [-e cmd]                                               ┃
+# ┣━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+# ┃  DESCRIPTION┋ starts a term based on system state / config                    ┃
+# ┣━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+# ┃      OPTIONS┋ n/a                                                             ┃
+# ┃ REQUIREMENTS┋ perl 5.20.2+                                                    ┃
+# ┃         BUGS┋ report bugs at github.com/osirisgothra/mini.git                 ┃
+# ┃        NOTES┋ Not a terminal, just a frontend.                                ┃
+# ┃  PORTABILITY┋ Win32/64*(see endoffile) Most nix-Like Sys's probably portable! ┃
+# ┃       AUTHOR┋ Gabriel Sharp (osirisgothra, using hotmail dot com as mail)     ┃
+# ┃      LICENSE┋ GNU GPL 3.0                                                     ┃
+# ┃      COMPANY┋ Paradisim (Token Brand)                                         ┃
+# ┃      VERSION┋ v1.0 alpha                                                      ┃
+# ┃      CREATED┋ Mon 16 Nov 2020 08:27:38 PM EST                                 ┃
+# ┃     REVISION┋ First Incantation (not revised)                                 ┃
+# ┃     PROGRESS┋ Tue 17 Nov, First Runnable Milestone Made (no longer useless)   ┃
+# ┣━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+# ┃     🛇       ┃ No Commercial Resale, Use, Adaptations or other $$ pay services.┃
+# ┃     🛇       ┃ Distribution without credit or modified credit given.           ┃
+# ┃     🛇       ┃ No selling of any author's information to third party companies.┃
+# ┗━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+# ┏━━━━━━━━━━━━━━━━━━━━┓
+# ┋ version            ┋
+# ┗━━━━━━━━━━━━━━━━━━━━┛
+
+use warnings;
+use v5.20.2;
+use strict;
+
+my @feats = ( "signatures" );
+my @woffs = ( "experimental", "once" );
+my @libs =  ( "Getopt::Long::Descriptive",              # option parsing
+              "Path::Tiny",                             # portable path handling (other nix systems, possibly osx) 
+            );
+
+for my $x (@libs) {
+
+    eval "use $x";
+
+    if ($@) {
+        say("$x needs to be installed to run this program");
+        say("failing back to xterm (resillience measure) so long as it exists");
+        exec "xterm";
+        die("it did not exist, so it failed, returning the exit code + 127", $?+127 );  
+    }
+}
+
+my $tty = readlink("/proc/self/fd/0");
+my $progname = path($0)->basename;
+
+my ($opt, $usage) = describe_options(
+    "$progname %o",
+    [ 'no-dialog', "dont use dialog to show log",  ],
+    [ 'no-follow',   "do not follow the log, just show it",   { default  => 79 } ],
+    [ 'execute|e=s',   "(not yet implemented!) execute this command, translated for whatever term is run" ],
+    [ 'force-term|F=s', "force a terminal to be chosen, counterproductive but allowed", { default => "no" } ],
+    [],
+    [ 'verbose|v',  "print extra stuff"            ],
+    [ 'help',       "print usage message and exit" ],
+);
+
+
+( my $m = (grep { /^MemFree/ } path("/proc/meminfo")->lines())[0] ) =~ s/[^0-9]//g;
+my $l = (split(" ",(path("/proc/loadavg")->lines())[0]))[0];
+$opt->help && print($usage->text) && exit;
+@ARGV && warn(@ARGV . " argument(s) ignored, program accepts no arguments");
+
+# TODO: write into, read from a config file instead
+
+my %terms = (     xterm => {  minmem  =>  0,       maxmem  =>  -1,    minload => 2, maxload => 99999, enabled => 1, exe => "/usr/bin/xterm", friendlyname => "X11 Core Terminal (Xterm)", exeflag => "-e" },
+                konsole => {  minmem  =>  16384,    maxmem  =>  -1,    minload => 0, maxload => 2, enabled => 1, exe => "/usr/bin/konsole", friendlyname => "KDE Terminal (konsole)", exeflag => "-e" },
+         xfce4_terminal => {  minmem  =>  16384,    maxmem  =>  -1,    minload => 0, maxload => 2, enabled => 1, exe => "/usr/bin/xfce4-terminal", friendlyname => "XFCE Terminal (xfce4-terminal)", exeflag => "-e" },
+         gnome_terminal => {  minmem  =>  16384,    maxmem  =>  -1,    minload => 0, maxload => 2, enabled => 1, exe => "/usr/bin/gnome-terminal", friendlyname => "GDM/GDE Terminal (gnome-terminal)", exeflag => "-e" },
+                   rxvt => {  minmem  =>  16384,    maxmem  =>  -1,    minload => 0, maxload => 2, enabled => 1, exe => "/usr/bin/rxvt", friendlyname => "Really Extended Virtual Terminal (rxvt)", exeflag => "-e" },
+            terminology => {  minmem  =>  64012,    maxmem  =>  -1,    minload => 0, maxload => 2, enabled => 1, exe => "/usr/bin/terminology", friendlyname => "Enlightenment Second Generation Terminal (terminology)", exeflag => "-e" },
+                  Eterm => {  minmem  =>  64012,    maxmem  => 122884 ,    minload => 1, maxload => 1.8, enabled => 1, exe => "/usr/bin/Eterm", friendlyname => "Enlightenment Terminal (Eterm)", exeflag => "-e" },
+                     st => {  minmem  =>  0,        maxmem  => 8048  ,    minload => 3, maxload => -1, enabled => 1, exe => "/usr/bin/st", friendlyname => "Stripped To Nothing Terminal (st)", exeflag => "-e" },
+              );
+
+# which to check, and the order, must most desirable terminal to least
+
+my @pri = qw!  terminology gnome_terminal xfce4_terminal konsole  rxvt Eterm xterm st !;
+my $winner = "xterm";       # put failed to find any winner here
+
+# disable any terminals not present
+chomp( my $nproc = `nproc` );
+unless ( $nproc =~ /\A[0-9]+\z/g ) {
+    say("cant get cpu count, failing back to 2");
+    $nproc=2;
+}
+else
+{ say("detected $nproc cores on this system");
+}
+if ( $opt->force_term ne "no" ) {
+    $winner = $opt->force_term;
+        
+}   else { 
+
+for (keys(%terms)) {
+    my $lk = $_;
+    my %si = %{$terms{$lk}};
+    unless ( -x $si{exe} ) {
+            say("$si{exe} missing (disabled)");
+            $terms{$lk}->{enabled} = 0;
+    }
+    # translate -1 to mean max memory, this number is rediculously huge so we dont type it up ^ there
+   
+    $terms{$lk}->{maxmem} = 1024**5 if $terms{$lk}->{maxmem} == -1;
+    # translate loads, x = (nproc/2) * load
+    $l = $l * ($nproc / 2);
+    
+}
+
+my $foundwinner = 0;
+
+for (@pri) {
+    if ($terms{$_}->{enabled}) {
+        say("comparing for $_ ...");
+        my ($lm, $hm, $ll, $hl) = ( $terms{$_}->{minmem}, $terms{$_}->{maxmem}, $terms{$_}->{minload}, $terms{$_}->{maxload} );
+        my ($inrange_m, $inrange_l) = ( ($m >= $lm && $m <= $hm ), ($l >= $ll && $l <= $hl ) );
+        if ($inrange_m && $inrange_l) {
+            say("this terminal qualified, it will be used");
+            $winner = $_;
+            $foundwinner = 1;
+            last;               # winner found, no more looking needed
+        }
+        else { 
+            say("does not qualify: ");
+            say("\tmemory out of range: (rng: $lm - $hm  actual: $m)") unless $inrange_m;
+            say("\t  load out of range: (rng: $ll - $hl  actual: $l)") unless $inrange_l;
+       }        
+    }
+}
+if ( $foundwinner ) {
+    say("found a winner: $winner");
+} else {
+    say("nobody qualified, failing back to: $winner");
+}    
+}
+say("executing $winner");
+
+my $tx = $terms{$winner}->{exe};
+if ( -x $tx ) {
+    if ( $opt->execute ) {
+        my $param = $opt->execute;
+        qx( $tx -e $param ); 
+    }
+    else {
+        exec $tx; 
+    }
+}
+else {
+    say("cannot execute $tx because it does not refer to an executable file");
+}
+
+#*win32/64 support: slackware or a linux layer running on top of windows is not windows
+#                in those situation, portability is possible. but NATIVE windows support
+#                is not because there is no tty devices in the kernel granted there are
+#                stdout/stdin/stderr (in dos/cmd its con/kbd/aux) which is a distant cousin at best
+#                if you must use my perl programs for win32/64, USE A WRAPER, there are many!
+
+# TODONES: TODOs that were completed
+# todo/DONE: make it work actually on a scale depending on the systems performance at that MOMENT, gauge it loosley on up to the last minute but no more than that
+#            this was accomplished by checking resource load finals in /proc/loadavg, and memory usage in /proc/meminfo alone, this may be tweaked further but most
+#            of what has been done is delegated to the system since it already has perfected observing resource use. The ONLY thing that had to be considered is the
+#            number of cores which will change the load amounts system-to-system, which was then added
+# todo/DONE: check winner validity, since user can change this with force (for now its their fault if they flux it up)
+#

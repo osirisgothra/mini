@@ -1,0 +1,268 @@
+#!/usr/bin/perl
+#
+# FILE
+#    aliasedit
+#    the aliasedit perl script
+#
+# PROJECT
+#    aliasedit-proj
+#	 project aliasedit-proj: container for aliasedit
+#
+# AUTHOR / COPYRIGHT
+#
+#    Copyright (C) 2020, 
+#
+#    Written by  osirisgothra@larnica.(none)
+#    Latest versions of this and all of 's projects can be
+#    obtained from:
+#
+#     <<projbranch>>
+#
+#    Documentation Available At:
+#
+#     <http://www.github.com/osirisgothra/aliasedit-proj.git>
+#
+# LICENSE
+#
+#    aliasedit-proj/aliasedit  is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  NOTES
+#
+#     * TODO: move 'use' statements to top if you want to keep them**
+#    ** this feature will be added to the next version of perltemplate (hopefully)
+#   *** warnings are disabled for experimental and once because they are pretty
+#       annoying here, you might want to re-enable them for your own program
+#       to do this during testing and development.
+#
+#  HISTORY
+#
+#	Sat Dec 12 21:41:53 2020
+#         osirisgothra@larnica.(none) created this file using the template generator 'perltemplate'
+#         and named it aliasedit for the project '<projname'.
+#
+#
+# (created with perltemplate by Gabriel T. Sharp <osirisgothra@hotmail.com>)
+#
+
+use warnings;
+use v5.18;
+use strict;
+use Path::Tiny;
+use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
+use Curses::UI;
+use IPC::Open3  qw( open3 );
+use Term::ANSIColor 4.0  qw ( colorstrip color colored uncolor coloralias :constants colorvalid :pushpop );
+use feature "signatures";
+use vars qw: $opt $usage :;
+
+no warnings "experimental";			# 	allow given/when/default and smartmatching without their warnings***
+no warnings "once";					# 	allow variables to be used just once without warning***
+
+## CURSES ##
+
+my $cui;  # Main Program Object, it must be global so accessor/menu/etc subs can see it
+           # even though subs are defined inside of the same routine, subs wont be able to
+           # read any function-local data, this is a closure that keeps loops from compromise.
+           # an illustration of the closure:
+
+#  GLOBAL STACK     FUNC STACK
+#  +---------------+---------+ -> creates function B() but its access is still limited to global and above unless a ref was passed too
+#  |     FUNC A    +    A    |
+#  |     FUNC A    +    | var|
+#  +---------------+---------+
+#  +---------------+---------+
+#  |     FUNC B    +    B    |-> tries to access cui, but if its in A how would it?
+#  +---------------+---------+
+#  GLOBAL STACK     FUNC STACK
+#    +---------------+
+# |->|     var       |
+# |  +---------------+
+# |    ^
+# |    |
+# |    | accessible!
+# |    |
+# | +---------------+---------+ -> creates function 'FUNC B'
+# | |     FUNC A    +    A____|
+# | |               +    |////| <- readable by A only
+# | +---------------+---------+
+# | +---------------+---------+
+# -|     FUNC B    +    B     |-> tries to access var, and can because its global
+#  +---------------+----------+
+
+####### CUI ITEMS
+
+my $file = undef;
+my $statusbar_showing = 0;
+my $statusbar_text = "Ready";
+
+####### MENU SUBS
+
+sub exit_dialog()
+{
+    my $return = $cui->dialog	(	-message   => "Do you really want to quit?",
+	    							-title     => "Are you sure?",
+		    						-buttons   => ['yes', 'no'], );
+    exit(0) if $return;
+}
+sub help_contents_act
+{
+    $cui->dialog("Contents: Nothing!");
+}
+sub about_dialog
+{
+    while(1) {
+    my $yes = $cui->dialog( 	-message => "Template Program v1.0", -buttons => [
+        {   -label    => '< About The Author >',
+            -value    => 191,
+            -onpress  => undef,
+            -shortcut => 'o', }
+    ,
+    "ok"], -values  => [1,0], -title   => "About", );
+    given($yes) {
+        when (191)
+        {
+            $cui->dialog( 	-message => "The Author of this program seems like a nice enough person!", -buttons => ["ok"], -values  => [1,0], -title   => "About Author", )
+        }
+        default
+        {
+            return;
+        }
+    }
+    }
+}
+sub open_dialog
+{
+    $file = $cui->filebrowser(	-path => "/tmp", -show_hidden => 1, );
+
+    # Filebrowser will return undef if no file was selected.
+    
+    if (defined $file) 
+    {   
+        unless (open F, "<$file") 
+        {	
+            # do something with file
+            close F; 
+        } 
+        else 
+        { 
+            $cui->error(qq(Error opening "$file":\n$!)); 
+        }
+    }
+}
+sub undo_act
+{
+    # todo: undo something
+}
+sub redo_act
+{
+    # todo: redo something
+}
+sub next_act
+{    
+    # todo: next something
+}
+sub prev_act
+{    
+    # todo: previous something
+}
+sub statusbar_act
+{
+    $statusbar_showing ^= 1;   # toggle it
+    $cui->status($statusbar_text) if $statusbar_showing;
+    $cui->nostatus unless $statusbar_showing;
+}
+sub toolbar_act
+{
+    $cui->error("It's toolbar has yet to be completed!");
+
+}
+sub progress_act($kind, @params)
+{
+    given($kind) {
+        when (/timer/) {
+            my $amt =  shift(@params) // 2;
+            $cui->progress( -max => $amt, -message => "@params (wait $amt seconds)...", );
+                for my $second (0..2) {	
+                    $cui->setprogress($second); 
+                    sleep 1; 
+                }                
+            $cui->noprogress;
+        }
+        default 
+        {
+            die("cannot understand progress dialog kind: $kind (args=@params)");
+        }
+    }
+}
+
+sub curses_main()
+{
+    say("curses: entering setting");
+
+    my $debug = 0;  #1=yes 0=no
+    $cui = Curses::UI->new( -color_support => 1, -clear_on_exit => 1, -debug => $debug, ); # this is where we gloss over setting up all the widgets and data structures + start the event loop
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+    
+    my @menu = (
+
+                { -label => 'File',
+                  -submenu => [{        -label => 'Open...'     ,     -value => \&open_dialog  },
+                               {        -label => 'Exit      ^Q',     -value => \&exit_dialog  }],
+                },
+                { -label => 'Edit',
+                  -submenu => [{        -label => 'Undo      ^U',     -value => \&undo_act  },
+                               {        -label => 'Redo'        ,     -value => \&redo_act  }],
+                },
+                { -label => 'Search',
+                  -submenu => [{        -label => 'Find      F3',     -value => \&find_dialog  },
+                               {        -label => 'Replace   F4',     -value => \&replace_dialog  }],
+                },
+                { -label => 'View',
+                  -submenu => [{        -label => 'Statusbar ^S',     -value => \&statusbar_act  },
+                               {        -label => 'Toolbar   ^T',     -value => \&toolbar_act }],
+                },
+                { -label => 'Document',
+                  -submenu => [{        -label => 'Previous   PGUP',     -value => \&prev_act  },
+                               {        -label => 'Next       PGDN',     -value => \&next_act  }],
+                },
+                { -label => 'Help',
+                  -submenu => [{        -label => 'Contents   F1',     -value => \&help_contents_act  },
+                               {        -label => 'About'        ,     -value => \&about_dialog  }],
+                },
+
+                );
+    $cui->add( 'menu','Menubar', -menu => \@menu, -fg => "blue",);
+    $cui->mainloop;
+}    
+sub parse_options($progname)
+{
+    ($opt, $usage) = describe_options(
+    $progname . ' %o <some-arg> file',
+    [ 'no-dialog', "dont use dialog to show log",  ],
+    [ 'no-follow',   "do not follow the log, just show it",   { default  => 79 } ],
+    [],
+    [ 'verbose|v',  "print extra stuff"            ],
+    [ 'help',       "print usage message and exit" ],
+    );
+
+    say($usage->text), exit if $opt->help;
+    return @ARGV;
+}
+
+################################### main program
+
+parse_options(path($0)->basename());
+curses_main();

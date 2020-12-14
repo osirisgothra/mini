@@ -1,0 +1,403 @@
+#!/usr/bin/perl
+# ┏━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+# ┃         FILE┋  tsa4                                                           ┃
+# ┃        USAGE┋  'tsa4' [OPTIONS] <search text>                                 ┃
+# ┣━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+# ┃  DESCRIPTION┋  rewrite of 'tsa' for perl under debian and simmilar OSes       ┃
+# ┣━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+# ┃      OPTIONS┋  See --help form a listing of command line options.             ┃
+# ┃ REQUIREMENTS┋  >━Perl v5.20.2 (Tested up to 5.30).                            ┃
+# ┃         BUGS┋  Still in alpha, not complete--so expect many!                  ┃
+# ┃        NOTES┋  (See NOTES section below.)                                     ┃
+# ┃       AUTHOR┋  Gabriel Thomas Sharp (gt), osirisgothra@hotmail.com.           ┃
+# ┃      LICENSE┋  GNU GPL v3.0 (https://www.gnu.org/licenses/gpl3)               ┃
+# ┃      COMPANY┋  Paradisim NCNP                                                 ┃
+# ┃      VERSION┋  1.0                                                            ┃
+# ┃      CREATED┋  SUN 12/06/2020 21:27:25                                        ┃
+# ┃     REVISION┋  4 (see HISTORY section below.)                                 ┃
+# ┣━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+# ┃ NOTES                                                                                                                                                                     ┃
+# ┣╸╸╸╸╸╸╸╸╸━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+# ┃ HISTORY                                                                                                                                                                   ┃
+# ┃                                                                                                                                                                           ┃
+# ┃   Did you know?                                                                                                                                                           ┃
+# ┃                                                                                                                                                                           ┃
+# ┃       ptsa originally started in 1998 as a MS-DOS batch file called 'goo.bat' and only supported                                                                          ┃
+# ┃       sending string directly to internet explorer via google. It later evolved into 't.bat' which                                                                        ┃
+# ┃                                                                                                                                                                           ┃
+# ┃    [  C:\WINDOWS\COMMAND> goo my search terms                                                                        ]                                                    ┃
+# ┃    [  looking up my+search+terms in google...                                                                                                                             ┃ 
+# ┃                                                                                                                                                                           ┃
+# ┃       vaugly looked like tsa, then in 2009 turned into the linux version of tsa. It was kept for a while                                                                  ┃
+# ┃       on the back burner but updated after a decade of usage to several different versions, ptsa, ptsa2,3                                                                 ┃
+# ┃                                                                                                                                                                           ┃
+# ┃    [  user@host:~> tsa my search terms ]                                                                                                                                  ┃
+# ┃                                                                                                                                                                           ┃
+# ┃       were all trial runs for my other program, perltemplate, and, then finally, this program, tsa4 (the p                                                                ┃
+# ┃       was dropped). The first version of this file is 0.4, representing the 4 major changes since 1998. The                                                               ┃
+# ┃       reason for the 0 is that it isnt exactly pu blic. It is esoteric but now in 2020 has been brought into                                                              ┃
+# ┃       the public eye by github repository 'mini'. This is a repo that features all my personal scripts.                                                                   ┃
+# ┃       Should this program ever become real, it would get a 1.0 update. Just not yet.                                                                                      ┃
+# ┃                                                                                                                                                                           ┃
+# ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+# ┃ WHAT IT DOES                                                                                                                                                              ┃
+# ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+# ┃      Traditionally, takes your arguments (not -args or --args tho), and formats them into a string based                                                                  ┃
+# ┃      upon the name of the program (link usually, like how sh is linked to dash, or how pgrep is linked to pkill)                                                          ┃
+# ┃      which changes how the string is formatted, and which program is chosen to have that string as an argument.                                                           ┃
+# ┃                                                                                                                                                                           ┃
+# ┃      The end program usually ends up getting a single argument, the formatted string. This is not set in stone and                                                        ┃
+# ┃      could change depending on the programs added to the list.                                                                                                            ┃
+# ┃                                                                                                                                                                           ┃
+# ┃      The LIST is the lifeblood of the tsa4, if you run the program from a symbolic link called for example '/my/bin/f'                                                    ┃
+# ┃      the programs name will be 'f', if the original program name is also called 'f', then it wont use 'f' as its name                                                     ┃
+# ┃      because of the default-fallback mechanism that tells the program to fallback to "t" whenever the program AND the                                                     ┃
+# ┃      link name are the SAME. For this reason, you should never rename the original program (tsa4) to anything else,                                                       ┃
+# ┃      which prevents users from accidently renaming the program or cloning it instead of linking it as it should be done.                                                  ┃
+# ┃      (why? because if an update is made, it needs to affect ALL its links too, if you just cloned it or named it then you                                                 ┃
+# ┃      wouldnt be updating any of those files, which is of course a bad thing!).                                                                                            ┃
+# ┃                                                                                                                                                                           ┃
+# ┃      Next, each linkname is chained to two programs, the gui program, and the cli program. The gui program is the one                                                     ┃
+# ┃      that gets run when an X environment (DISPLAY==:<0-9>*) is detected. As you can probably guess, the cli program is                                                    ┃
+# ┃      the one that gets run when no X environment is present. Usually you wont be too interested in this one since most                                                    ┃
+# ┃      traditional users are in X most of the time. Be aware if you are in a console and you set the DISPLAY to launch commands                                             ┃
+# ┃      remotely, that qualifies as being in X, even though you are physically on a command line. You can disable this by                                                    ┃
+# ┃      passing a bogus DISPLAY by using 'env': /usr/bin/env 'DISPLAY=BOGUS' my-favorite-tsa-link my-search-string.                                                          ┃
+# ┃                                                                                                                                                                           ┃
+# ┃      Finally, each linkname is also chained to a string to be formatted and sent to the program. For most intents and                                                     ┃
+# ┃      purposes, this is a 'search' string. Usually passed to google via a web browser (its original purpose way back                                                       ┃
+# ┃      in earlier days).                                                                                                                                                    ┃
+# ┃                                                                                                                                                                           ┃
+# ┃      Case Example:    say /bin/f is a symlink ~/bin/tsa4                                                                                                                  ┃
+# ┃                                                                                                                                                                           ┃
+# ┃      and you executed 'f do something "with me"'                                                                                                                          ┃
+# ┃                                                                                                                                                                           ┃
+# ┃      The program would run, find that 'f' is the program name, so looks up 'f' in the bhooks table, finding that its gui path is '/bin/firefox'                           ┃
+# ┃      and its searcher is 'google', it would get the string for the google searcher and use printf to format the arguments into that string using                          ┃
+# ┃      the join /+/,@ARGV command.                                                                                                                                          ┃
+# ┃                                                                                                                                                                           ┃
+# ┃      and you would get the command run: /bin/firefox "https://www.google.com/search?q=do+something+\"with me\""                                                           ┃
+# ┃                                                                                                                                                                           ┃
+# ┃      And it would all be peachy.                                                                                                                                          ┃
+# ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+# ┃   EXCLUDED TERMS                                                                                                                                                          ┃
+# ┃                                                                                                                                                                           ┃
+# ┃      I hate excess youtube search results in my text results so much that I have hardwired @excluded_terms                                                                ┃
+# ┃      which adds in some things i really can live without by default: -video -youtube -twitter                                                                             ┃
+# ┃      plus you can add a list of your own into a file called ~/.tsarc (comments would start with # and be removed from results of course)                                  ┃
+# ┃                                                                                                                                                                           ┃
+# ┃      You might like that other stuff so feel free to pull out the excluded terms and put them in a file instead                                                           ┃
+# ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+# ┃ INLINE NOTES                                                                                                                                                              ┃
+# ┣━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+# ┃ #1 ┃ (in ref to the big hash) for items that have a presistent gui or cli-only spec, leave the other argument undefined (like in 't' where elinks is ALWAYS used)         ┃
+# ┃ #2 ┃ place regex substitutions in here to quickly replace one name with another                                                                                           ┃
+# ┃    ┃ in the above bhook.cli_path/gui_path items                                                                                                                           ┃
+# ┃    ┃ meant for those who dont have one broadly used program (ie, elinks as shown below                                                                                    ┃
+# ┃    ┃ will be exchanged for links2). mozilla lovers might want to add                                                                                                      ┃
+# ┃    ┃ 's/(google-)?chrom(e|ium-browser)/firefox/g' (matches google-chrome, chrome, chromium-browser (and even google-chromium-browser, so beware of that)                  ┃
+# ┃    ┃ i urge you to not overuse wildcards because that could be a major security risk!                                                                                     ┃
+# ┃    ┃ strings are only checked that they start with 's/', you are responsible for making sure they are valid regexes or they will break the script. (outside               ┃
+# ┃    ┃ users cant so it could never be broken as long as this file is read-only to those who use it)                                                                        ┃
+# ┃ #3 ┃ note that return value is checked for fallback and executability, we dont need to do that here                                                                       ┃
+# ┃ #3B┃ persist-as mode                                                                                                                                                      ┃
+# ┃ #3C┃ normal mode                                                                                                                                                          ┃
+# ┃ #4 ┃ fall back to 127 if it isnt provided                                                                                                                                 ┃
+# ┃ #5 ┃ override guimode if using a persistent preset                                                                                                                        ┃
+# ┃ #6 ┃ VERIFY TODO: maybe look at IO::Handle->eof/autoflush to check nothing left to write or read                                                                          ┃
+# ┃ #7 ┃ make sure this actually exists in the list of names above or bad things will happen                                                                                  ┃
+# ┃ #8 ┃ TODO: dynamically add the rest                                                                                                                                       ┃
+# ┃ #9 ┃ <new note>                                                                                                                                                           ┃
+# ┃ #10┃ <new note>                                                                                                                                                           ┃
+# ┃ #11┃ <new note>                                                                                                                                                           ┃
+# ┃ #12┃ <new note>                                                                                                                                                           ┃
+# ┃ #13┃ <new note>                                                                                                                                                           ┃
+# ┃ #14┃ <new note>                                                                                                                                                           ┃
+# ┃ #  ┃ <new>                                                                                                                                                                ┃
+# ┣━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+# ┃   PLANS FOR FUTURE                                                                                                                                                        ┃
+# ┃                                                                                                                                                                           ┃
+# ┃       Will be incorporating more dynamics found in tsa, which is bash/zsh dependant so it had to be ditched eventually. Perl is by far more stable                        ┃
+# ┃       and hopefully will prove more portable too however I dont use windows so im not sure if its useful to windows users. Certainly not without                          ┃
+# ┃       rewriting @bhooks to use windows items. This code was written in about 20 minutes so dont be to suprised if it needs alot of work. It actually                      ┃
+# ┃       took alot longer to write this explanation/header than the program itself.                                                                                          ┃
+# ┃                                                                                                                                                                           ┃
+# ┃ (created with perltemplate by Gabriel T. Sharp <osirisgothra@hotmail.com>)                                                                                                ┃
+# ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+# PASTE NOTES HERE AND MOVE ^ THERE WHEN ADDING AN INLINE NOTE
+# ┃   #N  (in ref to XXX ) XXX  ┃
+
+# ┏  ┳ ╸ ┓      annotations format for UTF-8 line drawing, this is where im also developing Term::Box
+#    ┃   ┋
+# ┣  ╋   ┫   The box drawing characters are mapped into a hash for the Term::Box class module
+# ┗  ┻ ━ ┛
+
+# NOTE: this program is the grounds for developing Term::Box and Term::Put, they will be moved to official projects of their own once they are cpan-worthy (post modulemaker, etc)
+#       NEVER PLACE UNIT TESTS IN FILES LIKE THIS, THOSE ARE FOR MM EYES ONLY!
+# Developer Lead: Gabriel T. Sharp, a solo perl projectist, developing under the Flag of Paradisim NCP and no other!! Mediocre matters too (little).
+
+
+use warnings;
+use v5.18;
+use strict;
+use Carp;
+use Cwd;
+use Try::Tiny;
+use Path::Tiny;
+use Term::ANSIColor 4.0  qw ( colorstrip color colored uncolor coloralias :constants colorvalid :pushpop );
+use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
+
+use feature 'signatures';          # allows sub($params) instead of sub($) or sub { my $params = shift
+
+no warnings 'experimental';        # use given/when/default without warnings
+no warnings "once";					# 	allow variables to be used just once without warning***
+
+### primary scalars
+
+my $persist = "none";
+my $fallback_gui = "/usr/bin/x-www-browser";
+my $fallback_cli = "/usr/bin/www-browser";
+
+### asserts
+
+try
+{
+    die("user home cannot be written to") unless -w ( $ENV{HOME} // "/ee55289a-4196-41ee-899f-ac0e9b774a86" );
+    die("PATH variable does not exist in environment, it is required") unless ( $ENV{PATH} // "/2c863213-5f15-456b-b4ef-8ccbb0e82782" );
+    die("TERM variable not defined, this is required for correct display of CLI modes (even if in a GUI, for logs or alt output)") unless ( $ENV{TERM} // "/34987297-3586-4012-84ce-43c4f517b07b" );
+
+}
+catch
+{
+    s/at $0 line.*//g;
+    chomp;
+    chop;
+    say("fatal: caught exception during assert: failed to assert (REASON=$_)" );
+    exit(127);
+
+};
+
+### packages
+
+## Term::Put package: a wrapper for /usr/bin/tput and termcap
+package Term::Put;
+
+sub new ($clsname) {
+    require Term::Cap;
+    require Term::Open3;
+    
+    my $item = { };
+    my $self = bless($item, $clsname);
+    my $citem;
+    for ( split(/:/,$ENV{PATH}) )
+    {
+        $citem = path($_)->child("tput");
+        last if $citem->readable();
+        undef $citem;
+    }
+    croak("could not find tput anywhere") unless $citem;
+    $self->{tput} = $citem;
+    $self->{term} = $ENV{TERM} // "linux";
+}
+sub put($self,$cmd,@args) {
+    system($self->{tput},$cmd,@args);
+} #8
+
+
+### Term::Box package
+package Term::Box;
+
+sub new($clsname) {
+    require POSIX;
+    POSIX->import( qw(floor) );
+    my $item = { };
+    my $self = bless($item, $clsname);
+    $self->{rows} = [ ];
+
+    return $self;
+}
+sub addrow($self, @cols) {
+    push (@{$self->{rows}}, @cols);
+}
+sub _countinstancesof($self, $match, $intext=0) {
+    my $instancecount = 0;
+    warn("intext was $intext, its supposed to be 0 or 1, it will be clipped to nearest value") if $intext =~ /\A[^01]?\z/;
+    $intext=0 unless defined($intext);  # only passing undef will cause this
+    my $iidx = $intext ? 1:0;   # force all nonzero values to 1, also forces undef to 0
+    for my $i ($self->{rows}) {
+        for my $nexti ( @{ $self->{rows} } ) {
+            $instancecount++ if @{$nexti}[$intext] =~ /$match/;
+        }
+    }
+    return $instancecount;
+}
+sub _getstarwidth($self, $total) {
+    my $stars = $self->_countinstancesof('\*');
+    if ( $stars >= 1 ) {
+        return floor($total / $stars);
+    }
+    elsif ( $stars == 0 ) {
+        return 0;
+    } else {
+        croak("star count was undefined or negative value, which is an internal error, please report this to the author!");
+    }
+}
+sub draw($self) {
+    my $item;
+    my $scrwidth=80;    # for testing purposes, TODO: import my tputs library+integrate
+    my $sw = $self->_getstarwidth($scrwidth);
+    print("starwidth for 80 scr: $sw\n");
+    exit();
+
+    for my $i ($self->{rows}) {
+        for ( @{ $self->{rows} } ) {
+            my ($width,$text) = @$_;
+            $width = $self->_getstarwidth($scrwidth);
+            die("could not get a width for this item: $text (width=$width)") if $width <= 0;
+            printf("width: $width ($text) ");
+        }
+        say("");
+    }
+}
+
+### main package
+
+package main;
+
+
+### hashes and lists
+
+my @bhooks = (  { sym => "T", cli_path => "/bin/elinks -g", searcher => "google" },             #1
+                { sym => "t", cli_path => "/bin/elinks", searcher => "google" },
+                { sym => "f", gui_path => "/bin/firefox", cli_path => "/bin/elinks", searcher => "google" },
+                { sym => "C", gui_path => "/bin/google-chrome", cli_path => "/bin/elinks", searcher => "google" },
+                { sym => "s", gui_path => "/bin/safari", cli_path => "/bin/elinks", searcher => "google" },
+                { sym => "c", gui_path => "/bin/chromium-browser", cli_path => "/bin/elinks", searcher => "google" },
+                { sym => "m", gui_path => "/bin/midori", cli_path => "/bin/elinks", searcher => "google" },
+                { sym => "n", gui_path => "/bin/netsurf", cli_path => "/bin/elinks", searcher => "google" },
+                { sym => "o", gui_path => "/bin/opera", cli_path => "/bin/elinks", searcher => "google" },
+                { sym => "u", gui_path => "/bin/surf", cli_path => "/bin/elinks", searcher => "google" },
+                { sym => "dI", gui_path => "/bin/dillo", cli_path => "/bin/elinks", searcher => "googleimages" },
+                { sym => "d", gui_path => "/bin/dillo", cli_path => "/bin/elinks", searcher => "google" },   );
+my %sengines = (  google => 'https://www.google.com/search?q=%s',
+                  googleimages => 'https://www.google.com/search?q=%s&tbm=isch' );
+my @excluded_terms = ( '-video',  '-youtube', '-twitter', '-"you tube"' );
+my ($opt, $usage) = describe_options(
+    '$0 %o <some-arg> file',
+    [ 'exclude-mode|X', "choose exclusion list mode (can be either internal, external or both(default))", { default => 'both' } ],
+    [ 'no-excludes|x', "do not use exclude internal or external lists at all (same as -X none)" ],
+    [ 'create-symlinks|s',  "just create symlinks in ~/bin to this program, of all the different predefined searchers (read documentation for details)" ],
+    [ 'dry-run|d',  "dont do anything, just show what would be done (implies -v)" ],
+    [ 'verbose|v',  "print extra stuff"            ],
+    [ 'help',       "print usage message and exit" ],
+);
+
+my @quick_overrides=(   's/elinks/links2/g' );  #2
+
+
+### subroutines
+
+sub dryrun  { return $opt->dry_run; }
+sub verbose { return 1 if ($opt->verbose || $opt->dry_run ); }
+sub getprog($isgui,$pfx) { #3
+    for (@bhooks) {
+        if ( $_->{sym} eq $pfx ) {
+            my ($gui,$cli) =  ($_->{gui_path},$_->{cli_path});
+            printf("gui=%s cli=%s\n",$gui // 'none',$cli // 'none');
+            if ( !defined($gui) || !defined($cli) ) {   #3B
+                die("gui_path and cli_path are both undefined, this is not a valid entry") unless (defined($gui) || defined($cli));
+                $persist="cli";
+                return ($_->{searcher},$cli) unless defined($gui) ;
+                die("cannot launch a gui-only rule when there is no GUI present!") unless $isgui;
+                $persist="gui";
+                return ($_->{searcher},$gui);
+            }
+            else { #3C
+                return ($_->{searcher}, $isgui ? $gui : $cli);
+            }
+        }
+    }
+    die("invalid prefix for $pfx -- (isguimode==$isgui) make sure your file is correctly named!)");
+
+}
+sub createsymlinks() {
+    say("not implemented yet but soon");
+
+}
+sub verbose_action($msg,$action) {
+    say($msg);
+    &{$action}();
+}
+sub exit_action($act,$code) {
+    my $actcode = &$act();
+    $code //= 127;  #4
+    say("(exited/" . ( (defined($actcode) && $actcode > 1)  ? "actcode=$actcode, " : '' ) . "retcode=$code)");  # actcode is only shown if it's defined
+    exit($code);
+}
+sub setup_exclusions() {
+    return if ($opt->exclude_mode eq "internal" || $opt->exclude_mode eq "none" || $opt->no_exclusions);
+    my $home = path(  $ENV{HOME} // "/tmp" );
+    if ($home->child(".tsarc")->exists()) {
+        for ($home->child(".tsarc")->lines()) {
+            chomp;
+            my $ok = 0;
+           if ( /^([^#]+)(#.*)?$/ ) {
+                if ( defined($1) && length($1) > 0) {
+                    push(@excluded_terms,$1);
+                    $ok = 1;
+                }
+           }
+           say("skipped line: $_") unless $ok;
+        }
+        say("added excluded term: $_") for @excluded_terms;
+
+    }
+}
+
+# scalars
+
+my $rname = path($0)->realpath()->basename();
+my $name = path($0)->basename();
+my $display = $ENV{DISPLAY} // "none";
+my $guimode = ($display =~ /:[0-9]/) ? 1 : 0;
+my ($sea,$prog) = getprog($guimode, $name);
+my $terms = join("+",@ARGV,@excluded_terms);
+my $searchstring = sprintf($sengines{$sea},$terms);
+my $fallbackname = "t"; #7
+
+### MAIN PROGRAM
+
+say($usage->text), exit if $opt->help;
+die("no search terms!") unless @ARGV;
+@excluded_terms = () if ($opt->no_excludes || $opt->exclude_mode eq "external" || $opt->exclude_mode eq "none");
+exit_action( \&createsymlinks, 1 ) if $opt->create_symlinks;
+if ($rname eq $name) {
+    say("using non symlink file, no special names will be translated, assuming name=$fallbackname");
+    $name = $fallbackname;
+}
+unless ( -x $prog ) {
+    printf("(using fallback, $prog does not exist) ");
+    $prog = $guimode ? $fallback_gui : $fallback_cli;
+}
+else {
+    say("resolved $0 to $prog, using searcher $sea ($searchstring)") if verbose;
+    die("$prog is not reachable, please check your paths and retry") unless -x $prog;
+    $guimode = $persist eq "gui" ? 1 : ( $persist eq "cli" ? 0 : $guimode ); #5
+
+    my @exec = ( $prog, $searchstring );
+    say("what would be done:") if dryrun;
+    if (verbose) { say for @exec; }
+    unless (dryrun) {
+        unless ($guimode) {
+            exec @exec;
+        } else {
+            unless (fork()) {
+                say("forking since in gui mode") if verbose;
+                close STDIN;        #6
+                close STDOUT;
+                exec @exec;
+            }
+        }
+    }
+}

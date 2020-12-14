@@ -31,9 +31,9 @@ use subs qw( say );
 
 # Predeclared Variables
 
-use vars qw($PS1 $PS2 $HISTFILE $HISTSIZE $INPUTRC $STRICT $INNERRC $PS1COLOR 
+use vars qw($PS1 $PS2 $HISTFILE $HISTSIZE $INPUTRC $STRICT $INNERRC $PS1COLOR $NO_ADORNERS $NO_ADORNERS_OR_CONTENT
             $PS1MONO $NOCOLOR %VERSION $LINES $COLUMNS $HOSTNAME $LOGNAME $CWP
-            $LASTRV $USER $UID $UNAME $USERNAME $HOMEDIR $PROGNAME $AUTOCOLOR);
+            $LASTRV $USER $UID $UNAME $USERNAME $HOMEDIR $PROGNAME $AUTOCOLOR @STARTUP_COMMANDS $lastcmd_startcmd);
 
 # Features
 
@@ -41,9 +41,10 @@ use vars qw($PS1 $PS2 $HISTFILE $HISTSIZE $INPUTRC $STRICT $INNERRC $PS1COLOR
 
 no warnings 'deprecated';
 no warnings qw(all);                                                                      # testing only
-            
 
 
+$NO_ADORNERS=0;                 # disables box adorners, just prints any contentual text
+$NO_ADORNERS_OR_CONTENT=0;      # removes adorners and also any contentual text
 $LINES=int(`tput lines`);
 $COLUMNS=int(`tput cols`);
 $PROGNAME="PerlSh";
@@ -52,7 +53,7 @@ $NOCOLOR="both";    # <primary|secondary|both|none>
 %VERSION=( major => 2, minor => 4, revision => 1 );
 
 sub setprompt() {
-    
+
     $PS2 = '[38;5;200m[1mmore[2m?[21m[22m ';
     $PS1 = "[38;5;232m[[38;5;21mP[38;5;25me[38;5;80mr[38;5;110ml[38;5;195mS[38;5;255mh[38;5;232m]:[[38;5;60mT[38;5;232m][38;5;97m2[38;5;218m>[s[38;5;111m[u ";
     $PS1 = "$PROGNAME$VERSION{major},$VERSION{minor}r$VERSION{revision}> " if $NOCOLOR =~ /^(primary|both)$/;
@@ -64,23 +65,26 @@ sub ansilen { s/^[\[[0-9;]+m//; return length($_); }
 sub nonprinting { my $count = shift; return ("[s" x ($count / 3)); }
 
 # will not allow x in setcolumn(x) to be < 0 or > COLUMNS (use other one to bypass checking)
-sub setcolumn 
-{ 
-    my $loc = shift // 0; 
-    $loc = $loc > $COLUMNS ? $COLUMNS : ( $loc < 0 ? 0 : $loc ); 
-    my $rv = `tput hpa $loc`; 
+sub setcolumn
+{
+    my $loc = shift // 0;
+    $loc = $loc > $COLUMNS ? $COLUMNS : ( $loc < 0 ? 0 : $loc );
+    my $rv = `tput hpa $loc`;
     chomp $rv;
     return $rv;
 }
 sub rawsetcolumn { return `tput hpa ` . shift // "0"; } # does not check x like in setcolumn(x), not called by setcolumn (preserves individuality)
 
 sub drawbox {
+    return "" if $lastcmd_startcmd;                                                              # don't adorn or ornament during startup (its real ugly to do so)
     my $db_old_uscore = $_;                                                                      # preserve $_
     my $db_side = shift // "full";                                                               # very flexible syntax, see below
     my $db_content = shift // "";
+    (say($db_content),return $db_old_uscore) if $NO_ADORNERS;                                    # allow it to be turned off (adorners only)
+    return $db_old_uscore if $NO_ADORNERS_OR_CONTENT;                                            # allow it to be turned off (everything)
     my $db_draw="?";
     # ┏┓┗┛┣┫┳┻╋╸┃━━┅┋
-    given ($db_side) 
+    given ($db_side)
     {                                                                                            # some paramaeters for drawbox(param1 that work well (* = currently defaults to)
         $db_draw="N" when /( t(op (most)? )? | [Nn](orth)? | u( p (p er )? )? )/x;               # t, top, N, north, North, upper, up, u, etc,
         $db_draw="S" when /( b(ot (tom)?  )? | [Ss](outh)? | l( o (w(er))? )? )/x;               # south, S, bot, b, bottom, etc,
@@ -90,20 +94,20 @@ sub drawbox {
     $_=$db_draw;
     CORE::printf("┏" . ("━" x ($LINES - 4)) . "┓") if /N/;
     CORE::printf("┗" . ("━" x ($LINES - 4)) . "┛") if /S/;
-    CORE::printf("┣" . ("━" x ($LINES - 4)) . "┫") if /I/;     
-    
+    CORE::printf("┣" . ("━" x ($LINES - 4)) . "┫") if /I/;
+
     my $db_col = 4;                                                                             # <- align depending on position, these are placeholders to be filled out later
     $db_col = 8 if /S/;                                                                         # <- 4(top), 6(middle), 8(bottom)
-    $db_col = 6 if /I/;                                                                         # <- this will come into play as the function is more fleshed out                                                                                      
-                                                                                                
-                                                                                                
-    
-    $db_content =~ s/\s/━/g unless /C/;                                                          # we dont want a line when we are "in the box"        
+    $db_col = 6 if /I/;                                                                         # <- this will come into play as the function is more fleshed out
+
+
+
+    $db_content =~ s/\s/━/g unless /C/;                                                          # we dont want a line when we are "in the box"
     CORE::print( setcolumn($db_col) . "$db_content\n") if length($db_content);                        # just sets the column hard to 4
     $_ = $db_old_uscore;                                                                         # restore $_ before returning
     return $_;                                                                                   # return $_ as value (in case needed on same line)
 }
-    
+
 $PS2 = ("  ++   ");
 $HISTFILE = ($ENV{HOME} || ((getpwuid($<))[7])) . "/.perlsh_history";
 $HISTSIZE = 256;
@@ -117,8 +121,23 @@ $USER = $ENV{USER};
 $HOSTNAME = $ENV{HOSTNAME};
 $UNAME = $ENV{UID};
 $CWP = 'main';
-
+@STARTUP_COMMANDS=( "CORE::say('test')" );
+my $HOMEDIR=path($ENV{HOME} // "/tmp");
+my $homeconf = $HOMEDIR->child(".perlsh_startuprc");
+    if ($homeconf->exists()) {
+        print("loading $homeconf ...");
+        @STARTUP_COMMANDS= grep { /^[^#]*$/ } $homeconf->lines();       
+        print("loaded " . @STARTUP_COMMANDS . " startup command(s)\n") if @STARTUP_COMMANDS;
+    } else {
+        print("$homeconf does not exist, no commands will be executed\n");
+        # comment this line to test startup commands (the hard coded ones)
+        # you will also need to rename any startup config file or make changes above to make
+        # the test for the file return false
+        @STARTUP_COMMANDS=( );
+}
+  
 package main;
+
 if (-f $PerlSh::INPUTRC) {
     do $PerlSh::INPUTRC;
 }
@@ -197,21 +216,30 @@ sub failbackto
 sub toplevel
 {
     $HOMEDIR = path($ENV{"HOME"} // cwd);
-    printf("using system appointed home for user: %s", $HOMEDIR);
+    printf("using system appointed home for user: %s\n", $HOMEDIR);
     die("cannot find a user-writable home directory ($HOMEDIR either isnt writable, or is an invalid value") unless -w $HOMEDIR;
-
-
-
 
     my $COLUMNS = $ENV{"COLUMNS"} // `tput cols` // failbackto( "terminal width/columns", DFCOLS);
     my $LINES = $ENV{"LINES"} // `tput lines` // failbackto("lines per screen/rows", DFLINES);
+    chomp($COLUMNS);
+    chomp($LINES);
     say "using ${COLUMNS}x${LINES} terminal";
+    
 
     print("$PS1COLOR") if length($PS1COLOR) > 0;
     print("PS1 length zero, but color prompting disabled\n") unless ( length($PS1COLOR) | length($PS1) ) > 0;
 
-
-
+    for (@STARTUP_COMMANDS) {
+        chomp;
+        if (/^(print|say)/) 
+        {
+            eval($_);
+        } 
+        else 
+        {
+            eval("package $CWP; $_;");
+        }
+    }
     $term->MinLine(undef);
     $term->stifle_history($HISTSIZE);
     if (-f $HISTFILE) {
@@ -230,6 +258,14 @@ sub toplevel
     my ($strict, $command, @result);
     $strict = $STRICT ? '' : 'no strict;';
     while (defined($command = &reader)) {
+    # TODO: move large blocks to own sub()routines
+        given ($command) {
+            # strip "my" or "our" from BOLs           
+            when ( m/^(my|our)( .*)/ ) {
+                say("info: removed preceeding our/my from prefix - would not have expected effect in sandbox mode.");
+                $command = $2;
+            }
+        }
         given($command) {
             when ( m/^(perlsh\.)(\S+)(\s.+)?$/ ) {
                 my $_pscmd = $2;
@@ -242,7 +278,7 @@ sub toplevel
                             given ($_psargs[0]) {
                                 $NOCOLOR = $_psargs[0] when /^(both|none|primary|secondary)$/;
                                 say("color mode $_psargs[0] is invalid\n");
-                            }                           
+                            }
                         } elsif (@_psargs > 1) {
                             say("way too many arguments, only accepts both,primary,secondary,none");
                         }
@@ -250,11 +286,11 @@ sub toplevel
                         {
                             say("current color mode is: $NOCOLOR");
                         }
-                    
+
                     }
-                
+
                     say ("invalid perlsh subcommand, $_pscmd, ignored (with " . @_psargs . " arguments)");      # default
-                }                    
+                }
             }
             when ( m/^(\!)(.*)$/g )
             {
@@ -268,98 +304,109 @@ sub toplevel
             default
             {
                 #### OUTPUT WINDOW (-ish)
-                
+
                 $lastcmd = $command;
-                CORE::say(colored("evaluating '$lastcmd'","rgb022"));
+                CORE::say(colored("evaluating '$lastcmd'","rgb022")) unless $lastcmd_startcmd;
                 drawbox("N","output begin here");
                 @result = eval ("$strict package $CWP; $command");
-                say("");
-                drawbox("S","end output area");
-                #CORE::printf(colored("\n^^---------------------------------^^\n","rgb044"));
-
-                use strict;
-                if ($@)
+                unless ($lastcmd_startcmd)
                 {
-                    drawbox("I"," Error: $@\n__"); next;
-                }
-                else
-                {
-                    my %result = @result;
-                    my $sresult = join(",",@result);
+                    say("");
+                    drawbox("S","end output area");
+                    #CORE::printf(colored("\n^^---------------------------------^^\n","rgb044"));
 
-                    given ($command)
+                    use strict;
+                    if ($@)
                     {
-                        # formatting directive: stop (col 33 freeze)
-                        
-                                #### HASH
-                                when (/^\s*%[^;]+\s*/ and ((@result) % 2) == 0 ) {
-                                my $_btot=0;    # grand total bytes
-                                my $_ibtot=0;   # total item bytes
-                                my $_vbtot=0;   # total value bytes
-                                my $_ktot=0;    # key(s) handled
-                                my $_etot=0;    # empty key(s)
-                                sub elide {
-                                sub warnval { warn("<undef given as number, defaulting to @_>"); return shift // 1; }
-                                my $str = shift // "<invalid data>";
-                                my $siz = shift // warnval(8);
-                                my $eln=length($str);
-                                return $str if ($eln <= $siz);
-                                my $esz=int($siz/2)-2;
-                                my $rstr=substr($str,0,$esz) . "..." . substr($str,$eln-$esz);
-                                return $rstr;                            }
-                                printf "Hash Data ".chomp($command)."\n";
-                                my $kpart = int(($COLUMNS * 0.25) - PAD_LR);
-                                my $vpart = int(($COLUMNS * 0.75) - PAD_LR);
-                                my $fmtstr="%${kpart}s,%${vpart}s\n";
-                                printf $fmtstr,"Key","KIND(Address) or Value";
-                                for my $item (keys(%result)) {
-                                my $value = $result{$item};
-                                my $vlen = length($value);
-                                my $ilen = length($item);
-                                $_btot+=$vlen + $ilen;
-                                $_vbtot+=$vlen;
-                                $_ktot+=1;  $_ibtot += $ilen;
-                                $_etot+=1 unless $vlen;
-                                printf $fmtstr, elide($item,$kpart), elide($result{$item},$vpart); }
-                                printf("\n%d pair(s), %d key byte(s)\n%d data bytes, %d empty key(s)\n%d total bytes in structure.\n", $_ktot,$_ibtot,$_vbtot,$_etot,$_btot);                                                            }
-                                default {
-                                given($command) {
-
-                                ### GENERIC LIST                                            printer(@result) when /(=|;)/;
-                                print colored("\nlist data =>\n" . Dumper(@result), "rgb043") when /^(@|keys\(%)/;
-
-                                ### HASH [FALLBACK]
-                                print colored("\nhash data =>\n" . Dumper(%result), "rgb044") when /^%/;
-
-                                ### SCALAR
-                                print colored("\nscalar data\n value => \"@result\"", "rgb045") when /^\$/;
-
-                                ### PACKAGE
-                                when (/^\s*package\s+([\w:]+)/)
-                                {
-                                    $CWP = $1;
-                                    print colored("\npackage change: $CWP\n", "rgb064");
-                                }
-                                ### SYNOPSIS
-                                when (/^synopsis ([A-Za-z:_]*)$/)
-                                {
-                                    say("");
-                                    system($command);
-                                }
-                                ### XENOPHOBIC
-                                default
-                                {
-                                    say("\ngeneric data\n");
-                                    printer (@result);
-                                }                                
-                            }    
-                         # end formatting directive
-                         print("\n");
-
-                        }
+                        drawbox("I"," Error: $@\n__"); next;
                     }
-                }
-            }
+                    else
+                    {
+                        my %result = @result;
+                        my $sresult = join(",",@result);
+
+                        given ($command)
+                        {
+                            # formatting directive: stop (col 33 freeze)
+
+                                    #### HASH
+                                    when (/^\s*%[^;]+\s*/ and ((@result) % 2) == 0 )
+                                    {
+                                        my $_btot=0;    # grand total bytes
+                                        my $_ibtot=0;   # total item bytes
+                                        my $_vbtot=0;   # total value bytes
+                                        my $_ktot=0;    # key(s) handled
+                                        my $_etot=0;    # empty key(s)
+                                        sub elide 
+                                        {
+                                            sub warnval 
+                                            { 
+                                                warn("<undef given as number, defaulting to @_>"); return shift // 1; 
+                                            }
+                                            my $str = shift // "<invalid data>";
+                                            my $siz = shift // warnval(8);
+                                            my $eln=length($str);
+                                            return $str if ($eln <= $siz);
+                                            my $esz=int($siz/2)-2;
+                                            my $rstr=substr($str,0,$esz) . "..." . substr($str,$eln-$esz);
+                                            return $rstr;                            
+                                        }
+                                        printf "Hash Data ".chomp($command)."\n";
+                                        my $kpart = int(($COLUMNS * 0.25) - PAD_LR);
+                                        my $vpart = int(($COLUMNS * 0.75) - PAD_LR);
+                                        my $fmtstr="%${kpart}s,%${vpart}s\n";
+                                        printf $fmtstr,"Key","KIND(Address) or Value";
+                                        for my $item (keys(%result)) 
+                                        {
+                                            my $value = $result{$item};
+                                            my $vlen = length($value);
+                                            my $ilen = length($item);
+                                            $_btot+=$vlen + $ilen;
+                                            $_vbtot+=$vlen;
+                                            $_ktot+=1;  $_ibtot += $ilen;
+                                            $_etot+=1 unless $vlen;
+                                            printf $fmtstr, elide($item,$kpart), elide($result{$item},$vpart); 
+                                        }
+                                        printf("\n%d pair(s), %d key byte(s)\n%d data bytes, %d empty key(s)\n%d total bytes in structure.\n", $_ktot,$_ibtot,$_vbtot,$_etot,$_btot);
+                                    }
+                                    default 
+                                    {
+                                        given($command) 
+                                        {
+                                        ### GENERIC LIST                                            printer(@result) when /(=|;)/;
+                                        print colored("\nlist data =>\n" . Dumper(@result), "rgb043") when /^(@|keys\(%)/;
+
+                                        ### HASH [FALLBACK]
+                                        print colored("\nhash data =>\n" . Dumper(%result), "rgb044") when /^%/;
+
+                                        ### SCALAR
+                                        print colored("\nscalar data\n value => \"@result\"", "rgb045") when /^\$/;
+
+                                        ### PACKAGE
+                                        when (/^\s*package\s+([\w:]+)/)
+                                        {
+                                            $CWP = $1;
+                                            print colored("\npackage change: $CWP\n", "rgb064");
+                                        }
+                                        ### SYNOPSIS
+                                        when (/^synopsis ([A-Za-z:_]*)$/)
+                                        {
+                                            say("");
+                                            system($command);
+                                        }
+                                        ### XENOPHOBIC
+                                        default
+                                        {
+                                            say("\ngeneric data\n");
+                                            printer (@result);
+                                        }
+                                    } # default 
+                                 print("\n");
+                            } # given(command)
+                        } # else (if ($@) )
+                    } # unless $lastcmd_startcmd
+                } # default (given(command)
+            } #default (given(command))
         }
     }
     &quit;
@@ -382,6 +429,34 @@ sub quit
 
 sub reader
 {
+
+    ### STARTUP COMMANDS TO BE INTERPRETED AT (suprise) STARTUP
+    ### these are executed as if user typed them, not the same as the environment rcfile!
+    ### warning: if you place 'exit' in the startup commands it WILL terminate the program!
+
+    my $has_startcmds = 0;
+    my $startcmds = "";
+    while ( @STARTUP_COMMANDS ) {
+        #say("entering loop: startup-commands=@STARTUP_COMMANDS");
+        $_ = pop(@STARTUP_COMMANDS);
+        #say("item found: $_");
+        $startcmds.=$_;
+        $startcmds.=";" if @STARTUP_COMMANDS;  # add ';' only if more commands are to be added
+        #say("start commands updated: $startcmds");
+
+        $has_startcmds = 1;
+    }
+    if ($has_startcmds) {
+        #say("has_startcmds=$has_startcmds: \"$startcmds\"");
+        $lastcmd_startcmd = 1;
+        return $startcmds if $has_startcmds;
+    }
+    else
+    {
+        $lastcmd_startcmd = 0;
+    }
+    ### END STARTUP COMMAND CHECK
+
     my ($line, $command);
     $command = '';
     select()->flush();
@@ -707,7 +782,7 @@ sub perl_method_completion_function ($$) {
 }
 
 __END__
-
+
 =pod
 
 Before invoking, this program reads F<~/.perlshrc> and evaluates the

@@ -1,62 +1,365 @@
 #!/usr/bin/perl
-
+# ┏━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+# ┃         FILE┋  ls                                                             ┃
+# ┃        USAGE┋  ./ls                                                           ┃
+# ┣━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+# ┃  DESCRIPTION┋ List Directory contents, a little differently from ls(1)        ┃
+# ┣━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+# ┃      OPTIONS┋  See --help form a listing of command line options.             ┃
+# ┃ REQUIREMENTS┋  >━Perl v5.20.2 (Tested up to 5.30).                            ┃
+# ┃         BUGS┋  Still in alpha, not complete--so expect many!                  ┃
+# ┃        NOTES┋  (See NOTES section below.)                                     ┃
+# ┃       AUTHOR┋  Gabriel Thomas Sharp (gt), osirisgothra@hotmail.com.           ┃
+# ┃      LICENSE┋  GNU GPL v3.0 (https://www.gnu.org/licenses/gpl3)               ┃
+# ┃      COMPANY┋  Paradisim NCNP                                                 ┃
+# ┃      VERSION┋  1.0                                                            ┃
+# ┃      CREATED┋  11/04/2020 09:18:59 AM                                         ┃
+# ┃     REVISION┋  No revisions at this time.                                     ┃
+# ┣━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+# ┃     🛇       ┃ NB, this filename is 'ls' because of its esoteric nature, others┃
+# ┃  RENAME ME  ┃ should rename it to something else (not really intended to be   ┃
+# ┃     🛇       ┃ distributed like most of my stuff but its there just in case)   ┃
+# ┗━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+#
+# ┏━━━━━━━━━━━━━━━━━━━━┓
+# ┋ version            ┋
+# ┗━━━━━━━━━━━━━━━━━━━━┛
 use v5.20.2;
-use warnings;
-use strict;
 
+# ┏━━━━━━━━━━━━━━━━━━━━┓
+# ┋ directives         ┋
+# ┗━━━━━━━━━━━━━━━━━━━━┛
+
+use strict;
+use warnings;
+
+
+# ┏━━━━━━━━━━━━━━━━━━━━┓
+# ┋ os check           ┋
+# ┗━━━━━━━━━━━━━━━━━━━━┛
+my $os_verified=0;
+if ( $^O eq "linux" && ( -r "/proc/self/comm" ) && ( -s "/proc/self/comm" == -s "/proc/$$/comm" ) ) {
+    $os_verified=1;
+} else { 
+    die("Error: this perl program requires the operating system to be linux as it is a tool specific to a linux environment. (your version of $^O is not compatible) -- be sure you have a /proc filesystem proper, along with correct self and PID conventions)"); 
+}   
+
+# ┏━━━━━━━━━━━━━━━━━━━━┓
+# ┋ modules            ┋
+# ┗━━━━━━━━━━━━━━━━━━━━┛
+
+
+use Carp qw( carp croak confess cluck );
+use POSIX;
+use Term::Cap;                                                                                                              #21
 use Cwd;
 use File::Path;
 use Path::Tiny;
+use Try::Tiny;
 use Getopt::Long::Descriptive;
+use File::MimeInfo::Magic   qw( mimetype magic inodetype describe );
+#use lib "$ENV{HOME}/bin";  TESTING ONLY
+#use Term::Put;  # be sure to add ~/bin to your lib TESTING ONLY keep commented under all other circumstances
+
+# ┏━━━━━━━━━━━━━━━━━━━━┓
+# ┋ features           ┋
+# ┗━━━━━━━━━━━━━━━━━━━━┛
+
+
 use feature 'signatures';
+
+# ┏━━━━━━━━━━━━━━━━━━━━┓
+# ┋ pragmata           ┋
+# ┗━━━━━━━━━━━━━━━━━━━━┛
+
+
 no warnings 'experimental';
+
+# ┏━━━━━━━━━━━━━━━━━━━━┓
+# ┋ constants          ┋
+# ┗━━━━━━━━━━━━━━━━━━━━┛
+
+use constant { ANSI0 => 0, ANSI1 => 1, ANSI2 => 2, ANSI3 => 3, ANSI4 => 4, ANSI5 => 5, ANSI6 => 6, ANSI7 => 7, ANSI8 => 8, ANSI9 => 9, ANSI10 => 10, ANSI11 => 11, ANSI12 => 12, ANSI13 => 13, ANSI14 => 14, ANSI15 => 15, ANSI16 => 16, ANSI17 => 17, ANSI18 => 18, ANSI19 => 19, ANSI20 => 20, ANSI21 => 21, ANSI22 => 22, ANSI23 => 23, ANSI24 => 24, ANSI25 => 25, ANSI26 => 26, ANSI27 => 27, ANSI28 => 28, ANSI29 => 29, ANSI30 => 30, ANSI31 => 31, ANSI32 => 32, ANSI33 => 33, ANSI34 => 34, ANSI35 => 35, ANSI36 => 36, ANSI37 => 37, ANSI38 => 38, ANSI39 => 39, ANSI40 => 40, ANSI41 => 41, ANSI42 => 42, ANSI43 => 43, ANSI44 => 44, ANSI45 => 45, ANSI46 => 46, ANSI47 => 47, ANSI48 => 48, ANSI49 => 49, ANSI50 => 50, ANSI51 => 51, ANSI52 => 52, ANSI53 => 53, ANSI54 => 54, ANSI55 => 55, ANSI56 => 56, ANSI57 => 57, ANSI58 => 58, ANSI59 => 59, ANSI60 => 60, ANSI61 => 61, ANSI62 => 62, ANSI63 => 63, ANSI64 => 64, ANSI65 => 65, ANSI66 => 66, ANSI67 => 67, ANSI68 => 68, ANSI69 => 69, ANSI70 => 70, ANSI71 => 71, ANSI72 => 72, ANSI73 => 73, ANSI74 => 74, ANSI75 => 75, ANSI76 => 76, ANSI77 => 77, ANSI78 => 78, ANSI79 => 79, ANSI80 => 80, ANSI81 => 81, ANSI82 => 82, ANSI83 => 83, ANSI84 => 84, ANSI85 => 85, ANSI86 => 86, ANSI87 => 87, ANSI88 => 88, ANSI89 => 89, ANSI90 => 90, ANSI91 => 91, ANSI92 => 92, ANSI93 => 93, ANSI94 => 94, ANSI95 => 95, ANSI96 => 96, ANSI97 => 97, ANSI98 => 98, ANSI99 => 99, ANSI100 => 100, ANSI101 => 101, ANSI102 => 102, ANSI103 => 103, ANSI104 => 104, ANSI105 => 105, ANSI106 => 106, ANSI107 => 107, ANSI108 => 108, ANSI109 => 109, ANSI110 => 110, ANSI111 => 111, ANSI112 => 112, ANSI113 => 113, ANSI114 => 114, ANSI115 => 115, ANSI116 => 116, ANSI117 => 117, ANSI118 => 118, ANSI119 => 119, ANSI120 => 120, ANSI121 => 121, ANSI122 => 122, ANSI123 => 123, ANSI124 => 124, ANSI125 => 125, ANSI126 => 126, ANSI127 => 127, ANSI128 => 128, ANSI129 => 129, ANSI130 => 130, ANSI131 => 131, ANSI132 => 132, ANSI133 => 133, ANSI134 => 134, ANSI135 => 135, ANSI136 => 136, ANSI137 => 137, ANSI138 => 138, ANSI139 => 139, ANSI140 => 140, ANSI141 => 141, ANSI142 => 142, ANSI143 => 143, ANSI144 => 144, ANSI145 => 145, ANSI146 => 146, ANSI147 => 147, ANSI148 => 148, ANSI149 => 149, ANSI150 => 150, ANSI151 => 151, ANSI152 => 152, ANSI153 => 153, ANSI154 => 154, ANSI155 => 155, ANSI156 => 156, ANSI157 => 157, ANSI158 => 158, ANSI159 => 159, ANSI160 => 160, ANSI161 => 161, ANSI162 => 162, ANSI163 => 163, ANSI164 => 164, ANSI165 => 165, ANSI166 => 166, ANSI167 => 167, ANSI168 => 168, ANSI169 => 169, ANSI170 => 170, ANSI171 => 171, ANSI172 => 172, ANSI173 => 173, ANSI174 => 174, ANSI175 => 175, ANSI176 => 176, ANSI177 => 177, ANSI178 => 178, ANSI179 => 179, ANSI180 => 180, ANSI181 => 181, ANSI182 => 182, ANSI183 => 183, ANSI184 => 184, ANSI185 => 185, ANSI186 => 186, ANSI187 => 187, ANSI188 => 188, ANSI189 => 189, ANSI190 => 190, ANSI191 => 191, ANSI192 => 192, ANSI193 => 193, ANSI194 => 194, ANSI195 => 195, ANSI196 => 196, ANSI197 => 197, ANSI198 => 198, ANSI199 => 199, ANSI200 => 200, ANSI201 => 201, ANSI202 => 202, ANSI203 => 203, ANSI204 => 204, ANSI205 => 205, ANSI206 => 206, ANSI207 => 207, ANSI208 => 208, ANSI209 => 209, ANSI210 => 210, ANSI211 => 211, ANSI212 => 212, ANSI213 => 213, ANSI214 => 214, ANSI215 => 215, ANSI216 => 216, ANSI217 => 217, ANSI218 => 218, ANSI219 => 219, ANSI220 => 220, ANSI221 => 221, ANSI222 => 222, ANSI223 => 223, ANSI224 => 224, ANSI225 => 225, ANSI226 => 226, ANSI227 => 227, ANSI228 => 228, ANSI229 => 229, ANSI230 => 230, ANSI231 => 231, ANSI232 => 232, ANSI233 => 233, ANSI234 => 234, ANSI235 => 235, ANSI236 => 236, ANSI237 => 237, ANSI238 => 238, ANSI239 => 239, ANSI240 => 240, ANSI241 => 241, ANSI242 => 242, ANSI243 => 243, ANSI244 => 244, ANSI245 => 245, ANSI246 => 246, ANSI247 => 247, ANSI248 => 248, ANSI249 => 249, ANSI250 => 250, ANSI251 => 251, ANSI252 => 252, ANSI253 => 253, ANSI254 => 254, ANSI255 => 255 }; #26
 use constant { nil => undef, true => 1, false => 0 };
+use constant { DUMMY_COLOR => 9999 };
 use constant { single =>1, double => 2, tripple => 3, quadruple => 4 };
-# does not work properly:
-# it seems the author did not use termcap but blindly uses ANSI
-# standards from xterm/xterm-256color/linux which is most of the time
-# compatible but not always (ie; like fbterm, vesaterm, stterm, Eterm, etc)
-# no use Term::ANSIColor 4.00 qw( colorvalid :constants coloralias colorstrip :constants256 );
-# doing it ourselves:
+use constant { INF => -1, AUTO => -2 };
+
+# ┏━━━━━━━━━━━━━━━━━━━━┓
+# ┋ self packages      ┋
+# ┗━━━━━━━━━━━━━━━━━━━━┛
+
+# ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+# ┋ Tie::LoadAvg                     ┋
+# ┋ Gracefully Handles /proc/loadavg ┋
+# ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+package Tie::LoadAvg;
+
+sub _initdata {
+    my $self = shift;
+    $self->{_data} = (Path::Tiny::path("/proc/loadavg")->lines())[0];
+    
+}
+
+sub new {
+    my $classname = shift;
+    my $self = { };
+    bless $self, $classname;
+    $self->_initdata();
+    return $self;
+}
+
+sub one         { return (split(/ /,shift->{_data}))[0]; }
+sub five        { return (split(/ /,shift->{_data}))[1]; }
+sub quarter     { return (split(/ /,shift->{_data}))[2]; }
+sub _fractive   { return (split(/ /,shift->{_data}))[3]; }
+sub klastpidtbc { return (split(/ /,shift->{_data}))[4]; }
+sub krunnable   { return (split(/\//,shift->_fractive))[0]; }
+sub ktotal      { return (split(/\//,shift->_fractive))[1]; }
+
+
+
+# ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+# ┋ Tie::Process                     ┋
+# ┋ Gracefully Handles /proc/[pid]   ┋
+# ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+package Tie::Process;
+use Carp qw(cluck);
+
+our $proc = Path::Tiny::path("/proc");
+
+sub _stillexists($self) {
+    return $proc->child($self->{opid});    
+}
+
+sub new($classname, $opid = $$, $parent_depth = 0)
+{   
+    cluck("parent depth only valid if opid was parent") if ($parent_depth > 0) && $opid ne "parent";
+    if ( $opid eq 'parent' ) {
+        $opid = getppid();
+    } else {
+        $_ = $opid;
+        die("process ID must numeric or 'parent'") unless /[0-9]+/;
+        die("process ID must exist and be a regular, readable process") unless -r "/proc/$opid/status";               
+    }
+    my $self = { };
+    bless $self, $classname;    
+    $self->_initproc($opid);
+    return $self;               # refcount+=1 for self
+}
+
+sub _initproc($self,$opid) {
+    my $psf = Path::Tiny::path("/proc/$opid/status");
+    die("fatal cannot read process $opid") unless $psf->exists();
+#   my %hdata = ();
+    for ($psf->lines()) {
+        m/^([^:]+):\s*(.*)$/;   
+#       $hdata{$1} = "$2";
+        $self->{opid} = $opid;     
+        $self->{lc($1)} = "$2";     # experimental during self-inflicted process: check /proc to ensure its not taintable on us
+    }
+#   $self->{_hdata} = \%hdata;  # refcount+=1 for self->_hdata, self destruct nullifies any refs    
+}
+
+
+# ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+# ┋ main                             ┋
+# ┋ Main Program/Package/Module      ┋
+# ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+package main;
+
+# ┏━━━━━━━━━━━━━━━━━━━━┓
+# ┋ options            ┋
+# ┗━━━━━━━━━━━━━━━━━━━━┛
+  
+    
+sub acwd() {
+    if (getcwd()) {
+        return cwd;
+    } else {
+        return undef;
+    }
+}
+sub KB  { return 2**10; }
+sub MB { return ((KB())*(KB())); }
+sub GB { return ((MB())*(KB())); }
+sub TB { return ((GB())*(KB())); }
+sub _s($ln,$sn=undef) { return ("$ln|" . ($sn // substr($ln,0,1)) . '=s'); }
+sub _i($ln,$sn=undef) { return ("$ln|" . ($sn // substr($ln,0,1)) . '=i'); }
+sub _o($ln,$sn=undef) { return ("$ln|" . ($sn // substr($ln,0,1)) . ''  ); }
+my ($opt, $usage) = describe_options(
+    'my-program %o <some-arg>',
+    # string options
+    [ _s( "sort" ),             "sort the list",  { default => "name" } ],
+    [ _s( "relative-to"),        "set fallback/relative path (default, current path)", { default => acwd } ],
+    # integral options
+    [ _i( "attrib-width", 'B' ),  "width in chars of the attribute bit area", { default => 6 } ],               #19
+    [ _i( "columns",      'C' ),        "number of columns to use in column mode  (def=1)",   { default  => 4 } ],
+    [ _i( "colors",       'N' ),        "number of colors to support (16, 256, 16384) (def=set by terminfo)",   { default  => undef } ],
+    [ _i( "column-width", 'W' ),        "width of each column (def=32)",   { default  => 32 } ],
+    [ _i( "column-indent",'I' ),        "columns to indent first line by (def=0)",   { default  => 0 } ],
+    # filler/separator
+    [],    
+    # flag/bool options
+    [ _o( 'directories','d' ),              "show the directory not the contents when passed as an argument" ],
+    [ _o( 'reverse-match','r' ),            "show all files that do NOT match the specification (per element)" ],                               #24
+    [ _o( 'hidden-only','H' ),              "only show hidden files" ],
+    [ _o( 'group-directories-first','0' ),  "group directories/inodes first (treats links to dirs as such)" ],
+    [ _o( 'dereference','D' ),              "dereference before examining any listing item(s)" ],
+    [ _o( 'use-direct-colors','U' ),        "use terminal control codes directly for 24-bit color sequence support (not standard)" ],
+    [ _o( 'single','1' ),                   "list single line, and only filenames" ],
+    [ _o( 'column','C' ),                   "list filenames in column mode" ],
+    [ _o( 'legend','L' ),                   "show a legend" ],
+    [ _o( 'long' ),                         "long list format -not implemented yet-" ],
+    [ _o( 'all' ),                          "all entries" ],
+    [ _o( 'almost-all','A' ),               "all entries but . and .." ],
+    [ _o( 'verbose' ),                      "print extra stuff" ],
+    [ _o( 'help' ),                         "print usage message and exit", { shortcircuit => 1 } ],
+    # option display and exit on help request
+);  say($usage->text), exit if $opt->help;
+
+my $swd = path($opt->relative_to // ( @ARGV ? "/" : die("in a detached directory, and no elements given on command line, cannot list anything. ($!)") ) );
+my $colpos = $opt->column_indent;                                                                                                                 #14
+my $colwidth = $opt->column_width;
+my $maxpos = $opt->columns;
+my $efmt = "%25s %-s\n";
+
+
+# ┏━━━━━━━━━━━━━━━━━━━━┓
+# ┋ scalars            ┋
+# ┗━━━━━━━━━━━━━━━━━━━━┛
+
+my $startuplavg = new Tie::LoadAvg();
+my $curdircnt = 0;
+my $maxdirpic = 10;                                                                                                                               #23
 my $afstr = "";
 my $abstr = "";
 my $rst = "";
-my $colorcount = 1;
+my $colorcount = $opt->colors;
+my $tput_binary = "/usr/bin/tput";
+my $noargmode = 0;
+my $fallbackcolor = 1;
+                          # UFAC BITS THAT ARE SET
+                          #1x     x     x     x     x      x       x       x
+# ┏━━━━━━━━━━━━━━━━━━━━┓  #2   x  x        x  x        x   x           x   x
+# ┋ lists              ┋  #4         x  x  x  x                x   x   x   x
+# ┗━━━━━━━━━━━━━━━━━━━━┛  #8                     x  x  x   x   x   x   x   x
+                          # 1  2  3  4  5  6  7  8  9  10  11  12  13  14  15
+my @legendtext = ();                                                                                                                                  #25
+my @col_xlat_tab16   =  qw( 1  4  6  9  10 8  15 7  2  3   5   11  12  13  14 );                                                                 #18
+my @col_xlat_tab256   = qw( 18 19 20 21 38 39 75 30 45 51  87  123 159 74  231);
+my @col_xlat_tabrgb  = ( (0,2,2),(0,3,0),(2,4,0),(4,0,4),(4,2,0),(0,3,3),(1,0,0) );
+my @col_xlat_tabtrue = ( (0,64,64),(0,112,0),(64,144,0),(144,0,144),(144,64,0),(0,112,112),(36,0,0) );
+my @pics = ( );
+my @picexts = qw( .jpg .gif .jpeg .png .tiff .bmp .xcf .xpm .xbm .xpbm .pbm .ico .cur .exe .dll );
+my @filecolormap = (     { min => INF,          max => 0,            color => 0      },                                                          #28
+                         { min => 1,            max => 1*KB,         color => 1      }, 
+                         { min => AUTO,         max => 1*MB,         color => 2      },
+                         { min => AUTO,         max => 5*MB,         color => 3      },
+                         { min => AUTO,         max => 25*MB,        color => 4      },
+                         { min => AUTO,         max => 250*MB,       color => 5      },
+                         { min => AUTO,         max => 500*MB,       color => 6      },
+                         { min => AUTO,         max => 1*GB,         color => 7      },
+                         { min => AUTO,         max => 2*GB,         color => 8      },
+                         { min => AUTO,         max => 5*GB,         color => 9      },
+                         { min => AUTO,         max => 25*GB,        color => 10     },
+                         { min => AUTO,         max => 100*GB,       color => 12     },
+                         { min => AUTO,         max => 250*GB,       color => 11     },
+                         { min => AUTO,         max => 500*GB,       color => 12     },
+                         { min => AUTO,         max => 1*TB,         color => 13     },
+                         { min => AUTO,         max => 50*TB,        color => 14     },
+                         { min => AUTO,         max => INF,          color => 15     },
+                    );                       
+my @trucolormap = ( "Not implemented yet" );
+my @colormap = ( ANSI52, ANSI20, ANSI27, ANSI31, ANSI36, ANSI42, ANSI51, ANSI73, ANSI101,  ANSI137, ANSI186,  ANSI11, ANSI184, ANSI3, ANSI196 );
+my @locolormap = ( ANSI1,  ANSI4,  ANSI4,  ANSI6,  ANSI6,  ANSI2,  ANSI14, ANSI6,  ANSI7,    ANSI3,   ANSI11,   ANSI11, ANSI11, ANSI3, ANSI9    );
+                       
+                       
+# ┏━━━━━━━━━━━━━━━━━━━━┓
+# ┋ precompiled regex  ┋
+# ┗━━━━━━━━━━━━━━━━━━━━┛
 
-sub setupansi()
+my $picmatch = "(".join("|",@picexts).")";                                                                                                      #20
+   $picmatch = qr/$picmatch/;
+
+
+
+
+    
+
+
+# ┏━━━━━━━━━━━━━━━━━━━━┓
+# ┋ hashes             ┋
+# ┗━━━━━━━━━━━━━━━━━━━━┛
+
+my %clr_xlat_table = ( 16 => \@col_xlat_tab16,
+                       256 => \@col_xlat_tab256,
+                       rgb => \@col_xlat_tabrgb,
+                       16777215 => \@col_xlat_tabtrue );                                                                    #17
+
+
+# ┏━━━━━━━━━━━━━━━━━━━━┓
+# ┋ prototypes         ┋
+# ┗━━━━━━━━━━━━━━━━━━━━┛
+
+sub csay :prototype(@) { say(colorize($_)) for @_; }
+
+# ┏━━━━━━━━━━━━━━━━━━━━┓
+# ┋ subs               ┋
+# ┗━━━━━━━━━━━━━━━━━━━━┛
+
+
+sub termio
 {
-    $colorcount = `tput colors`;
-    $afstr = `tput setaf 9999`;    # looks sloppy but its guarentees compatibility with ALL terminals
-    $abstr = `tput setab 9999`;
-    $rst   = `tput sgr0`;
-    chomp($colorcount);
-    chomp($afstr);
-    chomp($abstr);
-    chomp($rst);
-
+    for (@_) { die("no punctuation allowed in termio strings! (security)") if /[[:punct:]]/; }
+    my $tput = `$tput_binary @_`;
+    chomp $tput;
+    return $tput;
 }
-
-sub seta($val,$part) # name=seta, args=color(val) part=bg|rst|fg  exits=4
+sub setup_term_ctl_strings()
 {
-    # inf. wraparound to 1 (not 0) of values (-1(255),0(0),1(1),2(2)...255(255),256(1),257(2), etc)
-    
-    $val %= $colorcount; #( $val > 0 );    
-    $val = 1 if $val == 0;
-    
+    $colorcount //= termio('colors');
+    $afstr = termio('setaf',DUMMY_COLOR);
+    $abstr = termio('setab',DUMMY_COLOR);
+    $rst   = termio('sgr0');
+}
+sub setcursor($x,$y,$retstr=false)
+{
+    if ($retstr)
+    {
+        return termio('hpa', $x) . termio('vpa', $y);
+    } else {
+        printf("%s%s",termio('hpa',$x),termio('vpa',$y));
+    }
+}
+sub getlines()
+{
+    return termio('lines');
+}
+sub getcols()
+{
+    return termio('columns');
+}
+sub seta($val,$part)
+{
+    $val %= $colorcount;
+    if ($part eq "fg") { $val = 1 if $val == 0; }
     my $sendstr = "<invalid val=$val part=$part to seta()>";
+    #TODO: add in (somehow) support for: <=16, 88-256, rgb256, and 24-bit nonstd colors
+    #(urgent)
     given($part) {
         when (/fg/) {
-            $sendstr = $afstr; # copy, dont clobber afstr!
+            $sendstr = $afstr;
             $sendstr =~ s/9999/$val/g;
             return $sendstr;
         }
         when (/bg/) {
-            $sendstr = $abstr; # copy, dont clobber abstr!
+            $sendstr = $abstr;
             $sendstr =~ s/9999/$val/g;
             return $sendstr;
         }
         when (/rst/) {
-            # val never used here
             return $rst;
         }
         default
@@ -66,235 +369,372 @@ sub seta($val,$part) # name=seta, args=color(val) part=bg|rst|fg  exits=4
         }
     }
 }
-sub setfg($num) { return seta($num,"fg"); }
-sub setbg($num) { return seta($num,"bg"); }
-sub crst($num=0) { return seta($num,"rst"); }
+sub setfg($num)
+{
+    return seta($num,"fg");
+}
+sub setbg($num)
+{
+    return seta($num,"bg");
+}
+sub crst($num=0)
+{
+    return seta($num,"rst");
+}
 sub colorize($str) {
     my @items = split(/~(\d+)/,$str);
     my $final = "";
-    if (@items > 1) # has color data if split was not a no-go (single or no items)
+    if (@items > 1)
     {
-        for my $_item (@items) 
+        for my $_item (@items)
         {
-            given($_item) 
+            given($_item)
             {
-                when (/^\d+$/) 
+                when (/^\d+$/)                                                                                              #15
                 {
                     my %ranges = ( uninitialized => 1 );
-                    my $num = $_item; # warning, do NOT convert to integer, this would destroy any padding of zeros needed to create 6c or 4c codes
-                    # a number, always a color code (inline numbers wont get isolated like this)
-                    if ($num >= 256 && $num < 512) 
+                    my $num = $_item;
+                    if ($num >= 256 && $num < 512)
                     {
                         $final .= setbg($num - 256);
                     }
                     elsif ($num >= 512)
-                    {                        
-                        if ( length($num) == 6 )    { %ranges = ( f => 0, b => 3, l => 3 ); }              # ~fffbbb compact code form (warning, no check for > 256 here is done, its on the programmer to use this properly!)
-                        elsif ( length($num) == 4 ) { %ranges = ( f => 0, b => 2, l => 2 ); }              # ~ffbb compact code form (preferred, though limited to 0-99 it is guarenteed to not be out of range)
-                        else                        { %ranges = ( f => -1 ) };                             # -anything else is not valid                        
-                        if ($ranges{'f'} < 0) { $final .="<invalid_wormcc_code:$num>"; }                   # /  
-                        else                  { $final .= setfg(substr($num,$ranges{'f'},$ranges{'l'})); 
-                                                $final .= setbg(substr($num,$ranges{'b'},$ranges{'l'})); } # -validate the code and insert (padding with zeros is ok and suggested)
-                    }
-                    else    # color code is <= 255
                     {
+                        if ( length($num) == 6 )    { %ranges = ( f => 0, b => 3, l => 3 ); }
+                        elsif ( length($num) == 4 ) { %ranges = ( f => 0, b => 2, l => 2 ); }
+                        else                        { %ranges = ( f => -1 ) };
+                        if ($ranges{'f'} < 0) { $final .="<?=$num>"; }
+                        else                  { $final .= setfg(substr($num,$ranges{'f'},$ranges{'l'}));
+                                                $final .= setbg(substr($num,$ranges{'b'},$ranges{'l'})); }
+                    } else {
                         $final .= setfg($num);
                     }
                }
                default
                {
-                    # just text, add without discrimination (empty strings wont add anything, naturally)
-                    $final .= $_item;                    
+                    $final .= $_item;
                }
-           } # given           
-        } # for (items)
+           }
+        }
     }
     else
     {
-        # only one item, does not qualify to be interpreted as a color code (just give back same string)
-        $final = $str;                       
-    } # if (@items)   
+        $final = $str;
+    }
     return $final;
-} # sub(colorize)
-
-
-
-# comments
-
-  #1   (main program end of page):  first form shows multiple names given in this style except when scalar(@ARGV) == 1, second form shows current dir (cwd) when no arguments are given, forcing multimode to 0 always
-  #2   function showentries(dirname=cwd,multiple_item_mode=1)
-  #3   showentries() line 2: hint for this function to reveal whether we are being iterated over(1) or one-shotted(0)
-  #6   unreachable is a flung around flag thats kinda ugly, i'd like to be rid of it by this time
-
-# option processing functions
-
-sub _s($ln,$sn=undef) { return ("$ln|" . ($sn // substr($ln,0,1)) . '=s'); }
-sub _i($ln,$sn=undef) { return ("$ln|" . ($sn // substr($ln,0,1)) . '=i'); }
-sub _o($ln,$sn=undef) { return ("$ln|" . ($sn // substr($ln,0,1)) . ''  ); }
-
-
-my ($opt, $usage) = describe_options(
-    'my-program %o <some-arg>',
-    # string options
-    [ _s( "sort" ),             "sort the list",  { default => "name" } ],
-    # integral options
-    [ _i( "columns"   ),        "output into columns shortly (def=1)",   { default  => 1 } ],
-    # filler/separator
-    [],
-    # flag/bool options
-    [ _o( 'long' ),             "long list format -not implemented yet-" ],
-    [ _o( 'all' ),              "all entries" ],
-    [ _o( 'almost-all','A' ),   "all entries but . and .." ],
-    [ _o( 'verbose' ),          "print extra stuff" ],
-    [ _o( 'help' ),             "print usage message and exit", { shortcircuit => 1 } ],
-);
-my $swd = path(cwd);
-say($usage->text), exit if $opt->help;
-
-# declarations
-
-my $unreachable = 0;
-my $efmt = "%25s %-s\n";
-
-# functions
-
-sub getentries($from)
-{
-#6 pathize
-    $from = path($from);                                                                                                                                       #6
-    
 }
-#5 discontinued
-sub discontinued()                                                                                                                                             #5
+# ^main functions^    vlow-level functionsv                                                                                                      #23
+sub _ispic($file) {       
+    return 0 if $startuplavg->one > 1.25;
+    $_ = $file;    
+    return 1 if /$picmatch/;
+    return 0;
+}
+sub _tf($tfstate=undef)
 {
-
-#        $bits{}|= if -r; # File is readable by effective uid/gid.
-#        $bits{}|= if -w; # File is writable by effective uid/gid.
-#        $bits{}|= if -x; # File is executable by effective uid/gid.        
-#        
-#        # ruid rwx
-#        $bits{}|= if -R; # File is readable by real uid/gid.
-#        $bits{}|= if -W; # File is writable by real uid/gid.
-#        $bits{}|= if -X; # File is executable by real uid/gid.
-#              0 dev      device number of filesystem
-#              1 ino      inode number
-#              2 mode     file mode  (type and permissions)
-#              3 nlink    number of (hard) links to the file
-#              4 uid      numeric user ID of file's owner
-#              5 gid      numeric group ID of file's owner
-#              6 rdev     the device identifier (special files only)
-#              7 size     total size of file, in bytes
-#              8 atime    last access time in seconds since the epoch
-#              9 mtime    last modify time in seconds since the epoch
-#             10 ctime    inode change time in seconds since the epoch (*)
-#             11 blksize  preferred I/O size in bytes for interacting with the file (may vary from file to file)
-#             12 blocks   actual number of system-specific blocks allocated on disk (often, but not always, 512 bytes each)
-#
+    $tfstate //= 0;
+    return "false" if ($tfstate == 0);
+    return "true"  if ($tfstate != 0);
 }
 sub _getstat($pathname,$blink)
 {
     return path($pathname)->stat() unless $blink;
-    return path($pathname)->lstat();   
+    return path($pathname)->lstat();
+}
+sub _ansi_sgr(@sequence )                                                                                                                        #1
+{
+    @_ = qw( 40 37 0 ) unless @_;
+    return sprintf("\e[" . join(";",@sequence) . 'm');                                                                                           #13
+}
+sub _rgb256($r,$g,$b)
+{
+    if ($r == $g && $b == $g )
+    {
+        return 16 if ( $r < 8 );
+        return 231 if ( $r > 231 );
+        return POSIX::floor( ( (  ($r-8)/247  ) * 24)+232 );
+    }
+    my $cc = 16 + (36*POSIX::floor( (($r/255)*5) ))
+                + (6 *POSIX::floor( (($g/255)*5) ))
+                + (1 *POSIX::floor( (($b/255)*5) ));
+    return $cc;
+}
+sub _rgb24($r,$g,$b)
+{
+      return $r << 16 | $g << 8 | $b;
+}
+sub _gsc($r, $g=-1, $b=-1, $direct=-1, $fg=1)
+{
+    if ($direct > 0)
+    {
+        if ( $g >= 0 && $b >=0 ) {                                                                                                                  #12
+            return termio("seta" . ($fg==1?"f":"b"), $r );
+        } else {
+            return _ansi_sgr(38 + ($fg==1?10:0), 2, $r, $g, $b);
+        }
+    }
+    else
+    {
+        return termio(set_rgb256($r,$g,$b));
+    }
+}
+sub _fgc($r,$g,$b,$direct=-1)
+{
+    return _gsc($r,$g,$b,$opt->use_direct_colors,1);
+}
+sub _bgc($r,$g,$b,$direct=-1)
+{
+    return _gsc($r,$g,$b,$opt->use_direct_colors,0);
+}
+sub hrs($rsize) # size to human-readable size
+{
+    if ($rsize == -1) {
+        return ""; }
+    elsif ($rsize == 0) {
+        return "empty"; }     
+    elsif ($rsize >= TB()) {
+        return int($rsize / TB()) . "Tb"; } 
+    elsif ($rsize >= GB()) {
+        return int($rsize / GB()) . "Gb"; } 
+    elsif ($rsize >= MB()) {
+        return int($rsize / MB()) . "Mb"; }  
+    elsif ($rsize >= KB()) {
+        return int($rsize / KB()) . "Kb"; } 
+    else {
+        return $rsize . "b"; }
+   
 }
 
-# showentry
-sub showentry($_pwd,$_item)
-{
-        # turn into path object -7
-        $_item = path($_item);                                                                                                                                     #7
-        $_pwd = path($_pwd);
+sub filecolor($filename)    #27
+{ 
+    # NOTE: the positioning of these comments are illegal, please move them to the end of the file to reduce clutter before the next push!
     
-        my $_kind = "";
-        my %bits = (    cee => 0,   #c      content/exists/empty
-                    dt => 0,    #d      estimated date/time from script start (Mod/Acc/Create|InodeChange)
-                    euid => 0,  #e      effective uid read/write/exec
-                    fdl => 0,   #f      filetype plain/directory/link
-                    owner => 0, #o      euid owned/guid owned/neither
-                    ruid => 0,  #r      real uid read/write/exec
-                    sbcf => 0,  #s      fifo/socket/char-device/block-device flags
-                    tac => 0,   #t      tty-opened/binary-file/ascii-file (kinds are estimated best guess)
-                    usuid => 0, #u      setuid/setgid/sticky bits (see chmod(3))
-                );
-        my $bitout ="";               
-        $_ = $_item;
+    my $size = 0;    
+#
+# Quick backreference on lstat/stat indicies:
+#
+#              0 dev      device number of filesystem
+#              1 ino      inode number
+#              2 mode     File Permissions (Octets: Special, GroupOwnerPerms, UserOwnerPerms, EveryonePerms*)
+#              3 nlink    File's Hardlink Count (this should NEVER be zero)
+#              4 uid      Owning UID (User ID Number, root is 0)
+#              5 gid      Owning GID (Group ID Number, root is 0)
+#              6 rdev     for special files, provides a device ID
+#              7 size     file's size, in bytes (8 bits = 1 byte)
+#              8 atime    last access time          ( these are measured in: [seconds - epoch],
+#              9 mtime    last modify time            on modern systems, this is Jan 1, 1970, it
+#             10 ctime    inode change time           varies greatly on antiquated systems)
+#             11 blksize  I/O block size preferred when transferring data to/from file (can vary)
+#             12 blocks   "system specific" blocks on the disk (one block is usually 512 bytes)
+#
+#             Permissions: 1 = Read 2 = Write 4 = Execute (example Read+Execute for all users would be 0555)
+
+    my $file_owned_by = $filename->lstat()->[4];
+    my $owner = 0;    
+    if ($file_owned_by == $< ) {
+        $owner = 0;
+    }
+    else {
+        $owner = $filename->lstat()->[5];
+    }    
+    unless (-d $filename) {                       
+        $size = ${$filename->lstat()}[7];
+    }
+    else {
+        try {
+            for my $child ($filename->children()) {
+                $size += ${$child->lstat()}[7];
+            }
+        }
+        catch { 
+            $size = 5; 
+        }            
+    }
+    
+    
+    my $foundcolor = $fallbackcolor;   
+    my $lidx = 0;
+    for ( @filecolormap ) {
+        $lidx++;             
+        my $min = $_->{min};
+        my $max = $_->{max};
+        my ($hmin,$hmax) = (hrs($min), hrs($max));
+        my $color = $_->{color};
+    
+        $foundcolor = $color if ( $size >= $min && $size <= $max );        
+     }        
+     return setfg($colormap[$foundcolor]) . setbg($owner);
 
     
-        # euid rwx        
+                                                                                       
+    
+}
+
+sub setup_legends() {
+
+    my $lidx = 0;
+    for ( @filecolormap ) {
+            my $ltxt = "";
+        $lidx++;             
+        my $min = $_->{min};
+        my $max = $_->{max};
+        my ($hmin,$hmax) = (hrs($min), hrs($max));
+        my $color = $_->{color};
+        if ( length($hmin) < 1 ) {
+            $ltxt .= setfg($colormap[$color]) . "[$hmax]" . setfg(7);                    
+        }
+        elsif ( length($hmax) < 1 ) {
+           $ltxt .= setfg($colormap[$color]) . "[$hmin]"  . setfg(7);
+        }
+        else  {
+           $ltxt .= setfg($colormap[$color]) . "[$hmin-$hmax]"  . setfg(7);                    
+        }            
+        push(@legendtext,$ltxt)
+     }
+    
+}
+
+sub showentry($_pwd,$_item)
+{
+        ($_item,$_pwd) = ( path($_item), path($_pwd) );
+        if ( $opt->single )
+        {
+            printf("%s\n",$_item) if -r $_item;
+            return
+        }
+        my $bitout ="";
+        my $finalent = "";                                                                                                  #16
+        my $_kind = "";
+        my %bits = ( cee => 0,            # c - content/exists/empty
+                     dt => 0,             # d - estimated date/time from script start
+                     euid => 0,           # e - effective uid read/write/exec
+                     fdl => 0,            # f - filetype plain/directory/link
+                     owner => 0,          # o - euid owned/guid owned/neither
+                     ruid => 0,           # r - real uid read/write/exec
+                     sbcf => 0,           # s - fifo/socket/char-device/block-device flags
+                     tac => 0,            # t - tty-opened/binary-file/ascii-file
+                     usuid => 0,          # u - setuid/setgid/sticky modes
+                   );
+        $_ = $_item;
         $bits{euid}|=1 if -r;
         $bits{euid}|=2 if -w;
-        $bits{euid}|=4 if -x;        
+        $bits{euid}|=4 if -x;
         $bits{ruid}|=1 if -R;
         $bits{ruid}|=2 if -W;
         $bits{ruid}|=4 if -X;
         $bits{owner}|=1 if -o;
-        $bits{owner}|=2 if -O;        
-        $bits{usuid}|=1 if -u; # File has setuid bit set.
-        $bits{usuid}|=2 if -g; # File has setgid bit set.
-        $bits{usuid}|=3 if -k; # File has sticky bit set.
-        $bits{cee}|=1 if -e; # File exists.
-        $bits{cee}|=2 if -z; # File has zero size (is empty).
-        $bits{cee}|=4 if -s; # File has nonzero size (returns size in bytes).
-        $bits{fdl}|=1 if -f; # File is a plain file.
-        $bits{fdl}|=2 if -d; # File is a directory.
-        $bits{fdl}|=3 if -l; # File is a symbolic link (false if symlinks aren't supported by the file system).
-        $bits{sbcf}|=1 if -p; # File is a named pipe (FIFO), or Filehandle is a pipe.
-        $bits{sbcf}|=2 if -S; # File is a socket.
-        $bits{sbcf}|=4 if -b; # File is a block special file.
-        $bits{sbcf}|=8 if -c; # File is a character special file.                
+        $bits{owner}|=2 if -O;
+        $bits{usuid}|=1 if -u;            # F has setuid bit set.
+        $bits{usuid}|=2 if -g;            # F has setgid bit set.
+        $bits{usuid}|=3 if -k;            # F has sticky bit set.
+        $bits{cee}|=1 if -e;              # F exists.
+        $bits{cee}|=2 if -z;              # F has no data/zero
+        $bits{cee}|=4 if -s;              # F's size when nonzero, 0=empty.
+        $bits{fdl}|=1 if -f;              # F is a plain F.
+        $bits{fdl}|=2 if -d;              # F is a directory.
+        $bits{fdl}|=3 if -l;              # F is a symbolic link (false if symlinks aren't supported by the F system).
+        $bits{sbcf}|=1 if -p;             # F is a named pipe (FIFO), or Filehandle is a pipe.
+        $bits{sbcf}|=2 if -S;             # F is a socket.
+        $bits{sbcf}|=4 if -b;             # F is a block special F.
+        $bits{sbcf}|=8 if -c;             # F is a character special F.
         unless ( -c or -t or -b )
         {
-            $bits{tac}|=1 if -t; # Filehandle is opened to a tty.
-            $bits{tac}|=2 if -B; # File is a "binary" file (opposite of -T).          
-            $bits{tac}|=4 if -T; # File is an ASCII or UTF-8 text file (heuristic guess).            
-            $bits{dt}|=1 if -M; # Script start time minus Modification time, in days.            
-            $bits{dt}|=2 if -A; # Access time. #8.3
-            $bits{dt}|=4 if -C; # Inode change time (Unix, may differ for other platforms) #8.5            
-        }           
+            $bits{tac}|=1 if -t;          # F-handle is opened to a tty.
+            $bits{tac}|=2 if -B;          # F is a "binary" F (opposite of -T).
+            $bits{tac}|=4 if -T;          # F is an ASCII or UTF-8 text F (heuristical guess).
+            $bits{dt}|=1 if -M;           # Script start time minus Modification time, in days.
+            $bits{dt}|=2 if -A;           # Access time.
+            $bits{dt}|=4 if -C;           # Inode change time (os dependant)
+        }
         $bitout="";
+        my $bitcount=0;
+        my $curbit=0;
+        my $maxbits=$opt->attrib_width;
         for (keys(%bits)) {
             if ( $bits{$_} > 0 )  {
-                    
-                $bitout .= setbg($bits{$_}) . substr($_,0,1) . crst;  # use first char as signal bit
-            } else { $bitout .= " "; }
+                $bitcount++;
+                my $bitcolor = $clr_xlat_table{256}->[$bits{$_}];
+                my $bitcolorf = $clr_xlat_table{256}->[$curbit];
+                $bitout .= setbg($bitcolor) . setfg($bitcolorf) . substr($_,0,1) . crst;
+                last if $bitcount >= $maxbits;
+            }
+            $curbit++;
         }
-        my $entry = $_;                
-        if ( -d ) {        
-            printf(colorize("%s ~240[~28%s~242]~28"),$bitout,$entry);
+        $bitout .= (" " x ($maxbits - $bitcount)) if $bitcount < $maxbits;
+        my $entry = $_;
+        if ( -d ) {
+            $finalent=sprintf(colorize("%s ~240[~28%s%s%s~242]~28"),$bitout,filecolor($entry),$entry,setbg(0));
         }
         else {
-            printf("%s %s",$bitout,$entry);
-        }        
+            $finalent=sprintf("%s %s%s%s",$bitout,filecolor($entry),$entry,setbg(0));
+        }
         if ( -l )
         {
             my $linkitem = readlink($_);
-            printf(colorize(" ~236-~237> ~240[~238%s~240]~28\n"),$linkitem);
+            $finalent .= sprintf(colorize(" ~236-~237> ~240[~238%s~240]~28"),$linkitem) if -e;
+            $finalent .= sprintf(colorize(" ~236-~237> ~240[~160%s~240]~28"),$linkitem) unless -e;
         }
-        else
+        if ( $opt->column )
         {
-            printf("\n");
+            if ( $colpos >= $maxpos )
+            {                
+                system("tycat","-g","1x1",$_) for @pics;                                              
+                printf("\n") unless @pics > 0;
+                $colpos = 0;
+                @pics = ( );
+            }
+            else
+            {
+                if ($maxdirpic >= $curdircnt)
+                {
+                    push(@pics,$entry) if _ispic($entry);
+                }
+            }
+            
+            printf("[0m[%dG%s[0m",$colpos*$colwidth,$finalent);
+            $colpos++;
+        } else {
+                printf("%s",$finalent);
+                if ($maxdirpic >= $curdircnt && _ispic($entry)) {
+                    system("tycat","-g","1x1",$entry);
+                } else {
+                printf("\n");
+                }
         }
+
 }
+
 sub dosort(@targets)
 {
     my @target = @targets;
+    my $dirsfirst = $opt->group_directories_first;
+
     my @result;
-    
     $_ = $opt->sort;
-    if ( /name/ ) 
+    if ( /name/ )
     {
+        # sort by name (generic)
          @result = sort { $a cmp $b } @target;
     }
     elsif ( /size/ )
     {
+
+        # sort by size
         @result = sort {
                 my $sizea = 0;
                 my $sizeb = 0;
-                $sizea = (stat($a))[7] if -r $a;
+                if ($opt->dereference && -l $a)
+                {
+                    $sizea = (lstat($a))[7] if -l $a;
+                } else {
+                    $sizea = (stat($a))[7] if -r $a;
+                }
                 $sizeb = (stat($b))[7] if -r $b;
-                # unless ($opt->no_dereference) {
-                $sizea = (lstat($a))[7] if -l $a;
-                $sizeb = (lstat($b))[7] if -l $b;
-                # }
+                if ($opt->dereference) {
+                    $sizeb = (lstat($b))[7] if -l $b;
+                } else {
+
+                }
                 if ($sizea > $sizeb) {
                         return 1;
                 } else {
@@ -304,59 +744,406 @@ sub dosort(@targets)
                         return 0;
                     }
                 }
-
         } @target;
     }
-    else 
+    else
     {
+        # unknown sort method
         warn "the '" . $opt->sort . "' sort method not known, using the 'none' method" unless /none/;
-        @result = @target;    # no sort if invalid or none
-    
+        @result = @target;
     }
-
     return @result;
 }
 
-sub showentries($wd=$swd,$multimode=1)                                                                                                                                #2
+sub print_legends($columnmode=1)
 {
-    chdir($wd) if -d $wd;
+    unless ( @legendtext > 0 ) {
+        confess("called before initilization of legendtext, which should not happen, ever");
+        return -1;
+    }   
+    my $curlen = 0;     
+    for my $txt (@legendtext)
+    {
+        $txt .= " ";
+        printf($txt);
+        $curlen = $curlen + length($txt);
+        
+        if ($curlen > 80)   # TODO: screen width from Term::Put will be tested here
+        {
+            $curlen = 0;
+            printf("\n");
+        }
+    }
+    printf("\n\ncurlen =[ $curlen ]\n\n");
+}
+
+sub setup_colormaps()
+{
+    my $lastmax=0;
+    for ( @filecolormap )
+    {   
+        if ($_->{min} == AUTO)
+        {
+            $_->{min} = $lastmax + 1;
+        }
+        $lastmax = $_->{max};        
+    }
+}
+
+sub showentries($wd=$swd,$multimode=1, $traversedir=1 )
+{
+    # transform into path objects
+    $swd = path($swd);
+    $wd = path($wd);
+    
+    if ( -d $wd && !$opt->directories ) {
+        $wd = $swd->child($wd) unless $wd =~ m:^/:;   #11
+        chdir($wd);
+    }    
     given ( $wd )
     {
-        when ( -d  or -e ) 
+        when ( -d  or -e or -l )
         {
             my @entries = ();
             say("\n" . $wd . "\n") if $multimode or (@entries > 1);
-            unless ( -d $wd )
-            {                   
+            unless ( -d $wd && !$opt->directories )
+            {
                 @entries = ( glob($wd) );
-                printf("(warning: -a and -A are useless with single entry specified)\n") if $opt->all or $opt->almost_all;
-                printf("(warning: -a and -A are useless with single entry specified)\n") if $opt->all or $opt->almost_all;
-
+                $curdircnt = scalar (@entries);
+                warn("(warning: -H (--hidden-only) does not make sense with specific entry mode (did you mean --reverse-match?)") if ($opt->hidden_only);                
+                warn("(warning: -a and -A are useless with single entry specified)\n") if $opt->all or $opt->almost_all;
+                warn("(warning: -a and -A are useless with single entry specified)\n") if $opt->all or $opt->almost_all;
             }
             else
             {
-                @entries = glob('*');
-                push(@entries, grep { $_ if /^.[^.]+/ } glob('.*')) if ( $opt->almost_all or $opt->all );
-                push(@entries, qw( .. . )) if $opt->all;
-            }            
-            showentry( $wd, "$_" ) for dosort(@entries);
-            say ( "\n" . @entries . " item(s)\n" ) if $multimode or ( @entries > 1 );
-            
+                if ($opt->hidden_only) {                                                                                                        #24
+                    @entries = glob('.*');
+                    push(@entries, qw( .. . ) );
+                    
+                }
+                else
+                {
+                    @entries = glob('*');
+                    $curdircnt = scalar (@entries);
+                    push(@entries, grep { $_ if /^.[^.]+/ } glob('.*')) if ( $opt->almost_all or $opt->all );                 
+                    push(@entries, qw( .. . )) if $opt->all;
+                }
+                
+            }
+            if (@entries || ($noargmode == 0))  {
+                showentry( $wd, "$_" ) for dosort(@entries);                                    
+                say( "\n" . @entries . " item(s)\n" ) if $multimode or ( @entries > 1 );
+            } else {
+                if ($colorcount > 16) {
+                    csay("~17\t100% E~18M~19P~20T~21Y~22 D~23I~24R~25E~26C~27T~28O~29R~30Y \n\n~232[~250No Items~232]~7\n");
+                } else {
+                    say("\tEmpty\n\n[No Items]");
+                }
+            }
+            # legend always last
+            print_legends();
+                    
         }
-        default 
+        default
         {
-            say ("$wd : not found");
-        }  
-    }     
-    chdir($swd) if -d $wd;                                                                                                                                     #4
+            say("$wd : not found (wd=$wd swd=$swd multimode=$multimode islink=" . _tf(-l $wd) );
+        }
+    }
+    chdir($swd) if -d $wd;
 }
 
-# main program
+# ┏━━━━━━━━━━━━━━━━━━━━┓
+# ┋ main               ┋
+# ┗━━━━━━━━━━━━━━━━━━━━┛
 
-setupansi();    # needed for the Term::ANSI replacement
+setup_term_ctl_strings();                                                                                                   #2
+setup_colormaps();
+setup_legends();
+
 if (@ARGV) {
-    showentries($_, 0) for @ARGV;                                                                                                                              #1
+    if ($opt->directories) {
+        showentries($_, 0, 1) for @ARGV;
+    } else {
+        showentries($_, 0, 0) for @ARGV;
+    }
 } else {
+    $noargmode=1;
     showentries;
-}    
+}
+
+# ┏━━━━━━━━━━━━━━━━━━━━┓
+# ┋ notes              ┋
+# ┗━━━━━━━━━━━━━━━━━━━━┛
+
+
+# (No Executable Code Beyond This Point)
+# NOTES SECTION     (notes 1-10 reserved for "guidelines for writing this program and it's kin")
+#
+#
+#
+# GUIDELINES FOR WTPAIK
+#
+# #1      keep it stupid simple, dont use cryptic names or unnecessary "obfuscating" code. If code needs to  be
+#         obfuscated, you can convert it to a binary file and use something akin to pklite or encrypt it, there are
+#         many many other ways, but if its open source. DONT OBFUSCATE, it will just lead to someone elses headache
+#         later. Who knows maybe saving the world will rely on your code, do you really want the world to blow up because
+#         you wanted your code to look cool? Remember, If its not needed, it probably isn't.
+#
+# #2      using linux? use tputs, its compatible with just about everything, and, its CORE. which means theres a 99.5% chance
+#         whatever linux client will have some form of tputs available. From there, fail back to standard ansi/vt terminal
+#         control sequences or just plain clear text. (linux the OS, not linux the terminal var (TERM=linux) read on for that one-v)
+#
+# #3      Graphics are all or nothing, if in terminology we use tyls/tycat, if not we dont
+#         If we are in X11, its 2020 so its safe to use Unicode at this point, its universal! Besides, everyone else uses it
+#         now too, so we can get often used graphics from it. And it falls back so dont be shy, if your current font doesnt
+#         have the 8-ball, it will fall back to the core font that does. And there is always a core font that has all the symbols
+#         (unless we are talking about other-region language chars, dont mess with them unless you want to get really messy!).
+#         and on that note...
+#
+# #4      Translations should be done transparently. Use a wrapper to achieve this, dont modify the original code. This ensures future
+#         updates will also work, dependencies should not translate, their owner/parent SHOULD. For CLI programs, its best to either xlat
+#         on the fly or use a wrapper of some sort. No extra files should be created, use shm instead of tmp, etc, etc.
+#
+# #5      Dont be afraid to strip down the comments, many times things will get bloated with nonsense or out of date material, lets keep it simple
+#         just like #1 says.
+#
+# #6      Subs that are called by other subs are considered internal, unless recursive. Subs that get called directly from Main:: are considered
+#         to be "main" or "global" subroutines. Internal functions must be separated, and should be no more than a few lines long and deep*.
+#
+#
+#         * deep meaning indent level or loop depth (ie; if { while { given { <loop depth is 3 here> } } else { <depth is only 1 here> } <and zero here>)
+#
+# EMBEDDED NOTES (I know, they start at 11 instead of 1, but i dont like to do things the normal way)
+#
+# #11
+#         warning, because of ls(1) behavior, we must also follow symlinks realpaths not the physical one the user sees
+#         so if you are in /somedir thats a link to /usr/share, ../tmp will not work, you would need to use ../../tmp!
+#         only not considering paths that are absolute as compound paths
+# #12     first form, single color to setaf/b
+#         second form, non-standard term control code (see google:terminal-24bit-color-ansi-sequences for details)
+# #13     direct is for the 24-bit standalone control codes (separate from regular sequences). tput does not document
+#         a way to pass this through requiring it to be done manually. Additionally, 24-bit support is not included in
+#         termcap/terminfo, so user must decide to enable it themselves.
+# #14     1) columnizing output is a work in progress, and has not been completed some variables that are being used at the moment are:
+#         colpos    which column are we in, defaults to 0.
+#         colwidth  width of each individual cell defaults to 32.
+#         maxpos    max before resetting, changed by termcap's column entry, defaults to 4.
+#         2) columnar sizing depends on filename lengths, actual columns, user preferences and so-on, it is by far not close to being complete (but is functional).
+# #15     The colorize code is checked for three basic forms, the most common is ~f[f[f]] which is just a ~0 - ~256, next check is
+#         ~fffbbb compact code form (warning, no check for > 256 here is done, its on the programmer to use this properly!)
+#         After that, the ~ffbb compact code form (preferred, though limited to 0-99 it is guarenteed to not be out of range), and then
+#         anything else used like ~9999994 is not valid, values are expected to be base 10 integers at this time but may incur changes as rgb support is added.
+#         after all codes are validated its value is inserted (padding with zeros is ok and suggested for above f and b codes)
+# #16     finalent: where the final text is rendered just before it is printed file, kind: filetype text is rendered here
+#
+# #17    Use $colors < next_color_count to calculate number of colors (this would catch odd color counts and rounds them down), possibly add those counts when encountered
+#        In 99% of the cases, user will have either 256 colors, or 16 colors. (in a /dev/tty? or a /dev/pt*, respectively )
+#
+# #18   color tables, instead of hardcoding colors for bits, each bit translates to an appropriate palette color
+#       based on desired type; each entry defined as a list of entries, name pattern is @col_xlat_tab[kind]
+#       where [kind] is one of:
+#
+#           16      Generic 16 color palette (8 in hardware terminal fallback mode)
+#                   terminals with 8 colors will have the bright attribute removed
+#                   terminals with no color will be stripped entirely.
+#           256     Generic 256 color palette, using direct preprogrammed indexes
+#                   terminals with 88 colors will be hue-matched by terminal itself
+#           rgb     Also 256 colors, but accesses the colors using R/G/B values, still
+#                   only from the color cube preprogrammed into the terminal.
+#           true    True color mode (24-bit), 16 million colors, with an unlimited
+#                   number of pairs, approximated to 256->16->none if terminal doesnt
+#                   support it. (See above for info about limitations on truecolor support)
+#
+#       The user can set these values in the code however a .lsrc is planned for later
+#       tying colortable to 'dircolors' and its file(s).
+#
+# #19   Default is 6, during an in-depth test of this, never did see any field larger than 6
+#       The normal value to see is 2-4 with occasional 5, 6 only came up in /dev or other
+#       special folders (esp hybrid).
+#
+# #20   regex (qr//) patterns precompiled using interpolated strings will be used for both;
+#       the first pass is for data interpolation, the second assignment closures the first
+#       and redefines it as a compiled pattern (via qr//) preventing too many single use
+#       variables from piiling up.
+#
+# #21    use Term::ANSIColor:
+#
+#        Term::ANSIColor has been removed because it does not work properly...
+#        ...it seems the author did not use termcap but blindly uses ANSI
+#        standards from xterm/xterm-256color/linux which is most of the time
+#        compatible but not always (ie; like fbterm, vesaterm, stterm, Eterm, etc)
+#        no use Term::ANSIColor 4.00 qw( colorvalid :constants coloralias colorstrip :constants256 );
+#
+#        Now done manually (this is changing right now so final version might not be yet documented)
+#
+#        sub termio: program-to-terminfo interface
+#              note: Term::Cap has some major problems, so support for it was scrapped in the process
+#                    terminfo on the other hand, has a much better reliability record
+
+#                    plus records all the little term infos including width and height with great acurracy
+#                    furthermore, tput is a coreutil, so theres pretty much no chance of it being not installed unless you uninstalled it (why?)
+#                    if for some odd reson tput is unavailable, this program CAN NOT RUN.  this should really never happen though!
+#                    dont confuse termio with termios! (POSIX::Termios)
+#                    comments.
+#
+#        main program, near end of code area:  first form shows multiple names given in this style except when scalar(@ARGV) == 1,
+#                                              second form shows current dir (cwd) when no arguments are given, forcing multimode to 0 always
+#
+#        showentries(dirname=cwd,multiple_item_mode=1)
+#
+#        showentries() line 2: hint for this function to reveal whether we are being iterated over(1) or one-shotted(0)
+#
+#
+# #22 Term::Cap does not work for getting terminal width/height, must use tput for that.
+# #23 maxdirpic maximum # of files in the list before not using tycat
+#     introduced Tie::LoadAvg into program, used here to abort use of tycat, only if load averages exceed 1.4 for last minute
+#     also needed is to verify if terminology is running
+# #24 --reverse-match and --hidden-only added, they seem the same but are quite different
+#     --reverse-match: shows all the files that are NOT in the matchlist, for the working directory (dir mode) for the current element's directory (element mode)
+#     --hidden-only:   shows only hidden files for the current directory (dir mode only) a warning is shown if used in element mode
+# #25 legendtext is populated when filecolor is called the first time, or, if legendtext is undefined using '$legendtext=undef' it will be re-populated on the next call to filecolor
+#     CHANGE #1    legendtext is now populated in setup_legends (yes anticipate more legend-like decals in the future!)
+#     CHANGE #2    legendtext is now an array, not a scalar, this is for more flexible printing (and in different layouts in the future)
+#                  due to this change, it's position in the file is different, no longer in the scalars section, though it only moved down a few lines anyway.
+#     TODO #1      actually implement this
+# #26 added ANSI0 thru ANSI255 constants as constants only, since constants dont actually take up memory (they are not allocated, just are replaced inline, and are not even looked at if they arent used at all!)
+#     this is also to counter any usage of Term::ANSIColor that may have been used, preventing it integration since it basically ignores normal terminal preferences
+#     and spews incorrect color codes for any terminal other than ANSI-specific ones like linux and xterm. It is so unportable its not even funny.
+# #27 in reference to "sub filecolor":
+#      At the moment, filecolor represents two things:
+#        - the file's 'size group' (as seen in the legend, which is also calculated here)
+#        - the file's ownership (usually group ownership)
+#      Ownership is applied to the background color, if the file does not belong to the current user
+#      Size groups are applied to the foreground color, a file can be only in one size group.
+#        There are two special size groups, empty (<1), and infinitely large (>LSB)
+#        The rest of the size groups fall into the range of ( >A && <B ) Group A is the "minimum" size for an item in a size group, group B is 
+#          the "maximum" size in that same group. "infinitely large" is calculated using the largest size in group B (LSB).
+#        Directories size groups are calculated not by the size of the directory entry (which is always the same, so its useless to show that 
+#          over and over), but by the total size of the items WITHIN that directory (controlled by the recursion and maxdepth options TBA).
+#        Symbolic links reflect the sizes of the items for which they represent. Hard links are treated as regular files since technically all 
+#        regular files are also hardlinks (hardlinks with an refcount of 1, or 2 with '.' and '..'). Other than the pedantics given above, and 
+#        the legend, no additional information regarding sizes are given.
+#      In reference to "$fallbackcolor" and the rest of the lists, color numbers are for map, not actual color numbers    
+#      The trucolormap cannot be implemented until the last few terminals embrance the new trucolor terminal standard (there are 3 major brands 
+#        that refuse to do this, you know who you are *cough*erminolog..rxv..kon*cough*) the locolormap is an approxmation for @colormap, if you 
+#        change it try to keep the codes simmilar so they make sense to the user when switching from hicolor to locolor environments, this will 
+#        be conversely true for truecolor maps when/if they are implemented in reference to $size:
+#           - files
+#               count bytes (file) or target bytes (symlink)
+#           - dirs
+#               count total bytes within branch (dir) or link target branch (symlink-dir)               
+#
+#
+# #28 in reference to the colormaps (for filecolors)
+#     There is probably the question, why is a color map needed when approximation could be precalculated?
+#      Two reasons:
+#           1 - Precalculated is faster,   2 - Explicit Approximation is faster
+#      In the future, if requested, the tables would be precalculated on first run, and written into a configuration file. Once the File::Config module
+#      is completed that might be the case. As with most of my esoteric projects, especially perl ones, this is also a grounds for developing modules
+#      in their native environment, so that will come first.
+#    additionally:
+#      note that there should never be (initially) more than 15 size range colors, this will ensure that low color terminals arent having to process a bunch
+#      of numbers that dont even matter. This is another thing that would change later (the how, not the why).
+#   ADDED
+#      new constants, "INF" which is the stand-in for the same old special -1 which basically mean infinity- when in 'min' and infinity+ when in 'max'
+#      the not so familiar "AUTO" constant which is a new special value -2, which means to automatically calculate the minimum based on the last maximum
+#      value, this special value can only be used in the 'min' column, it has no special meaning in the 'max' column. I was going to add support for the
+#      max column too, but it would make the process twice as slow and I couldnt see any real gain other than switching columns. The main gain here is
+#      that you can now just specify a single number (like in a gradient) instead of figuring out the range, which is much easier to change also.
+#
+# end of embedded notes section
+
+# sub Sidenotes
+#
+#       seta: name=seta, args=color(val) part=bg|rst|fg  exits=4
+#       seta: inf. wraparound to 1 (not 0) of values (-1(255),0(0),1(1),2(2)...255(255),256(1),257(2), etc)
+#       termio: safe, sanitized by setup_termio_bin, @_ should never have slashes however
+#       colorize: if>for>given>when>line2>$num=$_item warning, do NOT convert to integer, this would destroy any padding of zeros needed to create 6c or 4c codes
+#                 $num: a number, always a color code (inline numbers wont get isolated like this)
+#                 last inner-inner: just text, add without discrimination (empty strings wont add anything, naturally)
+#                 outer-most if, else: only one item, does not qualify to be interpreted as a color code (just give back same string)
+#
+# REF SECTION/CHECKLIST
+#
+# adding all these to this program, plus some of my own. avoid conflicts however by making sure none of my commands override the original
+# note the output style WILL be different, if this is not ok then just use regular ls(1)!
+# CHANGE:
+# no longer going to be cloning options exactly, this is more of a guide now than a rule, with the introduction of some very different features, this
+# list program has taken me in a new direction which will have to say goodbye to the original thought to 'build on top of' the ls way of doing things
+# as before, you can use ls(1) instead if you dont like it. sorry!
+#
+# ls(1) help command
+# Usage: /bin/ls [OPTION]... [FILE]...
+#  -a, --all                      do not ignore entries starting with .
+#  -A, --almost-all               do not list implied . and ..
+#      --author                   with -l, print the author of each file
+#  -b, --escape                   print C-style escapes for nongraphic characters
+#      --block-size=SIZE          with -l, scale sizes by SIZE when printing them e.g., '--block-size=M'; see SIZE format below
+#  -B, --ignore-backups           do not list implied entries ending with ~
+#  -c                             with -lt: sort by, and show, ctime (time of last modification of file status information); with -l: show ctime and sort by name; otherwise: sort by ctime, newest first
+#  -C                             list entries by columns
+#      --color[=WHEN]             colorize the output; WHEN can be 'always' (default if omitted), 'auto', or 'never'; more info below
+#  -d, --directory                list directories themselves, not their contents
+#  -D, --dired                    generate output designed for Emacs' dired mode
+#  -f                             do not sort, enable -aU, disable -ls --color
+#  -F, --classify                 append indicator (one of */=>@|) to entries
+#      --file-type                likewise, except do not append '*'
+#      --format=WORD              across -x, commas -m, horizontal -x, long -l, single-column -1, verbose -l, vertical -C
+#      --full-time                like -l --time-style=full-iso
+#  -g                             like -l, but do not list owner
+#      --group-directories-first  group directories before files; can be augmented with a --sort option, but any use of --sort=none (-U) disables grouping
+#  -G, --no-group                 in a long listing, don't print group names
+#  -h, --human-readable           with -l and -s, print sizes like 1K 234M 2G etc.
+#      --si                       likewise, but use powers of 1000 not 1024a
+#  -H, --dereference-command-line follow symbolic links listed on the command line. You can suffix it with "-symlink-to-dir" which will follow each command line symbolic link that points to a directory
+#      --hide=PATTERN             do not list implied entries matching shell PATTERN (overridden by -a or -A)
+# --hyperlink[=WHEN]              hyperlink file names; WHEN can be 'always' (default if omitted), 'auto', or 'never'
+#      --indicator-style=WORD     append indicator with style WORD to entry names: none (default), slash (-p),file-type (--file-type), classify (-F)
+#  -i, --inode                    print the index number of each file
+#  -I, --ignore=PATTERN           do not list implied entries matching shell PATTERN
+#  -k, --kibibytes                default to 1024-byte blocks for disk usage                               used only with -s and per directory totals
+#XXX  -l                             use a long listing formata
+#  -L, --dereference              when showing file information for a symbolic                               link, show information for the file the link                               references rather than for the link itselfa
+#  -m                             fill width with a comma separated list of entriesa
+#  -n, --numeric-uid-gid          like -l, but list numeric user and group IDsa
+#  -N, --literal                  print entry names without quotinga
+#  -o                             like -l, but do not list group informationa
+#  -p, --indicator-style=slash       append / indicator to directoriesa
+#  -q, --hide-control-chars       print ? instead of nongraphic charactersa
+#      --show-control-chars       show nongraphic characters as-is (the default,                               unless program is 'ls' and output is a terminal)a
+#  -Q, --quote-name               enclose entry names in double quotesa
+#      --quoting-style=WORD       use quoting style WORD for entry names: literal, locale, shell, shell-always, shell-escape, shell-escape-always, c, escape (overrides QUOTING_STYLE environment variable)a
+#  -r, --reverse                  reverse order while sortinga
+#  -R, --recursive                list subdirectories recursivelya
+#  -s, --size                     print the allocated size of each file, in blocks
+#  -S                             sort by file size, largest first
+#      --sort=WORD                sort by WORD instead of name: none (-U), size (-S), time (-t), version (-v), extension (-X)
+#      --time=WORD                with -l, show time as WORD instead of default modification time: atime or access or use (-u); ctime or status (-c); also use specified time as sort key if --sort=time (newest first)
+#      --time-style=TIME_STYLE    time/date format with -l; see TIME_STYLE below
+#  -t                             sort by modification time, newest first
+#  -T, --tabsize=COLS             assume tab stops at each COLS instead of 8
+#  -u                             with -lt: sort by, and show, access time; with -l: show access time and sort by name; otherwise: sort by access time, newest first
+#  -U                             do not sort; list entries in directory order
+#  -v                             natural sort of (version) numbers within text
+#  -w, --width=COLS               set output width to COLS. 0 means no limit
+#  -x                             list entries by lines instead of by columns
+#  -X                             sort alphabetically by entry extension
+#  -Z, --context                  print any security context of each file
+#  -1                             list one file per line. Avoid '\n' with -q or -b
+#      --help                     display this help and exit
+#      --version                  output version information and exit
+# SIZE                            The SIZE argument is an integer and optional unit (example: 10K is 10*1024).
+# Units                           Units are K,M,G,T,P,E,Z,Y (powers of 1024) or KB,MB,... (powers of 1000).
+# TIME_STYLE                      The TIME_STYLE argument can be full-iso, long-iso, iso, locale, or +FORMAT, which is interpreted like in date(1). If FORMAT is FORMAT1<newline>FORMAT2, then FORMAT1 applies to non-recent files and FORMAT2 to recent files. TIME_STYLE prefixed with 'posix-' takes effect only outside the POSIX locale. Also the TIME_STYLE environment variable sets the default style to use.
+# color                           Using color to distinguish file types is disabled both by default and with --color=never. With --color=auto, ls emits color codes only when standard output is connected to a terminal. The LS_COLORS environment variable can change the settings. Use the dircolors command to set it.
+# EXIT ($?)                       Exit status: 0 if OK, 1 if minor problems (e.g., cannot access subdirectory), 2 if serious trouble (e.g., cannot access command-line argument)
+#     stat FILEHANDLE
+
+
+#┏━┳━╸┓
+#┃ ┃  ┋
+#┣━╋━━┫
+#┗━┻┅━┛
+# keep next line LAST (no whitespace lines either)
+# vim: ft=perl:et:ts=4:sw=4:bs=2:ls=2:cc=120:fen:fdm=syntax:fcl=all:fdo=all:fdl=1:nu:nocul:cuc
 

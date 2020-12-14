@@ -5,18 +5,38 @@ no warnings "experimental";
 use strict;
 use v5.20.2;						# given/signatures/say
 use feature "signatures";
+use File::Slurp;
+use Curses::UI;
+use Path::Tiny;
+use File::Spec;
+use File::Config::INI;
+use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
 
-
-
-no warnings "once";					# 	allow variables to be used just once without warning***
 # syntax:	tg3 [process|pid] [nice] [class[[:]data]]
 #           tg3 OPTIONS processids
 #			tg3 OPTIONS -g process-group
 
-say("this program is still in development, it will not run unless force is used!");
-exit();
-## CURSES ##
-use Curses::UI;
+# VARIABLES
+
+my $none = "";      # for use of x//$none or also =~ when x isn't defined
+my $cui = undef;    # until we have curses confirmed no init, needs global for accessor methods
+my @argv = @ARGV;   # keep a copy for internal use (c style), argv
+my $argc = @ARGV;   # keep a count (c style), argc
+my $envp = \%ENV;   # keep a pointer to the environment table (c style)
+
+
+# OPTIONS
+
+my ($opt, $usage) = describe_options( '$0 %o [process name/id] [...]',
+    [ 'no-curses|N',    "dont use curses to show status", ], [],
+    [ 'verbose|v',      "print extra stuff"            ],
+    [ 'help',           "print usage message and exit" ],
+);
+
+say($usage->text), exit if $opt->help;
+say("$0: arguments remaining: $#ARGV");
+
+
 
 
 
@@ -156,20 +176,5 @@ for ( $dir->children ) { say("children: $_"); }
 my $iter = $dir->iterator;
 while ( my $next = $iter->() ) { say("iterated: $next"); }
 ## PATH END ##
-
-## GETOPT ##
-use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
-my ($opt, $usage) = describe_options(
-    '$0 %o <some-arg> file',
-    [ 'no-dialog', "dont use dialog to show log",  ],
-    [ 'no-follow',   "do not follow the log, just show it",   { default  => 79 } ],
-    [],
-    [ 'verbose|v',  "print extra stuff"            ],
-    [ 'help',       "print usage message and exit" ],
-);
-say($usage->text), exit if $opt->help;
-say("getopt: arguments processed: $#ARGV");
-## GETOPT END ##
-
 
 

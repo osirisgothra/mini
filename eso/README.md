@@ -1,18 +1,21 @@
-mini/eso-bin
-============
+PROJECTSROOT/mini/eso
+=====================
+
+    PROJECTSROOT    /src or /usr/src or ~/src (local)
+                    https://www.github.com/osirisgothra (remote)
 
 4-04-2020
 
-ubin-local	once was /usr/bin/local scripts changed by me,
-		plus some of my own. It now is ONLY items belonging
-		to me for LICENSE consistency purposes. Modified items
-		that may remain do so unknowingly and will be removed
-		as they are found. This directory now refers to
-		the very personal ~/bin instead.
+    ubin-local	once was /usr/bin/local scripts changed by me,
+        		plus some of my own. It now is ONLY items belonging
+        		to me for LICENSE consistency purposes. Modified items
+    	    	that may remain do so unknowingly and will be removed
+    		    as they are found. This directory now refers to
+        		the very personal ~/bin instead.
 
-ubin		as above, except there are far less left behind here
-		and also, this is compeltely discontinued and soon to
-		be no more. For the time being it is read-only.
+    ubin		as above, except there are far less left behind here
+        		and also, this is compeltely discontinued and soon to
+    	    	be no more. For the time being it is read-only.
 
 3-20-2015
 
@@ -20,6 +23,24 @@ ubin		as above, except there are far less left behind here
  You probably dont want to bother reading this, find
  a repo that is of a more interesting nature.
 ```
+11-15-2020
+
+    2 new additional paths
+
+    decomissioned           files from other directories that are no longer used
+                            or are forever incomplete/superceded by something else
+                            (but are not trash enough to delete just yet. Waiting
+                            ~several years then may be deleted if still not needed;
+                            archived if wanted for reference.). several is more than
+                            1.5ish.
+    
+    src                     stuff that is in ubin/ubin-local that has been compiled
+                            into an executable. Needed if program needs to recompile
+                           for a different environment.
+                        
+
+
+
 personal, esoteric scripts
 --------------------------
 

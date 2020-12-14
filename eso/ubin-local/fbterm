@@ -22,5 +22,5 @@ then
 	esac
 	exit 126
 else
-	exec /usr/bin/env TERM=fbterm $target
+	exec /usr/bin/env TERM=fbterm $target "$@"
 fi

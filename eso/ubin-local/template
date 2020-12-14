@@ -11,7 +11,7 @@
 #
 #    Written by Gabriel T. Sharp <21shariria@gmail.com>
 #    Latest versions of this and all of my projects can be
-#    obtained by visiting the repository: 
+#    obtained by visiting the repository:
 #
 #    <https://github.com/osirisgothra>
 #
@@ -39,14 +39,14 @@
 #            osirisgothra@larnica initially added a template to this file
 #            with the original name, template*
 #  	 Sun 05 May 2019 11:09:39 AM EDT
-#   
+#
 #
 #  * this file has existed well before this date (2-3 years at least), but is A
 #    now documented as being truly created at this date and time
 #
 #  (this header was created using the template generator by Gabriel T. Sharp)
 #
-# DATE_TIME: not sure why you need to change this really but if you forgot or something, or are on 
+# DATE_TIME: not sure why you need to change this really but if you forgot or something, or are on
 #            a deadline or have a specific release date it could be useful.
 #
 # TODOs (ordered in MOST-IMPORTANT To least-important)
@@ -59,6 +59,42 @@
 #	#2 ---  done--> possibly put template in a system or user binpath, possibly on eso??
 #   #3 --- done --> put into esoteric ubin for testing on github???
 #   #4 --- done --> add templates that the user can pick for other licenses or filetypes
+
+declare -g USE_TARGET_NOTES=0
+declare -ga opts
+if opts=( `getopt -n $0 -o hp -l help,profile-target -- $@` ); then
+    set -- $opts
+    y=0; for x; do let y++
+    {
+        case $x in
+            --) shift $y; break;;
+            -p|--profile) USE_TARGET_NOTES=1;;
+            -h|--help)  echo "$0
+                        [0G create a template
+                        [0G
+                        [0G syntax: template --profile-target --help
+                        [0G
+                        [0G --profile-target      generate a profile section (TARGET NOTES), this is for analysis only and should never be part of your program
+                        [0G --help                this help text
+                        [0G
+                        [0G THIS PROGRAM IS LICENSED UNDER THE GNU GPL VERSION 3. SEE MY PROJECTS PAGE FOR MORE INFO.
+                        "
+                        exit 127
+                        ;;
+            *) echo  "unsupported option $x"
+                        exit 127
+                        ;;
+        esac
+    }
+    done
+
+else
+    ec=$?
+    echo "(bad command line, exiting with $ec)"
+    exit $ec
+fi
+
+
 
 # defaults
 [[ $# -lt 1 ]] && FILENAME="<file>" || FILENAME="$1"
@@ -109,9 +145,9 @@ Z=$(( COLUMNS / 2 ))
 
 foundit=0
 item=${1}
-for x in $(echo ${PATH//~/$HOME} | sed 's/:/ /g' ); do 
+for x in $(echo ${PATH//~/$HOME} | sed 's/:/ /g' ); do
 	nx="${x}/${item}"
-	if [[ -r "$nx" ]]; then		
+	if [[ -r "$nx" ]]; then
 		copies+=( "$nx" )
 	fi
 done
@@ -125,6 +161,9 @@ for ci in "${copies[@]}"; do
 	#fi
 done
 
+if [[ $USE_TARGET_NOTES == 0 ]]; then
+    TARGET_NOTES="#"
+fi
 
 
 cat <<MY_EXTREME_END_OF_FILE
@@ -139,7 +178,7 @@ cat <<MY_EXTREME_END_OF_FILE
 #
 #    Written by Gabriel T. Sharp <21shariria@gmail.com>
 #    Latest versions of this and all of my projects can be
-#    obtained by visiting the repository: 
+#    obtained by visiting the repository:
 #
 #    <https://github.com/osirisgothra>
 #
@@ -175,7 +214,7 @@ $TARGET_NOTES
 
 
 
-# Get Options from Command Line for $1 
+# Get Options from Command Line for $1
 
 declare -ga opts
 declare -gi quiet_level=0
@@ -201,7 +240,7 @@ ARGUMENTS
 	BOOLEAN		A true/false value, represented as 0 for false, and any other value for true.
 	FLOAT		A floating point single or double precision value, it is precise down to about 5 ot 6 decimal places.
 	ENG			Scientific notation, expressed in powers (3x10^4 is written as 3.4)
-	DEG			Like GRAD/RAD, but expressed in degrees (hours, minutes, seconds) so 3 5'5\" is written as \"3.5.5\" 
+	DEG			Like GRAD/RAD, but expressed in degrees (hours, minutes, seconds) so 3 5'5\" is written as \"3.5.5\"
 
 
 LICENSE
@@ -231,15 +270,15 @@ if opts=( \`getopt -n \$0 -o hvq -l help,version,quiet -- "\$@"\` ); then
 			--quiet|-q) let quiet_level++;;
 			--) echo "done with options"; break;;
 			*)	echo "handling option: \$curopt (next:\$nextopt)";;
-		esac	
+		esac
 	done
 	for arg; do
 		# verify/handle non-option arguments
 		case \$arg in
 			*)	echo "handling argument: \$arg";;
 		esac
-	done		
-	
+	done
+
 else
 	echo "error, code is \$?, exiting with fail"
 fi

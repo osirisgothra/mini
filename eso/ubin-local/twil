@@ -1,0 +1,35 @@
+#!/bin/bash
+
+vassert() { test -v $1 || { echo "cannot configure - program forgot to setup $1 variable"; exit $((127+${2-0} )); }; }
+
+vassert working
+vassert launcher
+vassert target
+
+
+
+
+if [[ -d $working ]]; then
+	chdir "$working"
+
+	# unlike zsh, bash uses zero based arrays by default on non-positional parameter arrays (not 1-based)
+	if [[ -x ${target[0]} ]]; then
+		if [[ -x ${launcher[0]} ]]; then
+			# bash requires arrays to be quoted to have each element split instead of whitespace and expansion (this goes for target, launcher, AND positionals)
+			exec "${launcher[@]}" "${target[@]}" "$@"
+			ec=$?
+			echo "error: exec on $launcher (lastarg=$_) failed (lasterr=$ec)"
+			let ec+=129
+			(( ec < 255 )) && exit $ec || { echo "error code is $ec but wont be returned  it is out of range!";  exit 129; };
+		else
+			echo "error: launcher $launcher is not found" > /dev/stderr
+			exit 128
+		fi
+	else
+		echo "warning: cannot find or execute $target" > /dev/stderr
+		exit 127
+	fi
+else
+	echo "fatal: cannot chdir into working dir: $working" > /dev/stderr
+	exit 126
+fi

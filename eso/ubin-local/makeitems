@@ -1,5 +1,4 @@
 #!/bin/zsh
-#!/bin/bash
 #
 #    makeitems
 #    upsample 8x - 60x textures into 64x using imagemagick's 2xSAI sampler

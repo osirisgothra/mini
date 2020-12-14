@@ -1,4 +1,6 @@
 #!/usr/bin/perl -w
+# prenote: file has UTF-8 encoding, be sure you use a compatible text viewer/editor to edit this file
+#          most characters will look normal even in an incompatible editor but will encounter "garbage" wherever introducers and extended characters are used
 #===============================================================================
 #
 #         FILE:  jrun
@@ -16,6 +18,11 @@
 #        NOTES: Uses Paradisim2k2 style file commenting (a very simplistic comment style that uses # as part of its notation and is numbered in the file standalone:
 #               #1 if a config is added, this will need to be dynamic instead of static
 #               #2 move to or add a configuration file (.jrunrc) if it becomes a need (at this time it is NOT needed
+#               #3 added support for i3
+#               #4 added support for enlightenment (bodhi linux), xfce4 (xubuntu), gnome (linux mint, debian)
+#               #5 added DISPLAY checking to allow for multiple screens and newer wms (previously only supported old, single screen format (which is :NUM, like :0), new is :DISPLAY.SCREEN (ie, :0.0 for first display handle and first screen, dual monitor systems typically have :0.0 and :0.1 allocated)
+#               #6 added support for non-i3 environments (not as adaptive but at least it works outside i3 now)
+#               final note: this is a very, very esoteric script, its proabably not going to be what anyone else wants so before executing it make sure it does what you want --- dont expect too much out of a simple little program like this one
 #       AUTHOR: Gabriel Thomas Sharp (gt), osirisgothra@hotmail.com
 #      COMPANY: Paradisim NCNP (Non-Corporate, Non-Profit)
 # FILE VERSION: 1.0
@@ -73,8 +80,8 @@ sub signal_map($signal)
 
 }
 $SIG{$_} = \&signal_map for qw( INT TSTP QUIT CONT STOP );
-my @precmds = ( "killall -SIGSTOP java" );
-my @exitcmds = ( "killall -SIGCONT java" );
+my @precmds = ( "killall -SIGSTOP java &> /dev/null" );
+my @exitcmds = ( "killall -SIGCONT java &> /dev/null" );
 my $i3width = "579";
 my $i3height = "120";
 my @argv = @ARGV;
@@ -84,7 +91,7 @@ my $i3menuworkspace = "94 GUITAR-MENU";
 my $i3exitworkspace = $i3menuworkspace;		# in case true initial WorkSpaceis not found (see get_i3_workspaces)
 sub findi3() { (path($_)->slurp() =~ /i3\n/ == 1 ? return 1 : 0 ) for glob "/proc/[0-9]*/comm"; return 0; }		# this is unportable <- but i3 doesnt run on any other os anyway, so its cool
 my $hasi3 = findi3() ? 1 : 0;
-die("Requires X style window manager (NOT for windows or macos, and must be ported to distant cousins of linux") unless $ENV{DISPLAY} =~ /^:[0-9.]$/;
+die("Requires X style window manager (NOT for windows or macos, and must be ported to distant cousins of linux") unless $ENV{DISPLAY} =~ /\A:[0-9]+(\.[0-9]+)?\z/; #5
 my $debugging = 0;
 
 sub run_with_statusmsg($statmsg, $cmd)
@@ -135,6 +142,11 @@ sub execute_menu_item($item) {
 
 sub get_i3_workspaces()
 {
+    unless ( `pgrep i3` )
+    {
+        return undef;;
+    }
+    
 	my @workspaces = @{ JSON::decode_json( `i3-msg -t get_workspaces` ) };
 	for my $w (@workspaces) {
 		my $wsname = $$w{name};

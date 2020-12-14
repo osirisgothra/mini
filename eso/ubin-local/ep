@@ -1,0 +1,51 @@
+#!/usr/bin/perl 
+#===============================================================================
+#
+#         FILE:  ep
+#
+#        USAGE:  ./ep  
+#
+#  DESCRIPTION: prompt editor (zsh) 
+#
+#      OPTIONS:  ---
+# REQUIREMENTS:  ---
+#         BUGS:  ---
+#        NOTES:  ---
+#       AUTHOR:  Gabriel Thomas Sharp (gt), osirisgothra@hotmail.com
+#      COMPANY:  Paradisim NCNP
+#      VERSION:  1.0
+#      CREATED:  11/22/2020 08:42:33 PM
+#     REVISION:  ---
+#===============================================================================
+
+use strict;
+use warnings;
+use v5.20.2;
+
+package Term::Out;
+use Path::Tiny;
+use POSIX;
+use Term::Cap;
+use Term::Open3;
+
+
+sub new() {
+}
+
+
+package main;
+
+my $term = new Term::Out($ENV{"TERM"} // "linux");
+
+
+die("No function path (FPATH) exported, please export FPATH before running this program!") unless defined($ENV{FPATH}) && length($ENV{FPATH}) > 0;
+my @fdirs = split(':',$ENV{FPATH});
+my $amt = @fdirs;
+say("found " . @fdirs . " path" . ( @fdirs == 1 ? "" : "s" ) ." in FPATH, checking...");
+@fdirs = grep { -d || say("$_ is a bad path! rejected!") } @fdirs;
+my $dif = $amt - @fdirs; # old_amount - new_amount (new will always be smaller or same value)
+say("kept " . @fdirs . " total after checking ($dif were bad)");
+
+
+
+

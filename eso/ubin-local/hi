@@ -195,28 +195,22 @@ my ($opt, $usage) = describe_options( "$progname %o [group(s)]",
 
 ### SUBROUTINES
 #####################################################	###############################################################
+use Term::Cap;
+use POSIX;
 my $terminal = undef;
-say("$ENV{COLUMNS} before");
-if ( $ENV{COLUMNS} =~ /^[0-9]+$/ ) {
-	$ENV{COLUMNS}--;
-}
-say("$ENV{COLUMNS} after");
 sub termsetup
 {
-    require Term::Cap;
-	require POSIX;
+    # TermCap does not give us info about the hardware terminal's size, nor the window size
+    # for that we will have to use ioctl or some other module (who uses ioctl, or some other mechanism)
+    # at this time no core module offers a portable solution that is also accurate
+    # tput binary may be the best route but doesnt solve windows issues
 	warn("TERM not set, things may not go well") unless defined $ENV{TERM};
-	my $termios = new Posix::Termios;
+	my $termios = new POSIX::Termios;
 	$termios->getattr();	
     $terminal = Tgetent Term::Cap { TERM => $ENV{TERM}, OSPEED => $termios->getospeed() };
-    $terminal->Trequire(qw/ce ku kd/);
-	# from abstract
-    #$terminal->Tgoto('cm', $col, $row);
-    #$terminal->Tputs('dl', $count);
-    #$terminal->Tpad($string, $count, $FH);
-
+    $terminal->Trequire(qw/ce ku kd co li/);
+    
 }
-
 sub amatch 
 {
 	my $src = shift;

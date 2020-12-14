@@ -1,5 +1,9 @@
 #!/usr/bin/zsh
-
+if [[ $1 == -i ]]; then
+    # interactive mode
+    echo "todo: interactive mode"
+    exit
+fi
 setopt localoptions
 setopt noxtrace
 setopt aliases

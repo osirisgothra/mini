@@ -1,0 +1,57 @@
+#!/bin/zsh
+# copy me to /app
+# to use or say 'reset'
+
+case $1 in
+    reset)
+        sudo mkdir /app
+        sudo chmod a+rwx /app
+        sudo cp "${0:c}" /app -f
+        sudo cp "${0:c}" ~/bin -f
+        cd /app
+        echo "beginning erase and overwrite of old applist in 5 seconds..."
+        cp -f "$0" /tmp
+        mkdir -f /tmp/lastapplist
+        rm -fr /tmp/lastapplist
+        mv -f /app/^update-applist /tmp/lastapplist
+        rm ^update-applist
+        echo "reset complete, run again to generate"
+        exit 1
+        ;;
+esac
+        
+if [[ $PATH =~ /app ]]; then
+    echo "/app is proper"
+else
+    echo "warning: /app is improper, add 'path+=/app' to your environment!"
+fi  
+echo "working in /app..."
+cd /app
+echo "compiling new system-wide app list for execute links..."
+( locate -qe '*.desktop' | while read r; do; grep -iPo '(?<=^[Ee]xec=)\S+' $r; done ) | sort | uniq > applist
+if [[ -r applist ]]; then
+    echo "list completed, compiling..."
+    all=${$(wc -l applist)[1]}
+    cur=0
+    for x in $(<applist); do
+        # include path as needed in PATH search (keep copy of original x in y
+        y="$x"
+        x=${y:c}
+        echo -ne "[s[1;1H[2K$cur of $all processed...$SECONDS[u"
+        let cur++
+        if [[ -x $x ]]; then
+            r=$(basename "$x")
+            if [[ -x "$y" ]]; then
+                print -Pn "%F{2}accepted $x($r) and creating its link...%f"
+            else
+                print -Pn "%F{3}accepted $x($r) and creating its link (no path given in desktop file, guessed it)...%f"
+            fi
+            ln -fs "$x" "/app/$r" && print -P "%F{6}created ok%f" || print -P "%F{5}BUT FAILED"
+         else
+            print -P "%F{1}rejected '$x' because its not executable%f"
+         fi
+     done
+else
+    echo "applist not generated, check your permissions"
+fi            
+    

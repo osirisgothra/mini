@@ -1,0 +1,608 @@
+#!/bin/bash
+#
+#  tsa (original name, uses aliases to determine browser function)
+#  (depreciated, tsa is being rewritten in perl)
+#  (update: tsa has been officially supersceded by tsa4, in perl, this program is now disabled, to use it
+#           you will need to remove the disabler code in it (see beginning))
+#  due to the depreciation, tsa is symlinked to tsa4, and this file is now tsa1
+#
+#  Author:
+#    Gabriel T. Sharp <osirisgothra@hotmail.com>
+#
+#  Copyright (C)2013-2014 Paradisim Enterprises, LLC (http://paradisim.twilightparadox.com)
+#  Copyright (C)2015-2020 Gabriel Sharp, T.
+#
+#  (Re)created on Sat Oct 2 11:03:17 EDT 2017, 
+#  Last Major Update on Sat Oct 28 11:03:56 EDT 2017
+#
+#  This library is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU Lesser General Public License as
+#  published by the Free Software Foundation; either version 2.1 of the
+#  License, or (at your option) any later version.
+#
+#  This library is distributed in the hope that it will be useful, but
+#  WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+#  Lesser General Public License for more details.
+#
+#  You should have received a copy of the GNU Lesser General Public
+#  License along with this library; if not, write to the Free Software
+#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+# DOCUMENTATION/
+#
+# ABOUT
+#
+# tsa is a drop in replacement for /gxbase/bin/t with extra features
+# and its original ms-dos 'goo.exe'
+# searches (the web) or other things depending on it's
+# configuration which is below
+#
+# the (script, or $0) program name determines it's function
+# much like dash in a startup shell installer. You should however
+# not make copies of this script, but softlink it whenever possible
+# except on non-softlinkable filesystems such as FAT partitions which
+# may be pre-formatted on many USB and flash drives still even now.
+# It is recommended that you format these to ext2 or ext4 when you get them.
+#
+# DEFAULTS
+#
+# script name defaults
+#    first letter
+#       primary function (also known as the 'translator')
+#    second letter
+#       search modifier (simply known as the 'modifier')
+#
+# extra letters will not be considered, so only add them for visual aid purposes
+# (ie, you have loc instead of lo for locate, perhaps because you already have hi and dont want to mislead users)
+#
+# NOTE
+#  i wouldn't bother hardlinking, because it makes it too difficult to
+#  let users know which is the original and could lead to all the files
+#  becoming invalid if the wrong original were to be accidently deleted!
+#  (even though 't' is the default, it could just as easily be 'g')
+# IMPORTANT
+#  for 'translators':
+#  make sure shell-special chars are DOUBLE ESCAPED (esp ;<>()[]!*?&!!) I MEAN IT,
+#  DOUBLE ESCAPED (else the evaluator will resolve it before it gets to cmdline!)
+#
+# FOOTNOTES
+#
+#  a. the '/' in '/$0' isnt a typo, it is there to ensure that Z == '/' if no $0 exists, otherwise no name would be
+#
+#
+# REVISIONS
+#
+#	2014-2015
+#	  thus far, two annual revisions have been done, and a few intermediate changes as well. officially in 2018 this project will now
+#  	  become a subpart of the autox-extras project
+#	2016-2018
+#	  added some stuff/removed stuff, added translation links, etc.
+#	  added modifier maps, then transmaps too
+#	  added colorized logo, status checks
+#	  see commit log for details on changes
+#	2019
+#	  added compatibility for other single-or-double charactered binaries
+#	  as conflicts (blacklisted).
+#     cached the color logo generation to speed that up in high load situations
+#	  added most popular browsers and search engines
+#	  began work on tsap, the successor of tsa, in python3 (not yet available!)
+#	  stopped regular updates to this file on github
+#	  ** paradisim enterprises disbanded **  author will be working alone on future 
+#     ** projects of this kind
+#	  github paradisim projects can be found on osirisgothra's github page now
+#	2020
+#	  millenial-tweens-end update, this is the LAST feature update this program
+#	  will ever get:
+#		- updated to https (search engines wont index pages http anymore anyway)
+#		- updated these notes to include accurate changelog or pointer thereof
+#		- added verification of browsers plus a fallback
+#		- added fallback support for google-chrome->to->chromium-browser
+#		- fixed a couple bugs in translator, cleaned up code a little
+#		- no other non bugfixes will be added, and only major bugs will be fixed
+#		- follow tsap, its successor for a better, newer tsa.
+#
+# PARSABLE DESCRIPTION AND DOCUMENTATION
+#
+# /DOCUMENTATION
+#+------------------------------------------------------------------------------------------------------------------------------+
+#| CONFIG SETTINGS[e]      | below; all                                                                                         |
+#| add custom browsers/pro-| non r-o vars                                                                                       |
+#| grams/searchtext here   | are described!                                                                                     |
+#+------------------------------------------------------------------------------------------------------------------------------+
+#| setting[e]              | means to use ...                                                                                   | [e: 2]
+#+------------------------------------------------------------------------------------------------------------------------------+
+#| start_in_background     | 'coproc' to run process (no wait)    [h][g]                                                        |
+#| remove_from_jobcontrol  | 'bg' plus 'disown' to run detached[a][h]                                                           |
+#| use_exec      		   | 'exec' turns process over to browser [h]                                                           |
+#| translators      	   | hashtable that links script prefix[b] to binary and its arguments to get passed in first           |
+#| modifiers      		   | hashtable that translates script suffix into specific command line argument suffix[b]              |
+#| default_translator      | pointer to default[c] entry in 'translator'                                                        |
+#| default_modifier        | pointer to default[c] entry in 'modifiers'                                                         |
+#| loop_and_prompt[g :3]   | runs in an infinite loop prompting for arguments between or after runs[d]                          |
+#| colorful_logo[i]        | was prepared and used breifly in 2016, but later disabled, see note [i]                            |
+#+------------------------------------------------------------------------------------------------------------------------------+
+#
+# FOOTNOTES
+#           [a]: detached means reassigned to parent's PID (PPID)
+#           [b]: prefix and suffix are in script's name and should use symbolic links to configure them (softlinks!)
+#			[c]: defaults are used when no alternatives could be satisfied - usually happens when scriptname is improper
+#           [d]: these values are boolean as in: 0 is FALSE, ANYOTHERNUMBER is TRUE <- evaluated by (( )) operator
+#           [e]: conditions are later translated into condition codes, but conditions are not yet in the cmdline so change them
+#			  2:  here if you have a preference to use them!
+#           [g]: for execution modifiers (first 3 and last 1) THE ORDER OF PRIORITY IS FIRST TO LAST, TOP TO BOTTOM (the items farther
+#             2: up the list take precedence over the latters, see the case statement on how. loop_and_prompt works only if all others
+#             3: are set to false (0)
+#		    [i]: removed in 2017 annual review and cleaned up and filed as perma-comment in 2018 in preparation for tsa-python
+#                option exists only for portability (it WILL be in the ported to python, multi-platform version)
+#           [j]: added comments section for longer changes, with no date attachment. They are identified by a unique code
+#                which is usually generated by the original line/column combination. This does NOT mean the comment will occur on that
+#                line collumn, it is just a reference number for looking back at the comment, nothing more.
+#           [k]: this comment, k, is the last change comment for this version, all future footnotes will be brief, if at all.
+#
+# COMMENTS
+#
+# 146468-A:
+#
+#     now matching files not using generation aglorithm, instead just softlinks
+#     to the ORIGINAL file. This is obtained by getting the final destination file
+#     path of whatever this (bash_source) links to. Then, all files in the same directory
+#     with our file, are sought out, and removed (with approval from user first).
+#
+#   - warn: even user-made symbolic links to the original file will be removed using this
+#           method. This can, depending on your intentions, be a good or bad thing. If not
+#           sure, you can always make a backup copy, before proceeding, of the link files.
+#           (note: softlinks do not have counts so theres no way to track every link file)
+#
+# at the moment these settings (4 of them) are not stackable, but, in the future they can be easily converted to
+# or added to the stack, this ensures that the routine is stack-ready:
+#
+#   Revision History
+#   Date                                    Revision Name/Number            User Who Revised
+#   _______________________________________________________________________________________________
+#
+#   Sun Nov  6 18:18:52 EST 2016            Initial Creation                osirisgothra@larnica
+#   Sat Oct 28 11:13:03 EDT 2017            Annual Review                   osirisgothra@larnica
+#	Fri Mar 30 15:12:42 EDT 2018			Annual Review					osirisgothra@larnica**
+#   Sat Apr  7 08:51:46 EDT 2018            Bugfix							osirisgothra@larnica
+#   Sun Apr 22 11:14:39 EDT 2018            Added Illegal Name Checking          <same as above>
+#   Fri Dec 11 07:58:07 EST 2020            Officially Supersceded (End of Life) <same as above>
+#
+#  ** = reached by osirisgothra@hotmail.com <or> internalinsomnia@gmail.com <or> 21shariria@gmail.com
+#       best contact method is always 21shariria@gmail.com
+
+# you could re-enable the program, by setting true to false on the next line (not recommeneded, make a link from tsa4 to tsa instead)
+if true; then
+    if tty; then
+        output_channel="/dev/stdout"
+        sleep_amt=5
+    else
+        output_channel="/tmp/tsa-has-failed-because-its-depreciated.log"
+        sleep_amt=0
+    fi
+    echo "tsa is now depreciated, please use tsa4 instead. (if you feel you must use tsa, you will need to follow instructions within the program file itself on how to re-enable it, or check out an older version of it from github, that address is listed in the program file itself as well. A 5 second pause (in case part of another script, and so it doesnt freeze forever in the background in the same case)" > $output_channel
+    [[ $sleep_amt -gt 0 ]] && sleep $sleep_amt
+    case $- in  
+        *i*) return 127;;
+        *) exit 127;;
+    esac
+fi
+
+if [[ -n $TSA_USES_I3_WORKSPACE ]]; then
+	echo "detected i3 specific workspace for tsa -- switching to it ($TSA_USES_I3_WORKSPACE) if possible..."
+	i3 workspace "$TSA_USES_I3_WORKSPACE"
+fi
+
+((USE_ILLEGAL_NAMES_ANYWAY)) && {
+	if [[ "$PBT_AGREE_ULNA" != "$(( `id -u` + 0 ))" ]]; then
+		echo "WARNING: USE_ILLEGAL_NAMES_ANYWAY set to 1, without an \"PBT_AGREE_ULNA\""
+		echo "(you must also define \"PBT_AGREE_ULNA\" and set it to your uid (which is `id -u`) in"
+		echo "order to *not* see this warning!"
+	fi
+} || {
+	# list of commonly used linux filenames, bash keywords, etc
+	declare -a ILLEGAL_NAMES=( fi id if do cd df du lc ls ex sn nm xz ld aj ci co pg fb gs mf sg cc mc wc al hd as ar du sc tr bc i3 dc ul ab lc lp pr nl m4 ip iw tc su cp mt ed ln nc ps ip mv ls rm df ss sh bb )
+	# set to 1 if you want to risk security and use the above names anyway 
+	# and is usually only done under controlled and restricted shells and/or scripts
+	declare USE_ILLEGAL_NAMES_ANYWAY=0
+}
+
+# program entry point
+
+
+# *** command line option: --purgelinks ***
+
+if [[ $1 == --purgelinks ]]; then
+	# SEEALSO: 146465-A
+	echo "PURGELINKS WILL REMOVE ALL LINKS TO THE ORIGINAL FILE (NO UNDO!)"
+	echo "backup your files before you do this!"
+	original="$(realpath $BASH_SOURCE)"
+	echo "core file: $original"
+	echo "delete all links to $original in ${PWD} [y/[n]]? "
+	while true; do read -sn1 x; [[ $x =~ [yn] ]] && break; done
+	case $x in
+		y)	echo "removing links to $original in $PWD - searching for files..."
+			declare -a foundfiles=( )
+			for x in *; do
+				if [[ -L "$x" ]]; then
+					if [[ "$(realpath $x)" == "$original" ]]; then
+						echo "found link $x"
+						foundfiles+=( "$x" )
+					fi
+				fi
+			done
+			echo "deleting the files..."
+			for x in "${foundfiles[@]}"; do
+				echo -n "removing $x -"
+				if rm -f "$x"; then
+					echo "OK"
+				else
+					echo "FAILED: (return value was $? and possibly some output above to indicate why)"
+				fi
+			done
+			echo "all done!"
+			exit 126
+			;;
+		*)	echo "not removing anything, user choice to abort,\noperation halted!"
+			exit 127
+			;;
+	esac
+
+# *** --makelinks command line option ***
+
+elif [[ $1 == --makelinks ]]; then
+	echo "MAKELINK MODE PRESS A KEY TO MAKE THEM IN $PWD -- CTRL-C ABORTS"
+	echo "OLD LINKS WILL BE OVERWRITTEN SO PLEASE BACKUP FIRST!"
+	read -sn1
+	echo "creating links in $PWD..."
+	( for x in d G Q T U f g i l m o q r t; do
+		[[ -r $x ]] && echo "exists: $x" || echo "missing: $x"
+		for y in d g h i; do
+			[[ -r $x$y ]] && echo "exists: $x$y" || echo "missing: $x$y"
+		done
+		[[ -r $x ]] && echo "exists: $x$y" || echo "missing: $x$y"
+	done ) | grep -Po '(?<=missing: ).*' |
+	while read r; do
+		FOUND_ILLEGAL_NAME=0
+		if [[ $USE_ILLEGAL_NAMES_ANYWAY -eq 0 ]]; then
+			for d in "${ILLEGAL_NAMES[@]}"; do
+				if [[ "$d" == "$r" ]]; then
+					FOUND_ILLEGAL_NAME=1
+					echo -ne "illegal name list matched $r, "
+				elif which "$r" &>/dev/null; then
+					FOUND_ILLEGAL_NAME=1
+					echo -ne "an executable named '$r' already exists in the system path, "
+				fi
+			done
+		fi
+		if [[ $FOUND_ILLEGAL_NAME -eq 0 ]]; then
+			ln -s "$BASH_SOURCE" "$PWD/$r"
+		else
+			echo "$PWD/$r is not being created"
+		fi
+	done
+
+	echo "done (rv=$?, ps=$PIPESTATUS)"
+	exit 122
+fi
+
+# *** regular program execution begins here ***
+
+# check for background execution 
+if [[ $BG_EXEC == 1 ]]; then
+	TMPFILE="$(mktemp)"
+	echo "ALERT: BG_EXEC asked for, starting in BACKGROUND (even for help)"
+	echo "any errors diverted to: $TMPFILE"
+	sleep 5 # this is going to be depreciated
+	env BG_EXEC=0 "$0" "$*" 2> "$TMPFILE" 1> /dev/null &
+	disown
+	case $- in
+	      *i*) return;;
+		*) exit;;
+	esac
+elif [[ $BG_EXEC == 254 ]]; then
+	echo "got successful background-run code, proceeding as that..."
+	export IN_BACKGROUND=1
+else
+	export IN_BACKGROUND=0
+	export BG_EXEC=0
+fi
+# see footnote a.
+Z="$(eval basename\ /$0)"
+
+# check for arguments, if none, enter "shell mode"
+case $# in
+	0)
+		declare -ig loop_and_prompt=1;;
+	*)
+		declare -ig loop_and_prompt=0;;
+esac
+
+# set variables for "shell mode" callback
+if [[ "$1" == "LOOPACCESS" ]]; then
+	shift
+	declare -ig start_in_background=1
+	declare -ig remove_from_jobcontrol=1
+# #### override whatever value was set before, but dont touch it if we arent the callback! #### #
+	declare -ig	loop_and_prompt=0
+else
+# set variables for regular cases
+	declare -ig start_in_background=0
+	declare -ig remove_from_jobcontrol=0
+fi
+
+# UPDATE(FINAL): added variable to handle if user has chromium-browser AND google-chrome
+# (without google-chrome, it will also be chromium-browser, if not that, then, www-browser)
+
+declare -g pref_chrome="$( [[ -x `which google-chrome` ]] && echo "google-chrome" || echo "chromium-browser")"
+
+
+# set variables for all occasions
+
+declare -ig colorful_logo=0
+declare -ig use_exec=0
+#declare -g LOGO_RENDERED="$(mktemp)"
+# if you get NO_TRANSLATOR, check here -- be sure yours is here!
+# also check for www-browser setup on your machine (usually is graphical!)
+declare -gA translators=( 	[d]='dillo'
+							[t]='links2'
+							[T]='dillo'
+							[f]='firefox'
+							[g]='firefox'
+							[c]='chromium-browser'
+							[l]='locate'
+							[L]='find'
+							[x]='xombrero'
+							[u]='surf'
+							[m]='midori'
+							[s]='safari'
+							[k]='konqueror'
+							[K]='rekonq'
+							[G]="$pref_chrome"
+							[fallback]='www-browser'
+					  )
+					  	# UPDATE(FINAL): added validation for modifier (browser) programs
+					  	# 				 and an additional modifier, 'www-browser' will be used if missing it
+					  	starred=0
+						for x in ${!translators[@]}; do
+							#echo "processing $x ..."
+							#echo "which ${translators[$x]} == $(which ${translators[$x]})"
+							newtrans=`which ${translators[$x]}`
+							if [[ -x "$newtrans" ]]; then
+								echo "translator verified for '$x' (${translators[$x]}): $newtrans"
+								if [[ $translators[$x] != "$x" ]]; then
+									echo "commandline for $x ($translators[$x]) differ, keeping command line the same"
+								else
+									translators[$x]="$newtrans"
+								fi
+							else
+								echo "translator for '$x' is not available (${translators[$x]}), the default will be used: ${translators[fallback]}*"
+								let starred++
+								translators[$x]=${translators[fallback]}
+							fi
+						done
+						if ((starred)); then
+							echo "* = it is up to you to ensure ${translators[fallback]} is set properly!"
+						fi
+
+# UPDATE(FINAL): updated to https protocol as of now just about every website
+#                on the net (esp search engines) require it, and ALL websites are now using it 
+#				 server-side as per google's imposing the secureweb law stating that no results would
+#			 	 be generated by non-secure websites - https usually also works in text so dont
+#				 worry about the text part (the new python3 version will handle this much better
+#				 and is partly why its being moved).
+# [g]='https://www.google.com/search?q=%s'
+# [i]='https://www.google.com/search?tbm=isch&ie=ISO-8859-1&hl=en&source=hp&biw=&bih=&q=%s&btnG=Search+Images&gbv=1'
+declare -gA modifiers=( 	[g]='https://www.google.com/search?q=%s'
+							[d]='https://www.duckduckgo.com/?q=%s+!'
+							[i]='https://images.duckduckgo.com/?q=%s+!'
+							[h]='https://www.github.com/%s'	
+							[D]='https://www.dict.org/search?q=%s'
+							[m]='https://man.cx/?page=%s'
+    				  )
+declare -g default_translator=t
+declare -g default_modifier=g
+declare -a tmps=( "/tmp/toolie.X.logo" )
+
+
+PROGNAME="$0 ($(basename $(realpath tsa)))"
+PROGVERS="3.1"
+PROGDESC="browser search engine launcher"
+DATEHI="1995"
+DATELO="2018"
+AUTHOR="Gabriel T. Sharp"
+EMAIL="osirisgothra@hotmail.com"
+LICKIND="[1mGNU GPL [2mv[1m2[2m.[1m1[22m"
+        msg="\\n[0;1;36m$PROGNAME v$PROGVERS - $PROGDESC\\n"
+        msg+="(C)$DATEHI-$DATELO $AUTHOR <$EMAIL$>\\n"
+        msg+="\\n"
+        msg+="[0;36mLicensed under the $LICKIND license\\n"
+        msg+="\\n"
+        msg+="[0;34mYou should have received a copy of the GNU Lesser General Public\\n"
+        msg+="License along with this library; if not, write to the Free Software\\n"
+        msg+="Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA\\n"
+        msg+="[0m\\n"
+
+echo -e "$msg" | perl -wpe 'BEGIN {our $z=20+int(rand()*235);}; $z=$z+1; s/((?<![[:digit:]]|;|)[[:punct:]]|, |[-.]|^)/[22;1;38;5;${z}m$&[2m/g'
+
+
+if [[ $1 == --help ]]; then
+        shopt -s xpg_echo
+		echo "syntax: $0 < --help | URL >"
+		echo ""
+		echo "options"
+		echo "  --help		this help you are reading now"
+		echo "  URL			the universal reference link to the page you want to view"
+		echo ""
+		echo "explanation"
+		echo "  URL			URLs can be local or network, in the form of resourcetype://"
+		echo "              Resource types can be files (file:///usr/home for example"
+		echo "				or webpages (http://mypage.com or https://mysecure.com) or another textual/data resource type"
+		echo "				such as (ftp://), (gopher://), (\\windowsnetworkhostid/sharename|\$DEFAULTSHARENAME), etc"
+		echo "				without the parentheses () of course."
+        echo ""
+        echo "\e[30;1minternal configuration status\e[0m"
+        echo
+        tput setaf 150
+        echo "translators (first letter = translator)"
+        tput setaf 140
+        echo "letter   value"
+        tput setaf 235
+        echo "-------+------------------------------------"
+        for w in "${!translators[@]}"; do
+                tput sgr0
+                tput setaf 15${RANDOM:0:1}
+              printf "%c        [2m%s\n" "$w" "${translators[$w]}"
+        done
+        echo
+        tput sgr0
+        tput setaf 150
+        echo "modifiers (second letter)"
+        tput setaf 140
+        echo "letter   value"
+        tput setaf 235
+        echo "-------+------------------------------------"
+        for w in "${!modifiers[@]}"; do
+                tput sgr0
+                tput setaf `perl -e 'print(int(rand()*9)+150)'`
+               printf "%c        %s\n" "$w" "${modifiers[$w]}"
+        done
+        echo "options special:"
+        echo " --makelinks             makes links above mentioned in current dir"
+        echo
+        tput sgr0
+        exit 1
+fi
+if [[ $1 == "--intervene" || $1 == "-i" ]]; then
+	echo "-[-i]ntervene was chosen ($1), asking for change in translator..."
+	echo
+	for ntl in ${!translators[@]}; do
+		echo -e "[32;1m${ntl}\t[0;2m=\t[0;32m${translators[$ntl]}[0m"
+	done
+	printf "[s"
+	[[ $UID -le 1000 ]] && sudo modprobe pcspkr 2> /dev/null
+	until [[ ${translators[$newindex]} != "" ]]; do
+		[[ -n $newindex ]] && beep
+		printf "[u[1;34m%s[2m:[0m" "pick new translator"
+	done
+	[[ $UID -le 1000 ]] && sudo modprobe -r pcspkr 2> /dev/null
+	shift
+fi
+
+
+declare -g translator_idx=$( [[ ${#Z} -ge 1 ]] && echo ${Z: 0:1} || echo $default_translator )
+declare -g modifier_idx=$( [[ ${#Z} -gt 1 ]] && echo ${Z: 1:1} || echo $default_modifier )
+declare -g translator=${translators[$translator_idx]}
+declare -g modifier=${modifiers[$modifier_idx]}
+declare -g searchstring=$( n=0; for x; do [[ $n -gt 0 ]] && echo -ne '+'; let n++; echo -ne "$x"; done )
+declare -ga cmdline=( "$translator" "$(printf "$modifier" "$searchstring")" )
+
+echo -ne "checking for default translator..."
+if [[ "$default_translator" == "" ]]; then
+	echo "fail--default translator not set!"
+else
+	echo "ok"
+fi
+echo -ne "checking for default modifier..."
+if [[ "$default_modifier" == "" ]]; then
+	echo "fail--default modifier not set!"
+else
+	echo "ok"
+	echo -ne "checking for valid indexes for modifiers and translators..."
+	if [[ "$translator" == "" ]]; then
+		echo "failed (FAIL_NO_TRANSLATOR)"
+		exit 126
+	else
+		echo "ok(xlat,"
+		if [[ "$modifier" == "" ]]; then
+			echo "FAIL_NO_MODIFIER)"
+			exit 127
+		else
+			echo "mod)"
+		fi
+	fi
+fi
+
+echo ""
+echo "[2m items[22;1m:[11m"
+echo "[2m       translator: $translator"
+echo "[2m         modifier: $modifier"
+echo "[2m indexes:"
+echo "[2m       translator: $translator_idx"
+echo "[2m         modifier: $modifier_idx"
+echo "[2m      search text: $searchstring"
+echo ""
+echo "  result cmdline: [${cmdline[@]}]"
+echo "  result command: (${#cmdline[@]} element(s))"
+for x in "${cmdline[@]}"; do
+echo "                  $x"
+done
+if [[ $T_NO_KEYWAIT == FALSE ]]; then
+       echo "press a key"
+       # - (set/remove T_NO_KEYWAIT=TRUE to turn off)
+       read -sn1
+else
+        echo ""
+        #sleep 1.25
+        # it takes up to .75 seconds to run sleep, accounting for that
+        # by waiting 1.25 + .75 = 2 seconds
+fi
+
+# evaluate this way because 1) shift only works on positional parameters
+# and 2) because cmdline[0] could have more than one argument in itself
+# NB: $cmdline without the array will default to cmdline[0] for us
+# without the work, as does cmdline[1]:1 when referencing the inverse of
+# the latter.
+unset conditions
+declare -g conditions="n"
+# translate to condition codes for case evaluation(s)
+((start_in_background)) && conditions=s
+((remove_from_jobcontrol)) && conditions=r
+((use_exec)) && conditions=x
+((loop_and_prompt)) && conditions=l
+# stackable conditions here
+((example_stackable_item)) && conditions+=[example]
+SECONDS=0
+# evaluate cases
+case $conditions in
+	n)	${cmdline} "${cmdline[@]:1}"
+		;;
+	s)	${cmdline} "${cmdline[@]:1}" &
+		;;
+    x)  echo "started (PID=$PID PPID=$PPID)"
+    	exec ${cmdline} "${cmdline[@]:1}"
+    	;;
+    r)	echo "removing ownership (not a child of $PID, now $PPID)"
+    	${cmdline} "${cmdline[@]:1}" &> /dev/null & disown
+    	;;
+    l)  echo "starting..."
+    	sleep 1
+    	while true; do
+    		read -p "${cmdline[0]} search> " CLINE
+    		sleep 0.5
+    		if [[ $CLINE =~ [EQeq][XUxu][Ii][Tt] ]]; then
+    			echo "terminating loop by request of user..."
+    			sleep 1
+    			break
+    		fi
+    		echo "starting externally..."
+    		sleep 0.5
+    		$0 "LOOPACCESS" $CLINE &> /dev/null & disown
+    		sleep 0.5
+    		echo "started with parent $PPID as owner"
+    		sleep 0.5
+    		echo
+    	done
+    	;;
+    *)
+    	echo "SHOULDNOTHAPPEN: Unknown combination of conditions ($conditions), please contact your administrator or E-mail the author on this matter!"
+    	exit 121
+    	;;
+esac
+# only if execution phase lasted less than 3 seconds
+if [[ $SECONDS -lt 3 ]]; then
+    sleep 1.5
+    # pause so any error could be read before return to shell
+fi
+echo ""
+exit 0
+
