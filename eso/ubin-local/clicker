@@ -1,0 +1,79 @@
+#!/usr/bin/perl
+use warnings;
+use strict;
+use v5.20.2;
+use Path::Tiny;
+use Time::HiRes qw( sleep );    # overrides stock sleep() with one that accepts decimal values < 1 second (fractional seconds, very high resolution)
+
+no warnings 'experimental';
+use feature 'signatures';
+
+my $button = $ARGV[0] // 1;
+my $rate = $ARGV[1] // 0.75;
+
+
+# some perlnix commands
+sub touch(@files)
+{
+    for my $file (@files) {
+        $file = path($file);
+        $file->spew(" ");
+    }
+}
+sub rm(@files)
+{
+    for my $file (@files) {
+        unlink(@files);
+    }
+}
+sub echo(@strings)
+{
+    my $flags = "";
+    if ( $strings[0] =~ /\A-[-ne]\z/ ) 
+    {
+    
+        $flags = shift(@strings);
+    }
+    # emulate sh-style echoing slightly enhanced, here, e will cause the robust 'printf' to be used so be aware of that!
+    for my $str (@strings) 
+    {
+        if ($flags =~ /e/) 
+        {
+            printf "$str";
+        } else {
+            print $str;
+        }
+        printf "\n" unless $flags =~ /n/;        
+    }            
+}
+
+
+
+
+if ( -r "/tmp/clicking.tmp" ) {
+    unlink "/tmp/clicking.tmp";
+    echo "ending clicker";
+    for (path("/proc")->children()) {
+        if ( /[0-9]+\z/ ) {
+            my $procname = join("",$_->child("comm")->lines());
+            my $procid = $_->basename();
+            if ( $procname =~ /clicker/ ) {
+                if ( $$ != $procid ) {
+                    say "ending foriegn clicker process (mypid=$$): pid=$procid name=$procname";
+                    kill("SIGKILL",$procid);
+                }
+            
+            }
+        }
+    }
+} else {
+    say "starting clicker";
+    touch "/tmp/clicking.tmp";
+    while(1) {
+        echo "click button $button at a rate of $rate";
+        system("xdotool","click",$button);
+        sleep($rate);
+    }
+    
+    
+}

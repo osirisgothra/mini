@@ -107,7 +107,7 @@
 # ┃ #6 ┃ VERIFY TODO: maybe look at IO::Handle->eof/autoflush to check nothing left to write or read                                                                          ┃
 # ┃ #7 ┃ make sure this actually exists in the list of names above or bad things will happen                                                                                  ┃
 # ┃ #8 ┃ TODO: dynamically add the rest                                                                                                                                       ┃
-# ┃ #9 ┃ <new note>                                                                                                                                                           ┃
+# ┃ #9 ┃ Use @internal_excluded_terms to set the internal ones, NOT this one (it overrides ALL, and is meant to be blank until setup_exclusions runs!                         ┃
 # ┃ #10┃ <new note>                                                                                                                                                           ┃
 # ┃ #11┃ <new note>                                                                                                                                                           ┃
 # ┃ #12┃ <new note>                                                                                                                                                           ┃
@@ -202,7 +202,7 @@ sub new ($clsname) {
 }
 sub put($self,$cmd,@args) {
     system($self->{tput},$cmd,@args);
-} #8
+}                                                                                                                      #8
 
 
 ### Term::Box package
@@ -268,7 +268,8 @@ package main;
 
 ### hashes and lists
 
-my @bhooks = (  { sym => "T", cli_path => "/bin/elinks -g", searcher => "google" },             #1
+my @excluded_terms = ( );                                                                                              #9
+my @bhooks = (  { sym => "T", cli_path => "$ENV{HOME}/bin/elinks-g", searcher => "google" },                           #1
                 { sym => "t", cli_path => "/bin/elinks", searcher => "google" },
                 { sym => "f", gui_path => "/bin/firefox", cli_path => "/bin/elinks", searcher => "google" },
                 { sym => "C", gui_path => "/bin/google-chrome", cli_path => "/bin/elinks", searcher => "google" },
@@ -278,43 +279,47 @@ my @bhooks = (  { sym => "T", cli_path => "/bin/elinks -g", searcher => "google"
                 { sym => "n", gui_path => "/bin/netsurf", cli_path => "/bin/elinks", searcher => "google" },
                 { sym => "o", gui_path => "/bin/opera", cli_path => "/bin/elinks", searcher => "google" },
                 { sym => "u", gui_path => "/bin/surf", cli_path => "/bin/elinks", searcher => "google" },
-                { sym => "dI", gui_path => "/bin/dillo", cli_path => "/bin/elinks", searcher => "googleimages" },
+                { sym => "dI",gui_path => "/bin/dillo", cli_path => "/bin/elinks", searcher => "googleimages" },
                 { sym => "d", gui_path => "/bin/dillo", cli_path => "/bin/elinks", searcher => "google" },   );
-my %sengines = (  google => 'https://www.google.com/search?q=%s',
-                  googleimages => 'https://www.google.com/search?q=%s&tbm=isch' );
-my @excluded_terms = ( '-video',  '-youtube', '-twitter', '-"you tube"' );
+                
+my %sengines =  ( google        => 'https://www.google.com/search?q=%s',
+                  googleimages  => 'https://www.google.com/search?q=%s&tbm=isch' );
+
+my @internal_excluded_terms = ( '-video',  '-youtube', '-twitter', '-"you tube"' );
 my ($opt, $usage) = describe_options(
     '$0 %o <some-arg> file',
-    [ 'exclude-mode|X', "choose exclusion list mode (can be either internal, external or both(default))", { default => 'both' } ],
+    [ 'exclude-mode|X', "choose exclusion list mode (internal, external, both, or none)", { default => 'both' } ],
     [ 'no-excludes|x', "do not use exclude internal or external lists at all (same as -X none)" ],
-    [ 'create-symlinks|s',  "just create symlinks in ~/bin to this program, of all the different predefined searchers (read documentation for details)" ],
+    [ 'create-symlinks|s',  "just create symlinks in ~/bin to this program, (see 'perldoc $0' documentation)" ],
     [ 'dry-run|d',  "dont do anything, just show what would be done (implies -v)" ],
     [ 'verbose|v',  "print extra stuff"            ],
     [ 'help',       "print usage message and exit" ],
+    [ ], [ "defaults: exclude-mode: both" ], 
 );
 
-my @quick_overrides=(   's/elinks/links2/g' );  #2
+my @quick_overrides=(   's/elinks/links2/g' );                                                                         #2
 
 
 ### subroutines
 
 sub dryrun  { return $opt->dry_run; }
 sub verbose { return 1 if ($opt->verbose || $opt->dry_run ); }
-sub getprog($isgui,$pfx) { #3
+sub getprog($isgui,$pfx) {                                                                                             #3
     for (@bhooks) {
         if ( $_->{sym} eq $pfx ) {
             my ($gui,$cli) =  ($_->{gui_path},$_->{cli_path});
             printf("gui=%s cli=%s\n",$gui // 'none',$cli // 'none');
             if ( !defined($gui) || !defined($cli) ) {   #3B
-                die("gui_path and cli_path are both undefined, this is not a valid entry") unless (defined($gui) || defined($cli));
+                my $hasui = (defined($gui) || defined($cli));
+                die("gui_path and cli_path are both undefined, this is not a valid entry") unless $hasui;
                 $persist="cli";
-                return ($_->{searcher},$cli) unless defined($gui) ;
+                return ($sengines{ $_->{searcher} },$cli) unless defined($gui) ;
                 die("cannot launch a gui-only rule when there is no GUI present!") unless $isgui;
                 $persist="gui";
-                return ($_->{searcher},$gui);
+                return ($sengines{ $_->{searcher} },$gui);
             }
             else { #3C
-                return ($_->{searcher}, $isgui ? $gui : $cli);
+                return ($sengines{ $_->{searcher} }, $isgui ? $gui : $cli);
             }
         }
     }
@@ -331,46 +336,56 @@ sub verbose_action($msg,$action) {
 }
 sub exit_action($act,$code) {
     my $actcode = &$act();
-    $code //= 127;  #4
-    say("(exited/" . ( (defined($actcode) && $actcode > 1)  ? "actcode=$actcode, " : '' ) . "retcode=$code)");  # actcode is only shown if it's defined
+    $code //= 127;                                                                                                     #4
+    say("(exited/" . ( (defined($actcode) && $actcode > 1)  ? "actcode=$actcode, " : '' ) . "retcode=$code)");         #4B
     exit($code);
 }
 sub setup_exclusions() {
-    return if ($opt->exclude_mode eq "internal" || $opt->exclude_mode eq "none" || $opt->no_exclusions);
-    my $home = path(  $ENV{HOME} // "/tmp" );
-    if ($home->child(".tsarc")->exists()) {
-        for ($home->child(".tsarc")->lines()) {
-            chomp;
-            my $ok = 0;
-           if ( /^([^#]+)(#.*)?$/ ) {
-                if ( defined($1) && length($1) > 0) {
-                    push(@excluded_terms,$1);
-                    $ok = 1;
-                }
-           }
-           say("skipped line: $_") unless $ok;
-        }
-        say("added excluded term: $_") for @excluded_terms;
+    return if ($opt->exclude_mode eq "none" || $opt->no_excludes );
+    $_ = $opt->no_excludes ? "none" : $opt->exclude_mode;
+    if (/\A(both|external)\z/) {
+        my $home = path(  $ENV{HOME} // "/tmp" );
+        if ($home->child(".tsarc")->exists()) {
+            for ($home->child(".tsarc")->lines()) {
+                chomp;
+                my $ok = 0;
+               if ( /^([^#]+)(#.*)?$/ ) {
+                    if ( defined($1) && length($1) > 0) {
+                        push(@excluded_terms,$1);
+                        $ok = 1;
+                    }
+               }
+               say("skipped line: $_") unless $ok;
+            }
+            say("added excluded term: $_") for @excluded_terms;
 
+        }
+    }
+    if (/\A(both|internal)\z/) {
+        push(@excluded_terms,$_) for @internal_excluded_terms;
     }
 }
 
 # scalars
-
 my $rname = path($0)->realpath()->basename();
 my $name = path($0)->basename();
 my $display = $ENV{DISPLAY} // "none";
 my $guimode = ($display =~ /:[0-9]/) ? 1 : 0;
 my ($sea,$prog) = getprog($guimode, $name);
-my $terms = join("+",@ARGV,@excluded_terms);
-my $searchstring = sprintf($sengines{$sea},$terms);
-my $fallbackname = "t"; #7
+my $terms;                                                                                                             #9
+my $searchstring;
+my $fallbackname = "t";                                                                                                #7
 
 ### MAIN PROGRAM
 
+setup_exclusions();
+$terms = join("+",@ARGV, @excluded_terms );                                                                            #9
 say($usage->text), exit if $opt->help;
 die("no search terms!") unless @ARGV;
-@excluded_terms = () if ($opt->no_excludes || $opt->exclude_mode eq "external" || $opt->exclude_mode eq "none");
+
+$searchstring = sprintf($sea,$terms);
+print("searchstring=$searchstring terms=$terms prog=$prog\n");
+
 exit_action( \&createsymlinks, 1 ) if $opt->create_symlinks;
 if ($rname eq $name) {
     say("using non symlink file, no special names will be translated, assuming name=$fallbackname");
@@ -383,7 +398,7 @@ unless ( -x $prog ) {
 else {
     say("resolved $0 to $prog, using searcher $sea ($searchstring)") if verbose;
     die("$prog is not reachable, please check your paths and retry") unless -x $prog;
-    $guimode = $persist eq "gui" ? 1 : ( $persist eq "cli" ? 0 : $guimode ); #5
+    $guimode = $persist eq "gui" ? 1 : ( $persist eq "cli" ? 0 : $guimode );                                               #5
 
     my @exec = ( $prog, $searchstring );
     say("what would be done:") if dryrun;
@@ -394,7 +409,7 @@ else {
         } else {
             unless (fork()) {
                 say("forking since in gui mode") if verbose;
-                close STDIN;        #6
+                close STDIN;                                                                                                           #6
                 close STDOUT;
                 exec @exec;
             }

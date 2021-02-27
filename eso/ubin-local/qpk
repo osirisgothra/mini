@@ -1,0 +1,285 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+use v5.20.2;                    # 5.20.2+ supports stable "given" keyword, function signatures (cannot guarentee this in earlier versions, unverified)
+use Term::ReadLine;
+use POSIX;                      # for 'exit' explicitly, 'geteuid' and in the future, floor/rand/ceil
+use IO::Handle;                 # for 'sync' and 'flush' (used to flush partial lines, clear, etc)
+use Path::Tiny;                 # for object 'Path::Tiny::path()' operatingsystem-blind paths
+use Cwd;                        # imports 'cwd' to get current directory
+use Carp;                       # imports 'carp','croak','confess','cluck',etc..
+use feature 'signatures';       # allows "sub($arg)" instead of "sub { $arg = shift; }" (note: no sigil subs, attrs are explicit now)
+no warnings 'experimental';     # remove warning for signatures and 'given' keyword
+
+sub CORE::say($str,@more) {
+    chomp $str;
+    chomp @more if @more;
+    print("$str\n");
+    print("$_\n") for @more;
+    return 
+}
+
+die("needs superuser to run..") unless ( POSIX::geteuid() == 0 );
+
+my %version=( major => 1, minor => 1, revision => 0 );
+my $banner_padding=1;   # applies to beginning and end (1 means 2 total lines of pad, use NUM/2 if you want to specify NUM as the total number of padding, if it is an odd number, the top will get the extra space(s))
+my $banner="\"QPK\"\n ($0, pid=$$)\n Quick Process Killer\n Version $version{major}.$version{minor}r$version{revision}\n Written by Gabriel T. Sharp, Jan 2021\n This program is licensed under the GNU GPL (version 3.0)\n Please see the GNU website at www.gnu.org for more details and a copy of this license.\n";
+my $padtext="\n";
+my $clear_before_use = 0;   # set to 1 to make more secure
+my $term = Term::ReadLine->new('Process Killer Quickly');
+my $prompt = "#MODE# qpk> ";
+my $intused=0;
+  
+%SIG =  (		INT => sub { $intused=1; say "\nintercepted SIGINT (use exit to quit!)\n"; },
+                STOP => sub { say "\nqpk is not to be interrupted -- use exit to quit\n"; },
+                TSTP => sub { say "\nqpk suspend disabled!\n"; },
+                QUIT => sub { cleanup(1);                },                
+                KILL => sub { cleanup(0); },
+                HUP => sub { cleanup(1); },              
+                CHLD => sub { 
+                #debug##say "\nintercepted SIGCHLD and safely ignored it!\n"; 
+                
+                },
+
+        );
+
+sub sync() { my $ioh = new IO::Handle(); 
+             $ioh->fdopen(fileno(STDOUT),"w");
+             $ioh->flush();
+             $ioh->close();
+           }
+            
+sub clear() { 
+    print(`tput clear` . "\n"); sync; 
+}
+
+no warnings "experimental";
+use feature 'signatures';
+
+if ( $clear_before_use ) {
+    clear;
+}
+
+# use Term::Put;
+# my $term_iface = new Term::Put();
+# my $lines = $term->lines;             # will be added once Term::Put is official
+# my $cols = $term->cols;
+
+print($padtext x ceil($banner_padding), $banner, $padtext x floor($banner_padding));
+
+my $baseprogname = path($0)->basename();
+my $lines = `tput lines`; # todo add Term::Put support
+my $cols = `tput cols`;
+die("cannot determine terminal height") if ( $lines =~ /^[0-9]+\z/ );
+die("cannot determine terminal width") if ( $cols =~ /^[0-9]+\z/ );
+                                    
+my $isinvalid = 1;
+my $hascontent = 0;
+my $ksig = "KILL";	# can be any valid signal, TODO: add chsig command to set this
+# allowing what signals
+my @siglist = qw( STOP KILL CONT HUP INT ILL QUIT USR1 USR2 TERM );
+sub formatprompt($tgt)
+{
+    local $_;
+    my $pwd = cwd;
+    $_ = $tgt;    
+	 s/#MODE#/$ksig/g;
+	 s/#PWD#/$pwd/g;
+	 s/#PID#/$$/g;
+	 s/#ARGC#/$#ARGV/g;
+	 my $ret = $_;
+	 
+	 return $ret;
+	 
+}
+W:
+while(1) {
+	$isinvalid = 1;	
+	my $fmtprompt = $prompt;
+	$fmtprompt = formatprompt($prompt);
+	
+    my $r = $term->readline($fmtprompt);    
+    my @cmds=$r ? split(/ /,$r) : ();
+    $hascontent=$r ? 1 : 0;
+    my $argc=@cmds;
+    next unless $r;
+	chomp($r);
+    given($r) {
+		when (/help/) {
+				print("
+help commands:
+	chsig [sig] change signal type
+	cls clear   clear screen
+    exit        quit the program
+    PID	        kill process with PID of
+    CMDNAME     kill a process with name CMDNAME
+    ls [filter] list processes, can accept a [filter] regex supported
+    help        show this help text
+
+aliases:
+    clear		aliased to cls
+    quit        aliased to exit
+
+Version 1.0 of qpk written by Gabriel T Sharp <osirisgothra\@hotmail.com>
+Licensed under the GNU General Public License, Version 3.0 or newer
+Check out the GNU website for more info and details on the license GNU GPL3+.
+
+				");
+				$isinvalid=0;
+			}
+		when (/chsig .*/)   {
+								my $newsig=$r;
+								$newsig =~ s/^chsig\s+//g;
+								say("-> set signal default to $newsig");
+								my $foundsig=0;
+								QS:for my $s (@siglist) {
+									if ($s eq $newsig) {
+											say("-> set signal mode to $s");
+											$ksig=$s;
+											$foundsig=1;
+											last QS;											
+									}
+								}
+								unless ($foundsig) {
+								    say("-> failed: signal $newsig was not found in the signal table");
+								    say("allowed signals:");
+								    say for @siglist;
+								    say("$#siglist signals listed");
+								}
+        						$isinvalid=0;
+
+								# needs validation before implementation, TODO: redirector to list in Config::???
+							}
+        when (/clear|cls/)  {   clear; $isinvalid=0;
+                            }
+                            
+        when (/ls/)         {
+                                my $usepager=0;
+                                if ( $argc > 1 )
+                                {
+                                    if ( $cmds[1] eq '-l' )
+                                    {
+                                        $usepager=1;
+                                    }
+                                }
+                                my @out = ( "Matches:");
+                                my $x=`ps axf | sort -bh`; # dependency bindings: TODO:| hi '[0-9]+' '[RSIWZSX][+hl]?'`;  # depends on hi(2mini), sort(1), and ps(1)
+                                my $y = $r;
+                                $y =~ s/^ls\s*//g;                                
+                                    my @i = split("\n",$x);    
+                                    for my $w ( @i ) 
+                                    {
+                                            if ( length($y) ) {
+                                                push(@out,"$w\n") if $w =~ m/${y}/;                                            
+                                            }
+                                            else
+                                            {
+                                                push(@out,"$w\n");
+                                            }                                          
+                                    }
+                                    my $pos = 0;
+                                    
+                                    for my $o ( @out ) 
+                                    {                                    
+                                        $pos = $pos+1;
+                                        
+                                        print($o);
+                                        # note: -2 needed because: 1 for prompt, 1 for user echoing CR/LF
+                                        # if you change the prompt keep in mind: if prompt had more lines, they would need to be accounted for too
+                                        if ( $pos > ( $lines - 2) ) {
+                                            $pos=0;
+                                            printf("[press a key]");
+                                            readline();
+                                        }
+                                        
+                                    }
+                                
+                                
+                                $isinvalid=0;
+                            }
+        
+        when (/$baseprogname|$$/) {
+                        $isinvalid=0;
+                        # please move comments to EOF, this violates the EMBOFCC scheme, please fix this before releasing it into the general public's domain
+                        # these are pretty much priority:
+                        # TODO: important, check to be sure it is also not the sudo caller
+                        #       or the parent program running (at least up to getty or pts owner, ie xterm)
+                        # TODO: possibly add forbidden PIDs (like PID 1 and 2, and more)
+                        # TODO: probably should add some names that should be ignored for security reasons, like ones that control security or could be exploited to make system unsecure (SELinux stuff for example, or authtracking/token software)
+                        # TODO: forbid ending of any process that mounts part of the systems hard filesystem
+                        # TODO: forbid ending processes that are directly part of the kernel (kworker, irqbalance, etc)
+                        say("that is qpk's identifier, ignoring it, use 'exit' to quit qpk");
+                    }                            
+        when (/exit|quit/)  {
+                                my $answer="";                                
+                                GETANSWER:while(1) {
+                                    $answer=$term->readline("do you really want to exit qpk [y/[n]]?");
+                                    $answer="n" if $answer eq "";
+                                    chomp($answer);                                    
+                                    last GETANSWER if $answer =~ /\A[yn]\z/;
+                                    say("invalid, please specify y or n. Press enter alone to choose n automatically!");
+                                }                  
+                                POSIX::exit(0) if $answer eq "y"; 
+                                $isinvalid=0;
+                            }
+        when (/^!/)         {
+                                $r =~ s/^.//g;
+                                my $res = eval($r);
+                                warn $@ if $@;
+                                print $res, "\n" unless $@;
+
+                            }
+        default             {
+								if (1==0) {
+								}	# TODO rewrite this whole branch in gtk it was written in CLI LL, and needs help from a real editor
+								else {
+							
+	                                #debug##say("searching for $r and killing...");
+	                                my $p2k = -1;
+
+	                                when (/\A[0-9]+\z/) {
+	                                    #debug##say("a PID ...");
+										for my $p (  path("/proc")->children()) {
+											if ( $p->basename() =~ /\A[0-9]+\z/ ) {
+												if ( $r eq $p->basename() ) {
+													$p2k=$p->basename();
+													say("found $p2k and assigned it to PID $p2k");
+
+													kill($ksig,$p2k); #TODO: find a more reliable method (does not work always)
+													
+													$isinvalid=0;
+												}
+											}
+										}								
+	                                }
+	                                default {
+	                                	my $nn = "";
+	                                    #debug##say("a process-name...");
+	                                    for $nn ( path("/proc")->children(qr/[0-9]+\z/) ) 
+	                                    {
+	                                    	my $iname = (split(" ",$nn->child("stat")->slurp()))[1];
+											
+											$iname =~ s/^\(|\)$//g;
+											if ( $iname eq $r )
+											{
+												$p2k = $nn->basename();
+												say("found $iname, assigned it to PID $p2k");
+												kill($ksig,$p2k);
+												$isinvalid = 0;
+											}                                   	
+	                                    		 
+
+	                                    	
+	                                    }
+	                                }
+	                                #say("couldnt find exit in a PID or PROCNAME") unless system("eval killall -KILL $r || kill -KILL $r");
+	                            }
+                            }
+    }
+    $term->addhistory($r) if $r =~ /\S/;
+}
+continue
+{
+	say("Command, PID, or process name not found.") if $isinvalid && $hascontent;
+}

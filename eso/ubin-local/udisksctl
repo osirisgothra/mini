@@ -1,0 +1,45 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+use v5.20.2;    # may work on older versions too
+use feature 'signatures';
+no warnings 'experimental';
+
+use Path::Tiny;
+use Try::Tiny;
+use Cwd;
+use Carp;
+#use Assert::Tiny
+package Assert::Tiny;
+
+sub assert($expr)   { confess("assert failed at caller level") unless $expr; return 1; }
+sub nassert($expr)  { return assert( ! ($expr) ); }
+
+package main;
+
+# filter options
+my @NEWARGV=( );
+my $mode='none';
+for (@ARGV) {
+    given($_) {
+        when (/^-b/) { $mode='blk'; }
+        when (/^-/)  { $mode='none'; }
+    }    
+    if ( -b "/dev/$_"  && ! -b $_ && $mode eq 'blk' ) {
+        # block special device resolves to this but not original, and last switch was -b
+        push(@NEWARGV, "/dev/$_");
+    }
+    else {
+         push (@NEWARGV,$_);
+    }
+}
+#say("old cmdline:");
+#say for ( "udisksctl", @ARGV );
+#say("\nnew cmdline:");
+#say for ("udisksctl", @NEWARGV);
+exec ("/bin/udisksctl",@NEWARGV);
+
+
+
+

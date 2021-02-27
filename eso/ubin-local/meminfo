@@ -1,0 +1,10 @@
+#!/bin/zsh
+
+# meminfo
+# wraps /proc/meminfo
+
+case $# in
+    0)  cat /proc/meminfo;;
+    *)  cat /proc/meminfo | grep -iP '^'$v':' | grep -Po '[0-9kmitb]+';;
+esac
+

@@ -1,0 +1,11 @@
+#!/usr/bin/perl -w
+use strict;
+
+use lib "/src/perl";
+use Term::Put;
+
+my $term = new Term::Put();
+
+$term->align();
+
+print( $term->put("lines") );

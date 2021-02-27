@@ -1,0 +1,134 @@
+#!/bin/perl
+
+# real perl template
+# note this version requires templates from ~/.config/pta and has no builtin ones
+# and those must be 'default.pta' 'PRESETNAME.pta' obviously default.pta is the default one that is used
+# if they are not present, they will be downloaded from the github site, if online, otherwise, a blank template
+# will be used (which isnt all that helpful)
+
+# directives
+
+use v5.20.2;
+use warnings;
+use strict;
+
+# modules
+
+use Getopt::Long::Descriptive;
+use Path::Tiny;
+use Try::Tiny;
+use Cwd;
+use Carp;
+
+# pragmas
+
+use feature 'signatures';
+no warnings 'experimental';
+
+# globals and prototypes 
+
+use vars qw( $opt  );
+
+# constants
+
+use constant { TRUE => 1, FALSE => 0, true => 1, false => 0, INF => -1 };
+
+# scalars
+
+
+# lists
+
+# hashes
+
+my %exit_classifications = (    fatal => 129,
+                                internal => 130,
+                                error => 131,
+                                ioerr => 132,
+                                syserror => 133,
+                                unknownerr => 134,
+                                critical => 135,
+                                trap => 136,
+                                none => 0,
+                                argerror => 137,
+                                
+                            );
+# subs
+
+sub _bool($in) {
+    return TRUE if $in;
+    return FALSE;
+}
+sub graceful_death($msg=undef,$classification="none",$code=127)    # do 'graceful_death()' to just exit with no error, code is only used if classification is not found
+{
+    my $codeclass = $exit_classifications{$classification} // $code;
+    print($classification eq "none" ? "" : $classification . "($code" . ( $codeclass != $code ? ", $codeclass" : "" ) . "): ") if $msg;
+    print("$msg\n") if $msg;
+    exit($codeclass);
+}
+sub getprocid($id)
+{
+    # just return back the pid, if its a valid one
+    return "/proc/$id" if ( -r "/proc/$id/comm" );
+    # or search by task name if it is not
+    my @procs = path("/proc")->children();
+    for (@procs) {
+        if ($_->child("comm")->readable()) {
+            my $name =  
+            (
+                    (
+                        split
+                            (
+                                chr(0)
+                                    , 
+                                    (
+                                       $_->child("cmdline")->lines()
+                                    )
+                                [0]
+                            )
+                        )
+                    [0] 
+            );
+            return $_->basename() if ( $name =~ /\A${id}\z/g );                    
+        }
+        
+    }
+    
+}
+
+# main program subroutine
+
+sub main($argc, $argv, $envp) {
+
+    my %envp = %$envp;
+    my @argv = @$argv;
+    my $progname = shift(@argv);
+    my $usage;
+    my $shfd = ", please see --help for details on proper arguments and formats of their parameters.";
+    my $nu = "The value given for parameter --%s (-%s) was incorrect (you gave '%s')$shfd";
+    $argc--;
+
+    ($opt, $usage) = describe_options(
+        "$progname %o PID|PROCNAME|PGRP|PRANGE|USER|GROUP ... <some-arg>",
+        [ 'nice|n=s',     "set nice level to a level between -19 (highest) to 20 (lowest) or use a percentage of 0-100%, 100 being -19, 0 being 20 (default is 'none' for no change)", { default => "none" } ],
+        [ 'class|c=s',    "set class (see ionice) name or number (defaults to none)", { default => "none" } ],
+        [ 'priority|d=s', "set priority for class, can be 0 through 7 (7 being the lowest priority) (defaults to -1, no change)", { default => -1 } ],        
+        [ 'verbose|v',  "print extra stuff"            ],
+        [ 'help',       "print usage message and exit", { shortcircuit => 1 } ],
+  );
+  print($usage->text), exit if $opt->help;
+
+  # verify arguments n, c, and d (subdivide into another function if many more need to be done)
+  graceful_death(sprintf($nu,"nice","n",$opt->nice),"argerror",101) unless  $opt->nice =~ /\A([-0-9]|(([0-9]{1,2}|100)%|none))\z/g;
+  graceful_death(sprintf($nu,"class","c",$opt->class),"argerror",102) unless $opt->class =~ /\A(none|[0-5]|(idle|real(time)?|best-?(effort)?))\z/g;
+  graceful_death(sprintf($nu,"priority","d",$opt->priority),"argerror",103) unless $opt->priority =~ /\A(-1|[0-7])\z/g;
+
+    my ($n,$p,$c) = ($opt->nice, $opt->priority, $opt->class);
+    printf("you chose nice=$n class=$c pri=$p\n");
+  
+  return 0;
+
+}
+
+# exit(entry)
+
+exit(main( @ARGV+1 ,[ $0, @ARGV ], \%ENV ) );

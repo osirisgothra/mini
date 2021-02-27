@@ -16,6 +16,42 @@ fi
 printf "setting mode of operation\n"
 # v- by this point, zsh is running, and its either v3.0 or newer, safe to end sh emulation
 emulate zsh
+#
+# autoexpand locations (look-for-here-locations) (NEVER put system paths in here!!!)
+debug_pollargs()
+{
+    echo -n "main::$0: args=${(j:,:)@}"
+    echo -n " ($# argument"
+    [[ $# -ne 1 ]] && print -P 's)' || print -P ')'
+}
+
+#debug_pollargs $@
+declare -ga lfhls=(  ~/bin ~/www )
+# fixup command line (first pass)
+declare -ga cml=( )
+print -P "checking pre-expansions..."
+for x; do
+    print "x=$x "
+    for y in $lfhls; do
+        print "y=$y "
+        print -Pn $y/$x"..."
+        if [[ -f "$x" ]]; then
+            echo "not expanding $x because $x exists as a file!"
+        elif [[ -f $y/$x ]]; then
+            echo "expanding $x to $y/$x because it exists and ($PWD)$x does not"
+            x=$y/$x
+        fi
+    done
+    cml+=$x
+done
+#debug_pollargs $@
+
+set -- $cml
+# no longer needed
+#debug_pollargs $@
+
+unset cml
+
 printf "$ZSH_VERSION detected\n"
 # v- lets see if a file exists or not
 #    we'll create any nonexisting files and make them executable so we dont have to later (since i usually make executables with nano)

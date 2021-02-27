@@ -1,0 +1,35 @@
+#!/usr/bin/perl
+
+# webkit
+# very simple webkit browser
+# simplest browser you'll find anywhere, except maybe (maybe) surf (suckless tools)
+
+use warnings;
+use strict;
+use v5.20.2;
+use Path::Tiny;
+use Gtk2 -init;
+use Gtk2::WebKit;
+use Try::Tiny;
+
+no warnings 'experimental';
+use feature 'signatures';
+
+sub main($argc,@argv)
+{
+    my $site="https://www.google.com";
+    my $mainWindow=new Gtk2::Window();
+    my $innerPane=new Gtk2::ScrolledWindow();
+    my $webView=new Gtk2::WebKit::WebView();
+    
+    $innerPane->add($webView);
+    $mainWindow->add($innerPane);    
+    $mainWindow->set_default_size(640,480);
+    $mainWindow->signal_connect((destroy => sub { Gtk2->main_quit } ));
+    $mainWindow->show_all();
+    $webView->open($site);
+
+    return Gtk2->main();   
+}    
+
+exit(main(@#ARGV, @ARGV));

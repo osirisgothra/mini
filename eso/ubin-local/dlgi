@@ -1,0 +1,36 @@
+#!/bin/zsh
+#
+# dlgi
+#
+setopt aliases
+
+function htmlfilters()
+{
+    sed 's/</\n</g' |
+    grep '<img' |
+    head -n"$count" |
+    tail -n1 |
+    sed 's/.*src="\([^"]*\)".*/\1/'
+}
+
+
+declare -gi hilimit=890
+declare -gi lolimit=1
+for a b; do
+    reqtxt="${a?missing a search parameter (must be in single argument)}"
+    imgno="${b?missing the count, it should be the second argument}"
+    if [[ $imgno -lt $lolimit ]]; then
+        echo "count is below low limit, it must be $lolimit"
+        exit 127
+    elif [[ $imgno -gt $hilimit ]]; then
+        echo "count exceeds high limit, google will surely complain (current limit is set to $hilimit items)"
+        exit 127
+    fi
+    echo "about to make query, \n\timage req: $reqtxt   \n\tpage=$page \n\tcount=$count \n\timgno=$imgno"
+    isrc=$(wget -qU 'Mozilla/5.0' -O /dev/stdout "www.google.com/search?q=${reqtxt}\&tbm=isch&start=$imgno" | htmlfilters)
+    idest="dlgi-${isrc##*/}"
+    wget -qO "$idest" "$isrc"
+    display "$idest"
+done
+
+

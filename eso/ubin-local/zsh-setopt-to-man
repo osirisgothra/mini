@@ -1,0 +1,233 @@
+#!/bin/zsh
+#
+#    zsh-setopt-to-man
+#    lists zsh setopt parameters that also are documented in the zshoptions manpage for zsh(1)
+#    mini
+#    eso/ubin-local
+#
+#    DEPENDENCY ALERT
+#
+#       requires dependency: 'between(.pl)' from same project (mini)
+#
+#
+#    Copyright (C) 1995-2021 Gabriel T. Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all projects can be
+#    obtained by visiting the repository at:
+#
+#    <https://github.com/osirisgothra>
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sat 30 Jan 2021 07:35:26 PM EST
+#            osirisgothra@ initially created this file
+#            with the original name, zsh-setopt-to-man
+#
+#   PLANNED
+#
+#       either catman it (not favorable)
+#       or cache in ~/.cache then delete (more favorable)
+#
+#  This template and header was created using the template generator by Gabriel T. Sharp
+#  You can download the latest version at: <https://www.github.com/osirisgothra/mini.git/eso/ubin-local/template>
+#  (the url is subject to changes on github's behalf, please submit a pull request to fix or request a fix on any url changes)
+#
+
+
+# Get Options from Command Line for zsh-setopt-to-man
+
+declare -ga opts
+declare -gi quiet_level=0
+declare -g version_text="$(tput setaf 124)zsh-setopt-to-man$(tput sgr0) Version 1.0 (C)2020 Gabriel T. Sharp, Licensed under GNU LGPL3 at https://gpl.gnu.org/gpl3.html"
+declare -g help_text="zsh-setopt-to-man
+lists zsh setopt parameters that also are documented in the zshoptions manpage for zsh(1)
+
+SYNTAX
+
+	zsh-setopt-to-man [OPTION] SHOPT-OPTION-NAME
+
+OPTIONS
+    --list -l   just list, dont lookup anything
+    --lifo -L   parse in last-in-first-out style instead
+	--help -h	show this help text
+ --version -v   display version information and exit (also shows license info)
+   --quiet -q   increase quiet level by one (quiet level is always zero if left alone)
+
+SHOPT-OPTION-NAME
+
+    Three different forms of the option are recognized:
+        The original in-shell name, in lowercase (usually a single wordofchars)
+        A Variation of the in-shell name (ie, options turned off with 'no')
+        The documentation's NOT_IN_SHELL_NAME (usually uppercase with _'s)
+
+    In short, the option will have its leading 'no' removed,  have all
+    underscores and be lowercased since this is how the lookup
+    index is stored.
+
+BUGS
+ *   Possibly, nroffs on other machines (groff, roff, whatever) could break and
+     reformat man text in unexpected ways. The hyphenation and justification
+     are turned off; however, they may be ignored on certain builds of operating
+     systems that use man, drastically even. If you come across such a bug, you
+     should report this to their authors FIRST, then to the local authors.
+
+ **  THIS PROGRAM IS PRE-ALPHA, NOT INTENDED FOR RELEASE OF ANY KIND
+     AND NOT FULLY TESTED, NOT RESPONSIBLE IF THE PROGRAM DOES ANYTHING
+     BAD TO ANYONE OR ANYTHING OR ANY PLACE. DISCLAIMER: DO NOT USE, EVER.
+
+LICENSE
+
+	GNU GPL is available in full at the GNU GPL website, or through the google voice command 'show me GNU GPL license page'
+
+"
+lecho() { builtin echo "$@"; }
+
+echo() {
+	if [[ $quiet_level -gt 0 ]]; then
+		return 127
+	else
+		builtin echo "$@"
+	fi
+}
+
+is() {
+    case $1 in
+        quiet)  ((quiet_level > 0));;
+      verbose)  ((quiet_level < 0));;
+       normal)  ((quiet_level == 0));;
+     notquiet)  ((quiet_level <= 0));;
+            *)  ((quiet_level == 1));;
+    esac
+}
+
+if opts=( `getopt -n $0 -o lLhvqV -l lifo,list,verbose,help,version,quiet -- "$@"` ); then
+	eval set -- "${opts[@]}"
+	while [[ $# -ge 0 ]]; do
+		curopt=$1
+		nextopt=${2-none}
+		shift
+		# handle --options and -o ptions here
+		case $curopt in
+		    --lifo|-L) declare -gi lifomode=1;;
+		    --list|-l) declare -gi justlist=1;;
+			--help|-h)	echo "$help_text"; exit 127;;
+			--version|-v) echo "$version_text"; exit 127;;
+            --verbose|-V) let quiet_level--;;
+			--quiet|-q) let quiet_level++;;
+			--) is verbose && echo "done with options";  break;;
+			*)	is verbose && echo "handling option: $curopt (next:$nextopt)";;
+		esac
+	done
+	for arg; do
+		# verify/handle non-option arguments
+		case $arg in
+			*)	is verbose && echo "handling argument: $arg";;
+		esac
+	done
+
+else
+	is notquiet && echo "error, code is $?, exiting with fail"
+fi
+
+# adjust for use case: between script renamed by some automata
+# or forigen script (warning, check out -hbt)
+if [[ `whence -w between` =~ 'command' ]]; then
+    is verbose && echo "dependencies: ok"
+else
+    if [[ `whence -w between.pl` =~ command ]]; then
+        setopt aliases
+        alias between=between.pl
+        if ! echo "test\ning" | between -b 'test' 'ing'; then
+            echo "dependfail: between.pl -- may be a different script or missing"
+            echo "please get the between(.pl) from the github/osirisgothra/mini project"
+            exit 127
+        fi
+    fi
+fi
+
+showentry()
+{
+   let n++
+   spaces=2
+   sidemargins=0
+   s1=$(printf "%-4s" "$n")" $s(${options[$s]})"
+   s2="$r"
+   wid=${COLUMNS-80}
+   left=$(( $wid - ( $#s1 + $#s2 + $spaces + $sidemargins ) ))
+   ee=""
+   repeat $left; do
+     ee+="."
+   done
+   print -P "$s1 $ee $s2"
+}
+
+declare -g s=""
+declare -gi org_estate=$?
+declare -gi n=0
+
+
+if [[ -x ${0:h} && -d ${0:h} ]]; then
+    pushd ${0:h}
+    man --nh --nj zshoptions |
+        perl -wne 'print("$1\n") if /\b([A-Z][_A-Z]+?[A-Z])\b/' |
+            sort |
+                uniq |
+                    while read r; do 
+                        s=${(L)r//_}
+                        if [[ $options[$s] =~ "^.+$" ]]; then
+                            if [[ $# == 0 ]]; then
+                                justlist=1
+                                showentry
+                            else
+                                if ! [[ $s =~ '^no' ]]; then
+                                    for item; do
+                                        q=${(L)item//_/}
+                                        q=${q#no}
+                                        if [[ $q == $s ]] || [[ $item == $r ]]; then
+                                            if ((justlist == 1)); then
+                                                showentry
+                                            else
+                                                let n++
+                                                man --nh --nj zshoptions | between -h '^\\s{7}'$r '^\\s{0,7}[A-Z]+|^OPTION ALI'
+                                            fi
+                                        fi
+                                    done
+                                else
+                                fi
+                             fi
+                        fi
+                    done
+                # end: uniq
+            # end: sort
+        # end: perl
+    # end: man
+else
+    echo "failed to go to script location in $0 (${0:h} is has no chdir-able dir part)"
+fi
+
+if ((justlist)); then
+    echo "\nType '${0:t} <topicname1|TOPIC_NAME1>[,...]' For a detailed description of those topic(s)"
+else
+    q=""
+    ((n==1)) || q=s
+    echo "$n Topic$q Listed"
+fi
+popd
+set -- "$org_estate"
+unset n s r org_estate
+return $(( $* ))

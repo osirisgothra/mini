@@ -1,0 +1,28 @@
+This directory contains a collection of links to commonly and regularly edited files (user, that is, not system).
+These files are meant to be edited with nano or vim via their extended mini/ubin-local commands, which have been
+set-up to read this directory FIRST. If you do not want this, simply remove the files or the directory itself to
+prevent this (you can also remove the mini/eso/nano-refs entry from your vi or nano Specialized Front-EndS (SFES).
+
+The directory most likely, other than the original author or mirrors, will be in a root subdirectory of <your-ex
+panded-dir>/mini> or in <whereyouran-git-clone-from>/mini, you will need to update the lines in the SFES to 
+reflect that (for example, the 'declare -ga lfhls="DIR"' will needed to be altered (in nano SFES only, the vim one
+is a bit different, and there may be other editor derivatives too).
+
+Basic rules for this dir are as follows:
+
+    DO NOT PLACE ACTUAL FILES IN THIS DIRECTORY
+    DO NOT HARDLINK, ALWAYS SOFTLINK
+    DO NOT USE DIRS, ONLY SOFT LINKS TO FILES
+    DO NOT USE SYSTEM FILES AT ALL
+    DO NOT USE FILES THAT ARE NOT OWNED BY YOU
+    DO NOT USE SPECIAL DEVICES, BLOCK, CHAR, FIFO, ETC ARE FORBIDDEN!
+    NOT RESPONSIBLE FOR LOSS OR DAMAGES BY USING THIS LIST!
+
+    there are probably more which will be added as they are made aware
+    of, as soon as they are, or upon a validated request by a legitamate
+    source (someguy@mail.de is NOT a val/leg source, Martha Effer Sonoabeech  <gjones@mail.com> <http://my.website/index> IS valid!
+    google accounts will be ignored because  I hate google.
+        
+    
+    
+   

@@ -37,7 +37,7 @@ use vars qw($PS1 $PS2 $HISTFILE $HISTSIZE $INPUTRC $STRICT $INNERRC $PS1COLOR $N
 
 # Features
 
-#use feature "signatures";                                                                # TODO: convert sigil subs to signature subs
+use feature "signatures";                                                                # TODO: convert sigil subs to signature subs
 
 no warnings 'deprecated';
 no warnings qw(all);                                                                      # testing only
@@ -52,6 +52,42 @@ $AUTOCOLOR=0;       # <1|0>
 $NOCOLOR="both";    # <primary|secondary|both|none>
 %VERSION=( major => 2, minor => 4, revision => 1 );
 
+# Tip Of the Day Entries (TODEs)
+
+my @tode = (       "You can use perlsh to do stuff, lots of stuff, and even things.",
+                "You can ! to run external commands (like !ls)",
+                "You can view some details just by using ENTER on a blank line.", 
+                "You can restart (and reload the source code) by using the restart command \"restart\".",
+                "You can get perlhelp via perldoc, from within perlsh using the ? prefix.",
+                "The ?& prefix is used to look up help on functions only.",
+                'The ?$ prefix is used to look up variable help.',
+                'The ?? or ?~ prefix is used to query the perldoc FAQ',
+                'You can just type the variable name to get a custom dump of the variable',
+                'You can use the use statements to load more packages, and some are loaded at startup too',
+                'You can use ~/.perlsh_startup to load packages and other stuff that you dont want to redo each time you use perlsh',
+                'You can get the latest version of perlsh form its original author, but it wont have these extras, for that you need to go to the perlsh fork page, github.com/osirisgothra/mini and find the stand-alone perlsh file!',
+                'You can edit this source like I did to make it have more features, and to even add more tips (or get rid or turn them off completely!)',
+                'There are several special modules embedded in Perl::Sh that you can use from within the interpreter. These modules are internal and arent used in general for programming',
+          );
+          # TODO: add more todes
+                
+my $banner = '
+   PerlSh Enhanced
+   (c)2019-20 Gabriel T. Sharp <21shariria@gmail.com>
+   (c)2014-20 Base Perl::Sh Designed By Hiroo Hayashi
+   
+    NEW CODE LICENSED AS GNU GPL VERSION 3 <https://www.gnu.org/gpl3>
+    PLEASE SEE ORIGINAL LICENSE FOR DETAILS ON USAGE RIGHTS
+';
+say $banner;
+
+sub get_totd() {
+
+    my $totds = @tode // 0;
+    my $randomtip = int(rand()*$totds);
+    return "There are no tips currently configured (uncomment or insert tips as instructed by the INSTALL to show them" if $totds == 0;
+    return "\tDid you know?\n\t\t" . $tode[$randomtip];   
+}
 sub setprompt() {
 
     $PS2 = '[38;5;200m[1mmore[2m?[21m[22m ';
@@ -60,9 +96,103 @@ sub setprompt() {
     $PS2 = "   |\n   +-more-< " if $NOCOLOR =~ /^(secondary|both)$/;
 }
 setprompt;
+sub zmdec($in)
+{
+    if ($in == -1 || $in == 0) {
+        return $in;
+    } else {
+        return $in - 1;
+    }
+}
 
 sub ansilen { s/^[\[[0-9;]+m//; return length($_); }
 sub nonprinting { my $count = shift; return ("[s" x ($count / 3)); }
+sub findexec($name) { return (findexecs($name))[0] // undef; }
+sub findexecs($name) {
+    my @found = findfiles("^$name\$",$ENV{PATH},1);
+    if (@found) {
+        return @found;
+    } else {
+        return ();
+    }
+}
+sub findfiles($mask, $path=$ENV{PATH}, $maxdepth=-1, $mindepth=-1)
+{
+    my @results = ();    
+    return @results if $maxdepth == 0;    
+    for (split(":",$path)) 
+    {    
+        chomp($_);
+        if ( -r $_ )         {
+        print("scanning $_ for [$mask]\n");
+            my $curpath = path($_)->realpath();
+            for my $curfile ($curpath->children())
+            {    
+            
+               
+                print("+--scanning $curfile for [$mask]\n");
+                if ($curfile->basename() =~ /$mask/) {
+                    push(@results,$curfile) if ( $mindepth != 0 );
+                }
+                if (-d -r -x $curfile) {
+                    push(@results,findfiles($mask,$curfile,zmdec($maxdepth),zmdec($mindepth)) );       # grab these too, if depth is ok
+                }
+                
+            }
+        }
+    }
+    return @results;
+    
+        
+}
+
+sub perlhelp($context, $section="N")    # N=all
+{
+    #  get perldoc path, then (maybe) get man path if needed    
+    my $pd = findexec("perldoc");
+    if ( -r $context ) {
+        # manpath does not need to fall out of scope, it only does undefined with a warning!
+        my $manpath=findexec("man") // warn("couldnt find man!!!");
+        system($manpath,$context) or warn("tried to manify $context but couldnt, sorry: $! $?\n");
+        return; 
+    }   
+    $_ = $section // "";
+    say("called with section=[$section] context=[$context]");
+    $_ = "N" unless /\A(\$|&|~|\?|N|F)\z/;
+    my @flags = ();
+    given($_) {
+        @flags = qw( -f -v -q "" ) when /[NF]/;
+        @flags = qw( -f ) when /&/;
+        @flags = qw( -v ) when /\$/;
+        @flags = qw( -q ) when /[~\?]/;
+        @flags = qw( "" ) when /n/;
+        default { @flags = (); }
+    }
+    my $stopatfirst = $section eq "F" ? 1 : 0;  
+    say("found $pd, using it with pfx=" . join(",",@flags) . " and ctx=[$context]");
+    
+    unless (-x $pd ) {
+        say "fatal, cannot find perldoc" ;
+        return "";
+    }
+    else
+    {
+        
+        for my $flag ( @flags ) {
+            if  ($flag) {  system($pd,$flag,$context);  }
+            else        {  system($pd,$context); }          # <- handles "" flag (usually a pod name)
+            if ( $? == 0 ) 
+            {
+                say("stopping after first found document") if $stopatfirst;
+                return if $stopatfirst;
+            }
+        }
+    }
+    
+    
+}
+
+
 
 # will not allow x in setcolumn(x) to be < 0 or > COLUMNS (use other one to bypass checking)
 sub setcolumn
@@ -228,7 +358,14 @@ sub toplevel
 
     print("$PS1COLOR") if length($PS1COLOR) > 0;
     print("PS1 length zero, but color prompting disabled\n") unless ( length($PS1COLOR) | length($PS1) ) > 0;
+    hrule;
+    printf GREEN "";
+    my $totd = get_totd;
+    printf "$totd\n";
+    hrule;
+    
 
+    
     for (@STARTUP_COMMANDS) {
         chomp;
         if (/^(print|say)/) 
@@ -257,6 +394,7 @@ sub toplevel
     } or die "[31;1mError setting SIGINT handler: $![0m\n";
     my ($strict, $command, @result);
     $strict = $STRICT ? '' : 'no strict;';
+    say("[0m") if $ENV{TERM};     ### TODO: add support from Term::Put when its completed
     while (defined($command = &reader)) {
     # TODO: move large blocks to own sub()routines
         given ($command) {
@@ -267,6 +405,7 @@ sub toplevel
             }
         }
         given($command) {
+            # the perlsh.COMMANDs
             when ( m/^(perlsh\.)(\S+)(\s.+)?$/ ) {
                 my $_pscmd = $2;
                 my @_psargs = grep { /\S+/ } split(/\s/,$3 // "");
@@ -293,13 +432,57 @@ sub toplevel
                 }
             }
             when ( m/^(\!)(.*)$/g )
-            {
+            {   
+                # !COMMAND -- run COMMAND externally
                 sub statuscode { my $code = shift; given($code) { return "000_NOERROR" when 0;  return "127_USER_ERROR" when 127; return "001_FAILED" when 1; }; return sprintf("%03d",$code); }
                 say "command $2 returned status code: " . statuscode(system("$2")) ;
             }
+            when ( m/\Arestart\z/ )
+            {
+                # restart perlsh (reloads the code by exec-ing into a new instance (never to return unless an error launching perlsh happens)
+                
+                say("(restarting perlsh, you will lose all state data), is this ok? type 'y' or 'n' and press enter:");
+                while(1) {
+                    my $response = ( lc(readline()) );
+                    chomp($response);
+                    # reset here, just in case                    
+                    (say("CANCELLED"),break) if $response =~ /n/;                    
+                    if ($response =~ /y/) {
+                        say("[0m[2J[1;1H[s[0mrestarting...");
+                        exec($0,"@ARGV") if $response =~ /y/;   # note, not coming back from this, jump to line 1 while purging any state (as in exec(2))
+                    }
+                    say("INVALID CHOICE, PLEASE PICK EITHER Y or N!");
+                } 
+            }
+            when ( m/^\?\S+/g )
+            {
+                my $pfx;
+                my $cmd;
+                my $rest = substr($command,1);                
+                # internal help
+                $_ = $rest;                
+                if ( /^(\?|\$|\&|\~|N)/ ) {
+                    $pfx = substr($rest,0,1);
+                    $cmd = substr($rest,1);
+                } else {
+                    $pfx = "F"; # firstfound
+                    $cmd = $rest;
+                }
+                say("calling perlhelp with cmd=[$cmd] pfx=[$pfx]");
+                perlhelp($cmd,$pfx);                    
+                  
+                
+            }
             when ( m/^$/g )
             {
-                say("you are in the " . (length($CWP) > 0 ? $CWP : "root (topmost)") . " package, in pwd = " . cwd . "");
+                # user pressed ENTER: display some useful state information (WIP)
+                my $PPID = getppid();
+                say("- You're in the " . (length($CWP) > 0 ? $CWP : "root (topmost)") . " package, in pwd = " . cwd . "");
+                say("  Our PID is $$ (child of $PPID)");
+                say("  The Current User is " . $ENV{USER} . "(" . $ENV{UID} . "), Parent Shell is " . ($ENV{SHELL} // "unknown") . ".");
+                say("  The Open FDs are: " . path("/proc/self/fd")->children() . "");
+
+                
             }
             default
             {
@@ -314,7 +497,6 @@ sub toplevel
                     say("");
                     drawbox("S","end output area");
                     #CORE::printf(colored("\n^^---------------------------------^^\n","rgb044"));
-
                     use strict;
                     if ($@)
                     {
@@ -480,6 +662,39 @@ sub reader
     }
 }
 
+
+use constant { USE_KEYS => 1, USE_VALUES => 0, LONGEST_OF => 0, SHORTEST_OF => 1, AVERAGE_OF => 2, MAX_STR_LEN  =>  16384, MIN_STR_LEN => 0 };
+sub estelem($target,$bkey=USE_KEYS, $comp=SHORTEST_OF) 
+{    
+   my %target = %$target;
+   my $est = ($comp==SHORTEST_OF ? MAX_STR_LEN : MIN_STR_LEN);    # LONGEST_OF? MAX_STR_LEN  SHORTEST_OF/AVERAGE_OF: MIN_STR_LEN
+   my $thislen = ($bkey == USE_KEYS ? length($_) : length(%target{$_}));
+   for (keys(%target)) {
+        if ($comp == SHORTEST_OF) {
+            $est = $thislen if $est > $thislen;
+        } elsif ($comp == LONGEST_OF) {
+            $est = $thislen if $est < $thislen;
+        } elsif ($comp == AVERAGE_OF) {
+            $est+=$thislen;                       
+        }
+    }
+    # return average when comp is in AVERAGE_OF mode
+    # return count when comp is in SHORTEST or LONGEST mode
+    # when in USE_KEYS mode, selects keys instead of when using USE_VALS mode
+    return $est / ($comp == 2 ? scalar(keys(%target)) : 1);
+}
+sub longestelem($target,$bkey=USE_KEYS) {  return  estelem($target,$bkey,LONGEST_OF); }
+sub shortestelem($target,$bkey=USE_KEYS) {  return  estelem($target,$bkey,SHORTEST_OF); }
+sub averageelem($target,$bkey=USE_KEYS) {  return  estelem($target,$bkey,AVERAGE_OF); }
+sub longestkey($target) { return longestelem($target,USE_KEYS); }
+sub longestval($target) { return longestelem($target,USE_VALUES); }
+sub shortestkey($target) { return shortestelem($target,USE_KEYS); }
+sub shortestval($target) { return shortestelem($target,USE_VALUES); }
+sub averagekey($target) { return averageelem($target,USE_KEYS); }
+sub averageval($target) { return averageelem($target,USE_VALUES); }
+
+
+
 sub printer
 {
 
@@ -520,6 +735,7 @@ sub printer
         if (@res == 1)
         {
             print("'$lastcmd' returned scalar value of '", $res[0], "'\n");
+            
         }
         elsif (@res == undef)
         {
@@ -527,15 +743,42 @@ sub printer
         }
         else
         {
-            print("'$lastcmd' evaluated to default 'list' context:\n");
-
-            printf("%-${il}s %s\n","index","value");
-            printf("%-${il}s %s\n","index","value");
-            foreach $i (@res)
+            print("'$lastcmd' evaluated to nonscalar context:\n");
+            if ( scalar(@res) % 2 ) 
             {
-                printf("%-${il}d %s\n",++$x,$i);
-                $LASTRV=$i unless (int($i) == 0);
+                printf("\n** Outputting as List **\n");
+                printf("\n");
+                # cant be a hash, uneven
+                printf("%-${il}s %s\n","index","value");
+                printf("=" x $COLUMNS - 2);
+            
+                foreach $i (@res)
+                {
+                    printf("%-${il}d %s\n",++$x,$i);
+                    $LASTRV=$i unless (int($i) == 0);
+                }
             }
+            else
+            {
+                printf("\n** Outputting as Hash **\n");
+                printf("\n");
+                # interpret as hash (even member count)
+                my %hres = @res;
+                $il = 0;                
+                $il = ( length($_) > $il ? length($_) : $il ) for keys(%hres);
+                printf("=" x ($COLUMNS - 2)               );
+                printf("\n%-${il}s %s\n","key","value");
+                printf("=" x ($COLUMNS - 2)               );
+                printf "\n";
+                foreach $i (keys(%hres))
+                {
+                    printf("%-${il}s %s\n",$i,$hres{$i});
+                    $LASTRV=$i unless (int($i) == 0);
+                }
+            }
+            
+            printf("=" x $COLUMNS - 2);
+
         }
     }
     printf("$PS1COLOR") unless length($PS1COLOR) == 0;
@@ -555,16 +798,15 @@ sub prompt {
 
 
 
-sub perl_symbol_display_match_list ($$$)
+sub perl_symbol_display_match_list ($matches, $num_matches, $max_length)
 {
-    my($matches, $num_matches, $max_length) = @_;
+#    my($matches, $num_matches, $max_length) = @_;
     map { $_ =~ s/^((\$#|[\@\$%&])?).*::(.+)/$3/; }(@{$matches});
     $term->display_match_list($matches);
     $term->forced_update_display;
 }
 
-sub attempt_perl_completion ($$$$) {
-    my ($text, $line, $start, $end) = @_;
+sub attempt_perl_completion ($text, $line, $start, $end) {
 
     no strict qw(refs);
     if (substr($line, 0, $start) =~ m/\$([\w:]+)\s*(->)?\s*{\s*['"]?$/) {
@@ -587,9 +829,8 @@ sub attempt_perl_completion ($$$$) {
 
 use vars qw($i @matches);
 
-sub perl_hash_key_completion_function ($$)
+sub perl_hash_key_completion_function ($text, $state)
 {
-    my($text, $state) = @_;
 
     if ($state) {
     $i++;
@@ -623,44 +864,50 @@ sub _search_ISA ($) {
     return $mypkg, map _search_ISA($_), @$isa;
 }
 
-sub perl_method_completion_function ($$) {
-    my($text, $state) = @_;
+sub perl_method_completion_function ($text,$state) 
+{
 
-    if ($state) {
-    $i++;
-    } else {
+    if ($state) 
+    {
+        $i++;
+    } 
+    else
+    {
 
-    my ($var, $pkg, $sym, $pk);
-    $i = 0;
-    $var = (substr($attribs->{line_buffer},
-               0, $attribs->{point} - length($text))
-        =~ m/\$([\w:]+)\s*->\s*$/)[0];
-    $pkg = ref eval (($var =~ m/::/) ? "\$$var" : "\$${CWP}::$var");
-    no strict qw(refs);
-    @matches = map { $pk = $_ . '::';
-             grep (/^\w+$/
-                   && ($sym = "${pk}$_", defined *$sym{CODE}),
-                   keys %$pk);
-             } _search_ISA($pkg);
+        my ($var, $pkg, $sym, $pk);
+        $i = 0;
+        $var = (substr($attribs->{line_buffer},
+                   0, $attribs->{point} - length($text))
+            =~ m/\$([\w:]+)\s*->\s*$/)[0];
+        $pkg = ref eval (($var =~ m/::/) ? "\$$var" : "\$${CWP}::$var");
+        no strict qw(refs);
+        @matches = map { 
+                            $pk = $_ . '::';
+                             grep (  /^\w+$/ && ($sym = "${pk}$_", 
+                                     defined *$sym{CODE}),
+                                     keys %$pk
+                                  );
+        } _search_ISA($pkg);
     }
-    for (; $i <= $#matches; $i++) {
-    return $matches[$i] if ($matches[$i] =~ /^\Q$text/);
+    for (; $i <= $#matches; $i++) 
+    {
+        return $matches[$i] if ($matches[$i] =~ /^\Q$text/);
     }
     return undef;
 }
 
 
-
-
 {
     my ($prefix, %type, @keyword);
 
-    sub perl_symbol_completion_function ($$) {
-    my($text, $state) = @_;
-
-    if ($state) {
+sub perl_symbol_completion_function ($text,$state) 
+{
+    if ($state) 
+    {
         $i++;
-    } else {
+    }
+    else 
+    {
 
         my ($pre, $pkg, $sym);
         $i = 0;

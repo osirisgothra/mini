@@ -170,6 +170,17 @@ my $groups_desc = <<FEOF
         a string like 'ihateyou' it will become 'eo' because
         the other characters are not allowed. Use this feature
         with caution if you are a regular user.
+
+
+    customizing
+    
+        This program (at this time) can be customized with specific colors
+        and patterns by modifying the source code. At this time there is
+        no rcfile for that purpose yet (devloping Config::INI and friends
+        for that purpose atm). See the %presets hash within the source code
+        to modify the presets (use at your own risk!).
+    
+            
 FEOF
 ;
 my ($opt, $usage) = describe_options( "$progname %o [group(s)]",
@@ -187,7 +198,7 @@ my ($opt, $usage) = describe_options( "$progname %o [group(s)]",
 									  ['use-preset|p=s', "preset expressions to be used (use -P to get entries, see 'presets' below).", { default => '__none__' } ],
 									  ['presets|P', "list available presets that can be used with -p" ],
     								  [], ["miscellaneous"], [],
-									  ['verbose|v', "print extra stuff"],
+									  ['verbose|v', "print extra stuff", ],
                                       ['help', "print usage message and exit"],
                                     );
 
@@ -263,10 +274,16 @@ my %presets = (		markdown => [ '[[:punct:]]', '\b[0-9]+\b', '\*\*\*.*\*','\*\*',
 					scomment => [ '#[^"\']+*$' ],
 				   pycomment => [ '\A\s*"{2,}\s?.*' ],
   					ckeywords => [ '\b(void|static|int|const|long|short|double|float|bool|void|if|then|else|elseif|switch|return|struct|union|cast|char|wchar|(un)?signed|case|do|while|until|goto|null|undef|0L|0UL|L".*")\b', 'dynamic_cast'  ],
-
+                    xdf => [ '[.0-9]+M', '[.0-9]+G', '9[.5-9]%', '100%' ],
 					perl	 => [  '^\s*[A-Za-z_0-9]+(?=\()', '\b(warning|use|strict|no|package|sub|my|our|carp|croak|warn|die|exit|if|else|elsif)\b', "[:,.-+\/\\\$\@\%\=\>\<,]","[\(\)\{\}]", '^\s*[[:punct:]]include', ';\s*\$', '"[^\"]+\"' ],
 				);
 my %metapresets = (	cpp => [ "perl", "ccomment", "ckeywords" ] );
+
+my %pcolortables = (   markdown => [ 8, 6, 10, 2 ],
+                       xdf => [ 9, 10, 11, 9, 2, 2 ],
+                        
+                       
+                       );
 
 my ($preset_name, $preset_array, $preset_element, $preset_new_presetlist_ref) = ( "", [], "", [] );
 for $preset_name ( keys( %metapresets ) ) {
@@ -352,7 +369,7 @@ sub showprs
 		
 
 	set_default_groups unless @ARGV;
-
+    my $color_preset_used = 0;
 	my $grouplimiter = 1;
 	my $groups = $#ARGV+1;
 	my $grouplimit = 40000;
@@ -378,7 +395,19 @@ sub showprs
 					for my $ex ( @{ (%presets{$preset})[1] } )	{
 						# say("add: $ex");								# uncomment for preset/metapreset testing\v/
 						push(@group,$ex);
-						$groups = $groups+1;					}
+						$groups = $groups+1;					
+                        
+				    }
+				    if ( $pcolortables{$preset} )						  
+                        {  
+						    say ("found a colortable for $preset, adding it") if $opt->verbose;
+						    @colortbl = @{ $pcolortables{$preset} };						    
+ 						     if ($opt->verbose) {
+						        say ("added colortable entry: $i $_") for @colortbl
+						     }
+						    $color_preset_used = 1;  
+						    
+						}
 					# say("done adding $arg preset expression(s)");		# uncomment for preset/metapreset testing\v/
 																}
 				}
@@ -391,7 +420,10 @@ sub showprs
 	# FIX: fixed unintended closure on @colortbl within next if() statement just before its contained for() statement
 	# TODO: use Term::Cap to do this /IF/ it ends up being needed (at this time its not)
 	my $term_colors=`tput colors`;
-	if (  ($term_colors-16) > $groups )	# enough colorful colors to facilitate a good color table?
+	if ( $color_preset_used ) {
+	    say("already have a color preset table, skipping generation/approximation") if $opt->verbose;
+	}
+	elsif (  ($term_colors-16) > $groups )	# enough colorful colors to facilitate a good color table?
 	{
 		my $start=17;                                   
 		my $stop=$term_colors if $term_colors < 230;	#\ clamp hi limit to 230 because
@@ -404,6 +436,7 @@ sub showprs
 			say("$x index, added ". $colortbl[$x] . " to colortable") if $opt->verbose;	# keep commented out unless testing
 		}
 	}
+	
 	# exit(15); # test point - testing color table (see above code)
 
 
