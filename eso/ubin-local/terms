@@ -1,1 +1,62 @@
 #!/bin/zsh
+# terms
+# author: gabriel sharp 2020(c) gnu-gpl3
+# just lists terminal names on system
+# req: infocmp and its dependencies (terminfo, termcap)
+declare -ga termnames=( )
+for x ( `infocmp -D` ) {
+    termnames+=( `find -L "$x" -mindepth 1 -type f -and -readable -and -not -empty -and -not -iname '*READ*ME*'` )
+}
+eval `resize`
+zmodload zsh/mathfunc
+
+# widths are in percentages, not chars!
+# be sure combo does not go over 100 else it will be off screen
+# under 100 is ok but you will waste space (blank area to right)
+declare -ga WIDTHS=( 15.0 5.0 60.0 20.0 )
+declare -g SPACE="|"
+# SPACING goes by what space we are using above, the total number of widths configured above, minus 2 (1 each because no spaces between begin/end and string)
+# if you were to add such a space you would have to change this ( 4 = space before and after, 3 space either before or after, 2 no space before or after)
+declare -gi NO_BEGIN_SPACE=1
+declare -gi NO_END_SPACE=1
+declare -gi SPACING=$(( $#SPACE * ( $#WIDTHS - ($NO_END_SPACE + $NO_BEGIN_SPACE) ) ))
+float COLS=$(( COLUMNS * 1.0 ))
+declare -ga A B C D
+ A=$(( ceil( $COLUMNS*($WIDTHS[1]/100.0) )- $SPACING ))
+ B=$(( ceil( $COLUMNS*($WIDTHS[2]/100.0) )- $SPACING ))
+ C=$(( ceil( $COLUMNS*($WIDTHS[3]/100.0) )- $SPACING ))
+ D=$(( ceil( $COLUMNS*($WIDTHS[4]/100.0) )- $SPACING ))
+echo "$A $B $C $D"
+
+fmtstr="%${A%%.}s${SPACE}%${B%%.}s${SPACE} %${C%%.}s${SPACE} %${D%%.}s\n"
+echo $fmtstr
+rule() { for ((x=0;x<COLUMNS;x++)) { printf "-"; }; echo; }
+
+rule
+printf $fmtstr "name" "parent" "description" "location"
+rule
+while (($#termnames)) {
+    tpath=${termnames[1]}
+    ketype=$( file -k "$tpath" )
+    tbase=$(basename $tpath)
+    shift termnames
+    if [[ "$ketype" =~ '.*terminfo.*entry.*' ]]; then
+        tname=`infocmp $tbase | sed -n '2p'`
+        treal=${tname%%|*}
+        tdesc=${tname##*|}
+        tdesc=${tdesc%,}
+        # get the 'base' termcap name
+        treal=${treal%%[-,.]*}  
+        printf $fmtstr ${tbase: 0:$A} ${treal: 0:$B} ${tdesc: 0:$C} ${tpath: 0:$D}
+    else
+        # re-get first magic entry, the most likely (best way to be lazy actually)
+        etype=$( file "$tpath" )
+        treal="-"
+        # file description from file magic instead
+        tdesc="${etype##*:}"
+        printf $fmtstr ${tbase: 0:$A} ${treal: 0:$B} ${tdesc: 0:$C} ${tpath: 0:$D}
+    fi
+    #@print -P "term: $tbase (($tname)) path=$tpath"
+}
+rule
+echo

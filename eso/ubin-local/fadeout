@@ -1,4 +1,17 @@
 #!/bin/zsh
+#
+# fadeout
+# fadein
+# fadeto
+#
+# fade volume master to specific volumelevel in %
+# assumes proper mixer channel names (some cards dont do this)
+# can easily be modified to support other cards/channels
+# TODO: write detection logic
+#
+# written by Gabriel T. Sharp <osirisgothra@hotmail.com>
+# Mar 2020 10:22:02 PM EST
+
 zmodload zsh/mathfunc
 [[ $# -eq 0 ]] && set -- 0.05
 v=( )

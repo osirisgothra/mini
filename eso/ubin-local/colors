@@ -182,6 +182,54 @@ zmodload zsh/termcap
 zmodload zsh/terminfo
 
 
+declare -g entrypwd="$PWD"
+echo "entrypwd=$entrypwd"
+# can delete any time, if its still in use, the kernel will keep
+# our tempfile open for us and remove it for real once the last handle is
+# closed or the refcount is zero. If someone deletes it before we are done
+# with it, the same. We however, can remove it in cleanup (preferred)
+# which will be hanleded on those signals listed below
+declare -g tmpfile="$(mktemp minicolorsdataXXXXXXXXXXXXXXXX.temp-data-safe-to-delete-me)"
+
+# signal table, add signals you want cleanup to happen for
+# (dont add SIGCHLD or RETURN!!!! EXIT is preferred! and KILL usually wont be trappable)
+# without EXIT cleanup could possibly not happen at all, so it should not
+# be omitted. Many other signals would cause cleanup to be done prematurely
+# (mainly, SIGCHLD, DEBUG, STOP, TTIN, TTOU, TSTP, STOP, CONT, VTALRM, PIPE)
+# other critcal exit signals are probably ok but should only be used if they
+# have a need to be used, otherwise leave them out. I have included just
+# the signals that are ordinarily encounted that would require cleanup to
+# happen (EXIT at program exit, HUP when shell and/or session disconnects,
+# INT when user or system interrupts [by using CTRL+C or sysrq commands
+# or xterm menu to send sigint], QUIT (end-of-file CTRL+D or task manager or system requesting a
+# program to quit, or, user terminated host program).
+# why we dont use: STOP/CONT/TTSTP/TTIN/TTOU-when ctrl+z is pressed, happens in the middle of a run and does not temrinate the program
+#
+# possible valid signals are:
+# ABRT CONT INT  PROF  STKFLT TRAP URG  WINCH
+# ALRM FPE  KILL PWR   STOP   TSTP USR1 XCPU EXIT DEBUG SEGV TERM TTOU
+# BUS  HUP  PIPE QUIT  SYS    TTIN USR2 XFSZ CHLD ILL   POLL TTOU VTALRM
+declare -ga cleanup_signals=( EXIT
+                              HUP
+                              INT
+                              KILL
+                              QUIT
+                             )
+
+# cleanup (set it up)
+cleanup()
+{   echo "cleaning up..."
+    rm $tmpfile -f &> /dev/null && echo "removed $tmpfile ok" || echo "warning: error while removing $tmpfile"    
+    chdir $entrypwd && echo "returned to $entrypwd ok" || echo "warning: error while returning to $entrypwd"
+    xtitle "$entrypwd" && echo "restored xtitle ok" || echo "warning: xtitle returned with an error"
+    echo "cleanup done"
+}
+trap cleanup $cleanup_signals
+
+
+# cleanup
+
+
 case $1 in
     hi)
         exec 1>&4
@@ -248,6 +296,7 @@ case $1 in
 				echo "..Terminal Too Small, Need 20x9 at least!\nResize Your Terminal or CTRL-C to exit, if this is a console terminal you will need to use setfont(1) to change the size!..."
 			else
 				apptitle="Color Sequence Explorer v0.1-extreme-alpha by Gabriel Sharp <osirisgothra@hotmail.com>"
+				
 				[[ -n $DISPLAY ]] && xtitle "$apptitle"
 				adjmsg="adjust keys: (modifier: [Shift]=10 [None]=1) start[q/a]=$a end[w/s]=$b interval[e/d]=$c blockwidth[r/f]=$d spacing[t/g]=$e firstofs[y/h]=$f mode[u/j]=$g"
 				echo -ne "[40;37;0m[2J"

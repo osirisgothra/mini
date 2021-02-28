@@ -1,6 +1,29 @@
 #!/usr/bin/env perl
 #
-#    indulge
+#    indulge - replace symlink file(s) and dir(s) with a copy of the real thing
+#
+#    [I]mportant
+#   e[N]ough
+#    [D]ata
+#  yo[U]'d
+#    [L]ike to
+#    [G]et it and keep it for
+#    [E]ver
+#
+# I know, the name... well, i was thinking but couldnt figure out any-
+# thing better for now, just so you know, there were several of these
+# possibilities:        unlink (taken by MS-DOS and underhood WINDOWS)
+#                       harden (a bit more descriptive)
+#                       unln   (a bit less descriptive)
+#                       rmln   (a bit confusing)
+#                       makefilesrealnotlinks (descriptive, but ugly long)
+#                       mfrnl (better but an inside menomic noone will know)
+#                       excavate (..?)
+#                       pull (possibly clash with some inshell vcs plugins)
+#                       unpinnochioize (..i give up!)
+#                       indulge (means to go ahead and do something even if its bad for you, like food, but it seemed to fit)
+#    honestly, that acronym doesnt really matter, use this ^ to remember it!
+#                       
 #    transform a linked file/dir into a physical, non-linked file/dir
 #    mini/eso
 #    small projects and stand-alone programs or documents, esoteric or dependant
@@ -12,6 +35,9 @@
 #    obtained by visiting the repository: 
 #
 #    <https://github.com/osirisgothra>
+# REQUEST
+#
+# ---- Taking requests on a new name for this one!
 #
 # USAGE
 #

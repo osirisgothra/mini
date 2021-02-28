@@ -1,36 +1,352 @@
 #!/bin/zsh
 #
-# dlgi
+#    dlgi
+#    download google searched-for images
+#    mini
+#    eso-ubin-local
 #
-setopt aliases
+#    Copyright (C) 1995-2021 Gabriel T. Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all projects can be
+#    obtained by visiting the repository at:
+#
+#    <https://github.com/osirisgothra>
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sun 10 Jan 2021 03:42:28 PM EST
+#            osirisgothra@ initially created this file
+#            with the original name, dlgi
+#
+#
+#
+#  This template and header was created using the template generator by Gabriel T. Sharp
+#  You can download the latest version at: <https://www.github.com/osirisgothra/mini.git/eso/ubin-local/template>
+#  (the url is subject to changes on github's behalf, please submit a pull request to fix or request a fix on any url changes)
+#
 
-function htmlfilters()
-{
-    sed 's/</\n</g' |
-    grep '<img' |
-    head -n"$count" |
-    tail -n1 |
-    sed 's/.*src="\([^"]*\)".*/\1/'
+
+# Get Options from Command Line for dlgi
+
+declare -gi scales=0
+declare -gi restmode=0
+declare -g place_items="$PWD/downloaded"
+declare -ga opts
+declare -gi quiet_level=0
+declare -g version_text="$(tput setaf 124)dlgi$(tput sgr0) Version 1.0 (C)2020 Gabriel T. Sharp, Licensed under GNU LGPL3 at https://gpl.gnu.org/gpl3.html"
+declare -g getmode='disabled'
+declare -g viewmode=1
+declare -g help_text="dlgi
+download google searched-for images
+
+SYNTAX
+
+	dlgi [OPTIONS] SEARCHTERMS START
+
+OPTIONS
+   --names -n           automatically name the subdirectory (under downloaded) to place each search set into
+  --scales -C           automatically rescale the images to 64x64 argb portable network compressed graphic (now is  semi-implemented)
+	--help -h	        show this help text
+     --yes -y           do not prompt for accept, just accept it automatically
+ --version -v           display version information and exit (also shows license info)
+   --quiet -q           increase quiet level by one (quiet level is always zero if left alone)
+     --get -g NUMBER    use get mode, just get <NUMBER> of matches from starting point and download them
+    --view -w           view mode, use display after getting images (for -g only)
+ --no-view -W          reverses effects of --view, or, causes regular viewing to be disabled (not too useful without -g)
+
+ARGUMENTS
+
+    START       A NUMBER that specifies the index in which to start showing google results, defaults to a random NUMBER
+    SEARCHTERMS A STRING in this syntax: \"separate+matches+anywhere+matches that must be consecutive\" as it works in google search.
+
+	FILENAME	A filename that must exist or be writable by the current user.
+	PATHNAME	A relative or absolute path that must exist or be creatable.
+	STRING		A readable string, it must not contain any unreprintable characters.
+	NUMBER		An integer, usually between -32767 and 32767.
+	BOOLEAN		A true/false value, represented as 0 for false, and any other value for true.
+	FLOAT		A floating point single or double precision value, it is precise down to about 5 ot 6 decimal places.
+	ENG			Scientific notation, expressed in powers (3x10^4 is written as 3.4)
+	DEG			Like GRAD/RAD, but expressed in degrees (hours, minutes, seconds) so 3 5'5\" is written as \"3.5.5\"
+
+
+LICENSE
+
+	GNU LGPL3 is available in full at the GNU GPL website, or through the google voice command 'show me GNU LGPL VERSION 3'
+
+"
+lecho() { builtin echo "$@"; }
+
+echo() {
+	if [[ $quiet_level -gt 0 ]]; then
+		return 127
+	else
+		builtin echo "$@"
+	fi
 }
 
+is() {
+    case $1 in
+        quiet)  ((quiet_level > 0));;
+      verbose)  ((quiet_level < 0));;
+       normal)  ((quiet_level == 0));;
+     notquiet)  ((quiet_level <= 0));;
+            *)  ((quiet_level == 1));;
+    esac
+}
+fail()
+{
+    echo "failed: $1"
+    exit $2
+}
 
-declare -gi hilimit=890
+if opts=( `getopt -n $0 -o g:WwnhvqyVCN -l get:,yes,names,no-view,verbose,help,version,quiet,scales -- "$@"` ); then
+	eval set -- "${opts[@]}"
+	echo "cmdline is: $@"
+	while [[ $# -ge 0 ]]; do
+		curopt=$1
+		nextopt=${2-none}
+		echo "$curpot -- $nextopt"
+		shift
+		# handle --options and -o ptions here
+		case $curopt in
+			--no-view|-W) let viewmode--;;
+		    --yes|-y) let restmode=1;;
+			--help|-h)	echo "$help_text"; exit 127;;
+			--version|-v) echo "$version_text"; exit 127;;
+            --verbose|-V) let quiet_level--;;
+			--quiet|-q) let quiet_level++;;
+			--names|-n) autoname=1;;
+			--view|-w) let viewmode++;;
+			--scales|-C) scales=1;;
+			--get|-g)
+			        if [[ $nextopt =~ '[0-9]+' ]]; then
+			            getmode=$nextopt
+			            shift
+			        else
+			            getmode=10
+			            echo "getmode is 10 (nextarg was $nextopt)"
+			        fi
+			        echo "getmode set to $getmode"
+			;;
+			--no|-N) let restmode=0;;
+			--) is verbose && echo "done with options";  break;;
+			*)	is verbose && echo "handling option: $curopt (next:$nextopt)";;
+		esac
+	done
+	echo "final config:"
+	echo "      scales=$scales"
+	echo "    restmode=$restmode"
+	echo "    viewmode=$viewmode"
+	echo " quiet_level=$quiet_level"
+	echo "    autoname=$autoname"
+	for arg; do
+		# verify/handle non-option arguments
+		case $arg in
+			*)	is verbose && echo "handling argument: $arg";;
+		esac
+	done
+
+else
+	is notquiet && echo "error, code is $?, exiting with fail"
+	exit 127
+fi
+
+
+tshortest()
+{
+  shortest=$1; for x; do if [[ $#x -lt $#shortest ]]; then shortest=$x;  fi; done; echo $shortest;
+}
+hrule()
+{
+    if [[ "$COLUMNS" == "" ]]; then
+        if [[ $TERM == linux ]]; then
+            export COLUMNS=80
+        elif [[ -n $DISPLAY ]]; then
+            eval `resize`
+        else
+            COLUMNS=40
+        fi
+    fi
+    repeat ${COLUMNS-39} { printf "$sep_char" }
+}
+vrule()
+{
+    if [[ "$LINES" == "" ]]; then
+        if [[ $TERM == linux ]]; then
+            export LINES=80
+        elif [[ -n $DISPLAY ]]; then
+            eval `resize`
+        else
+            LINES=40
+        fi
+    fi
+    printf '[s'
+    repeat $(( ${LINES-39} - 1 )) { printf "[1D[1B$sep_charv" }
+    printf '[u'
+}
+
+declare -g disp_prog="display-im6"
+declare -g ttyc_prog="tycat"
+declare -g ident_prog="identify-im6"
+declare -g sep_char="-" sep_charv="|"
+
+if [[ $(</proc/${$(</proc/$PPID/stat)[4]}/comm) == "terminology" ]]; then
+    declare -g disp="${ttyc_prog:c}"
+else
+    declare -g disp="${disp_prog:c}"
+fi
+declare -g ident="${ident_prog:c}"
+
+[[ -x $ident ]] || fail "cannot locate required dependency: $ident_prog"
+[[ -x $disp ]] || fail "cannot locate required dependency: $disp_prog"
+
+echo "dlgi: argsleft=$@"
+
+mkdir --parents "$place_items" || fail "cannot create $place_items which is required for it to run" 128
+
+zmodload zsh/mathfunc
+echo -n "pre-seeding randomizer...."
+randomseed=$(date +%N)
+echo "set to $randomseed"
+function htmlfilters() {
+    grep -Po '\<img [^\>]+\>' | sed -n 2p | grep -Po '(?<=src=")[^"]+'
+}
+
+declare -gi imgno
+declare -gi hilimit=500
 declare -gi lolimit=1
 for a b; do
+    echo "a=$a b=$b"
+    if ((autoname)); then
+        declare -g aplace_items="$place_items/${a//[[:punct:]]/}"
+        if mkdir --parents "$aplace_items"; then
+            echo "using $aplace_items for this group"
+        else
+            echo "couldnt write $aplace_items failing back to $place_items"
+            aplace_items="$place_items"
+        fi
+    else
+        declare -g aplace_items="$place_items"
+    fi
+
     reqtxt="${a?missing a search parameter (must be in single argument)}"
     imgno="${b?missing the count, it should be the second argument}"
     if [[ $imgno -lt $lolimit ]]; then
-        echo "count is below low limit, it must be $lolimit"
-        exit 127
+        echo -n "count is below low limit, assuming random..."
+        # avoid overlimit (hilimit-1), avoid 0 (+ 1)
+        imgno=$(( ceil(rand48(randomseed) * (hilimit-1) ) + 1 ))
+        echo "set to $imgno"
+        # should assert imgno again but this program isnt important enough
     elif [[ $imgno -gt $hilimit ]]; then
         echo "count exceeds high limit, google will surely complain (current limit is set to $hilimit items)"
         exit 127
     fi
-    echo "about to make query, \n\timage req: $reqtxt   \n\tpage=$page \n\tcount=$count \n\timgno=$imgno"
-    isrc=$(wget -qU 'Mozilla/5.0' -O /dev/stdout "www.google.com/search?q=${reqtxt}\&tbm=isch&start=$imgno" | htmlfilters)
-    idest="dlgi-${isrc##*/}"
-    wget -qO "$idest" "$isrc"
-    display "$idest"
+    if ((getmode > 0)); then
+        # GET MODE (uses -W or -w)
+        echo "getmode is $getmode, proceeding with mass downloader"
+        for ((i=0;i<getmode;i++)); do
+            ofs=$(( imgno + i ))
+            declare -g url='www.google.com/search?q='"${reqtxt// /+}"'&tbm=isch&start='"$ofs"
+            isrc=$(wget -qU 'Mozilla/5.0' -O /dev/stdout "$url"  | htmlfilters )
+            ext=${isrc##*\.}
+            ext=${ext//[[:punct:]]/}
+            if [[ $#ext -gt 4 ]]; then
+                ext="${ext: -4}"
+            fi
+            idest="$aplace_items/${RANDOM}"
+            wget -qO "$idest" "$isrc" &> /dev/null
+            ext=$( tshortest ${(s:/:)$(file --extension $idest -b)} )
+            inewdest="${idest}.${ext}"
+            mv "$idest" "$inewdest"
+            hrule
+            if (( viewmode >= 1 )); then
+                $disp $inewdest
+            fi
+            $ident $inewdest
+
+            if ((restmode != 1)); then            
+                echo -ne "[a (default) = ACCEPT IMAGE] [V = ACCEPT THIS AND REST OF IMAGES] [x = REJECT IMAGE]: "
+                read -sk1
+                if [[ $REPLY == "x" ]]; then
+                    echo "REVOKING IMAGE"
+                    rm -f "$inewdest"
+                elif [[ $REPLY =~ '[vV]' ]]; then
+                    restmode=1
+                else
+                    echo "ACCEPTED"
+                fi
+            fi
+            if (( scales == 1 )); then
+                echo "converting to 64x64"
+                if convert-im6 -adaptive-resize 64x64 "$inewdest" "$inewdest"; then
+                    echo "converted ok"
+                else
+                    echo "conversion error($?)"
+                fi
+            else
+                echo "no conversion was requested, keeping resolution (scales=$scales)"
+            fi
+            chmod u=rwx,g=rw,o=r $inewdest
+            chown $UID:$GID $inewdest
+            echo "finished"
+        done
+    else
+        # VIEW ONLY MODE (implies -w)
+        declare -g url='www.google.com/search?q='"${reqtxt// /+}"'&tbm=isch&start='"$imgno"
+
+        echo "about to make query, \n\timage reqstr: $reqtxt   \n\timgno=$imgno\n\turl=\"$url\""
+        if [[ $needs_confirm == 1 ]]; then
+                echo "press ENTER to confirm, or Q to stop (or A to abort altogether)"
+                read -sk1
+                if [[ $REPLY =~ '[Qq]' ]]; then
+                    echo "aborted this item by user..."
+                elif [[ $REPLY =~ '[aA]' ]]; then
+                    echo "aborted entire run, exiting now..."
+                    exit 127
+                fi
+        fi
+        isrc=$(wget -qU 'Mozilla/5.0' -O /dev/stdout "$url"  | htmlfilters )
+        idest="dlgi.image"
+    #    echo "got isrc: $isrc"
+    #    echo "got idest: $idest"
+        #read -sn1
+        wget -qO "$idest" "$isrc" &> /dev/null
+        # dont identify unless nonempty file
+        if [[ -s $idest ]] && $ident "$idest"; then
+            display "$idest" || echo "skip view because viewmode is $viewmode"
+        else
+            echo "cannot show $idest because it does not refer to an image"
+        fi
+    fi
 done
 
 
+
+
+# programmer NOTES:
+# function htmlfilters():
+    # some variations, stack exchange suggestions, etc, that were modified heavily by me:
+    # these are fine for the old way, but the new way doesnt work in terms of pages, instead
+    # they are referred to in terms of a starting match (you can discern the page number which is dynamic depending on the
+    # users results-per-page preference, which varies greatly and should not be assumed)
+    #sed -r 's/</\n</g' | grep -i '<img' | head -n${1} | tail -n1 | sed -r 's/.*src="([^"]*)".*/\1/g'
+    #grep -Poi '\<img[^\>]+' | sed -n ${1}p | grep -Poi '(?<=src=")[^"]+'
+    #NB: dont mistake the grabbing of line 2 in sed (2p), the image number is decided from the start= in url,
+    #    therefore we never need to actually parse anything but the second image result (the first is the google logo)
+    #    warning: this could change if google modifies their plain text pages (they dont do this often, most people use the modern device and https pages
+    #    limitations: only thumbnails can be retrieved this way, but this program is meant for just that anyhow so (small sized textures is what i use it for)

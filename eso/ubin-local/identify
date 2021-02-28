@@ -1,7 +1,7 @@
 #!/bin/zsh
 #
 #    identify
-#    identify is used to display a message in a terminal to the user, used to identify commands for keytests, strokes, events, etc
+#    a discontinued item, now a placeholder for a future one
 #    eso/ubin/local
 #    local scripts that are esoteric in nature
 #
@@ -41,5 +41,15 @@
 #
 #
 #
-
-clear
+msg="**** DO NOT RUN ME, I AM DISCONTINUED ***"
+echo "[31;1m"
+echo "$msg"
+echo "$msg" > /dev/stderr
+echo "$msg" > /dev/tty1
+echo "$msg" > /dev/pts/1
+echo "$msg" > /dev/pts1
+echo "$msg" > /dev/console
+echo "$msg" > /proc/self/fd/0
+echo "$msg" | sudo wall
+# ^ try to beard using a few methods
+echo "[0m"

@@ -33,51 +33,96 @@
 #    with this program; if not, write to the Free Software Foundation, Inc.,
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
+#    CODE COMMENTS
+#
+#       The 2020CSCS (2020 Columnal Strict Commenting Scheme), which includes
+
+#            The Author has verfied that the file adheres to the '2020 Columnized Strict Commenting Scheme' which is
+#            also known as the "2020/CSCS". This scheme requires that 1) all comments are in the form of footnotes
+#            with only a refnum in the far right column. This is in an effort to join the massive need for commenting
+#            your code reformation goin on all over the world, 2) footnotes are at the END of the file, beyond any
+#            executable code or other footnotes. Are easy to read and spot. 3) Do not count for more than 20% of the file's size.
+#            3-CODE Status: PASS PASS PASS (all 100%) A score of 80% or better is required to be 2020CSCS compliant.
+#
+#
+#
 #    HISTORY
 #
 #	 Sun Apr 22 12:22:01 EDT 2018
 #            osirisgothra@larnica initially added a template to this file
 #            with the original name, template*
 #  	 Sun 05 May 2019 11:09:39 AM EDT
+#            bugfixes in template names
+#    Sat 27 Feb 2021 10:44:22 AM EST
+#            modified code to adhere to my new '2020CSCS' annotation standards
 #
-#
-#  * this file has existed well before this date (2-3 years at least), but is A
-#    now documented as being truly created at this date and time
-#
-#  (this header was created using the template generator by Gabriel T. Sharp)
-#
-# DATE_TIME: not sure why you need to change this really but if you forgot or something, or are on
-#            a deadline or have a specific release date it could be useful.
-#
-# TODOs (ordered in MOST-IMPORTANT To least-important)
-#	#1 --- VERY ---> implement X integration to take values for $1 thru $6 since most
-#                    will probably have an X manager running that supports at the least
-#                    floating or stacked windows, decide on whether we should use one of:
-#                    kdialog, zenity, gnome-dialog (but not dialog because thats CUI).
-#                    (we cant use any CUI input methods because they interfere with CUI editors!)
-# TODOs that are DONE
-#	#2 ---  done--> possibly put template in a system or user binpath, possibly on eso??
-#   #3 --- done --> put into esoteric ubin for testing on github???
-#   #4 --- done --> add templates that the user can pick for other licenses or filetypes
+
+emulate zsh;
+setopt extendedglob
+setopt monitor
+setopt hashdirs
+
+if [[ "" ==  $TEMPLATE_AUTHOR_NAME_PERSISTENT ]]; then
+    declare -g AUTHOR_NAME="Gabriel T. Sharp:21shariria@gmail.com"
+else
+    declare -g AUTHOR_NAME="$TEMPLATE_AUTHOR_NAME_PERSISTENT"
+fi
+
+if [[ $AUTHOR_GITHUB == "" ]]; then
+    AUTHOR_GITHUB="osirisgothra"
+fi
 
 declare -g USE_TARGET_NOTES=0
-declare -ga opts
-if opts=( `getopt -n $0 -o hp -l help,profile-target -- $@` ); then
-    set -- $opts
+
+if [[ $DISPLAY == "" ]]; then
+    declare -g GUI_MODE=0
+else
+    if [[ $NEVER_USE_GUI == 1 ]]; then
+        declare -g GUI_MODE=0
+    else
+        declare -g GUI_MODE=1
+    fi
+fi
+
+if [[ $GUI_MODE == 1 ]]; then
+    if [[ $# == 0 ]]; then
+        F=`zenity --entry --text "Name of Script" --title "Name Request"`
+        D=`zenity --entry --text "Short Script Description" --title "Description Request"`
+        P=`zenity --entry --text "Name of Project (that this script belongs to)" --title "Project Name Request"`
+        d=`zenity --entry --text "Quick Project Description" --title "Quick Project Description Request"`
+        A=`zenity --entry --text "Your Name (The Author) (use Name:Email if you want that filled too)" --title "Author Name Request"`
+        s=`zenity --entry --text "Shell to use (in #!/bang first line, usually /bin/something)" --title "Shell Path Request"`
+        a=`zenity --entry --text "Date to use (leave blank for today + now)" --title "Date/Time Request"`
+        if [[ $a == "" ]]; then
+            a="$(date)"
+        fi
+        set -- "$F" "$D" "$P" "$d" "$s" "$a"
+        declare -g AUTHOR_NAME="$A"
+    fi
+fi
+
+
+if opts=`getopt -n $0 -o hp -l help,change-author,profile-target -- $@`; then
+    eval set -- $opts
     y=0; for x; do let y++
     {
         case $x in
             --) shift $y; break;;
-            -p|--profile) USE_TARGET_NOTES=1;;
+            --change-author)    AUTHOR_NAME="$(if [[ $TEMPLATE_AUTHOR_NAME != "" ]]; then echo $TEMPLATE_AUTHOR_NAME; else cat /etc/passwd|grep $UID:$UID | head -n1 | awk -F : '{ print $5 }' | awk -F , '{ print $1 }' || echo '<<failed get new authorname>>'; fi)";;
+            -p|--profile-target) USE_TARGET_NOTES=1;;
             -h|--help)  echo "$0
                         [0G create a template
                         [0G
                         [0G syntax: template --profile-target --help
                         [0G
                         [0G --profile-target      generate a profile section (TARGET NOTES), this is for analysis only and should never be part of your program
+                        [0G --change-author       attempts to guess a new author name form the current user (or TEMPLATE_AUTHOR_NAME if set)
                         [0G --help                this help text
                         [0G
-                        [0G THIS PROGRAM IS LICENSED UNDER THE GNU GPL VERSION 3. SEE MY PROJECTS PAGE FOR MORE INFO.
+                        [0G If you set the TEMPLATE_AUTHOR_NAME_PERSISTENT variable to your name, then that will override the built-in one, unless of course you use the --change-author option.
+                        [0G If you set the AUTHOR_GITHUB variable, that will override the built-in, hard-coded one. This is the only way (atm) to change the github name.
+                        [0G
+                        [0G THIS PROGRAM IS LICENSED UNDER THE GNU GPL (LASTEST VERSION) AVAILABLE AT: https://www.gnu.org/licenses/gpl
                         "
                         exit 127
                         ;;
@@ -105,7 +150,9 @@ fi
 [[ $# -lt 6 ]] && DATE_TIME="$(date)" || DATE_TIME="$6"
 ARG_USED=$#
 ARG_UNUSED=0
+
 CREATED_NOTES="template program under renovation"
+
 TARGET_NOTES="# TARGET NOTES
 #
 # 	EXECUTIVE STATE CHANGES
@@ -127,6 +174,8 @@ TARGET_NOTES="# TARGET NOTES
 #		 ($(date)): $(id -un) ignored the final note and left this behind for
 #		           the user(s) to see, how embarassed I am for the author!
 #"
+
+
 if ! [[ -r "$MYSHELL" ]]; then
 	if [[ -r "$(which "$MYSHELL")" ]]; then
 		# user specified a name in PATH, use it
@@ -165,7 +214,10 @@ if [[ $USE_TARGET_NOTES == 0 ]]; then
     TARGET_NOTES="#"
 fi
 
+AUTHOR_EMAIL="${AUTHOR_NAME##*:}"
+AUTHOR_NAME="${AUTHOR_NAME%%:*}"
 
+#= = = = = = = = = = = = = = = = = TEXT CLIP = = = = = = = = = = = = = = = = = = =
 cat <<MY_EXTREME_END_OF_FILE
 #!${MYSHELL}
 #
@@ -174,17 +226,13 @@ cat <<MY_EXTREME_END_OF_FILE
 #    $PROJECT_NAME
 #    $PROJECT_DESCRIPTION
 #
-#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#    Copyright (C) 1995-2021 $AUTHOR_NAME
 #
-#    Written by Gabriel T. Sharp <21shariria@gmail.com>
-#    Latest versions of this and all of my projects can be
-#    obtained by visiting the repository:
+#    Written by $AUTHOR_NAME <$AUTHOR_EMAIL>
+#    Latest versions of this and all projects can be
+#    obtained by visiting the repository at:
 #
-#    <https://github.com/osirisgothra>
-#
-#    Because of the global availability of github at this point, hosting
-#    any additional servers for public use no longer serves a purpose. All
-#    content is available 24/7 through github. (Thanks to GITHUB!).
+#    <https://github.com/$AUTHOR_GITHUB>
 #
 #    This program is free software; you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -208,10 +256,10 @@ cat <<MY_EXTREME_END_OF_FILE
 #
 $TARGET_NOTES
 #
-#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#  This template and header was created using the template generator by Gabriel T. Sharp
+#  You can download the latest version at: <https://www.github.com/osirisgothra/mini.git/eso/ubin-local/template>
+#  (the url is subject to changes on github's behalf, please submit a pull request to fix or request a fix on any url changes)
 #
-
-
 
 
 # Get Options from Command Line for $1
@@ -219,12 +267,12 @@ $TARGET_NOTES
 declare -ga opts
 declare -gi quiet_level=0
 declare -g version_text="\$(tput setaf 124)$1\$(tput sgr0) Version 1.0 (C)2020 Gabriel T. Sharp, Licensed under GNU LGPL3 at https://gpl.gnu.org/gpl3.html"
-declare -g help_text="$1
-$2
+declare -g help_text="$FILENAME
+$DESCRIPTION
 
 SYNTAX
 
-	$1 [OPTIONS] ARGUMENTS
+	$FILENAME [OPTIONS] ARGUMENTS
 
 OPTIONS
 	--help -h	show this help text
@@ -248,6 +296,7 @@ LICENSE
 	GNU LGPL3 is available in full at the GNU GPL website, or through the google voice command 'show me GNU LGPL VERSION 3'
 
 "
+lecho() { builtin echo "\$@"; }
 
 echo() {
 	if [[ \$quiet_level -gt 0 ]]; then
@@ -257,7 +306,17 @@ echo() {
 	fi
 }
 
-if opts=( \`getopt -n \$0 -o hvq -l help,version,quiet -- "\$@"\` ); then
+is() {
+    case \$1 in
+        quiet)  ((quiet_level > 0));;
+      verbose)  ((quiet_level < 0));;
+       normal)  ((quiet_level == 0));;
+     notquiet)  ((quiet_level <= 0));;
+            *)  ((quiet_level == 1));;
+    esac
+}
+
+if opts=( \`getopt -n \$0 -o hvqV -l verbose,help,version,quiet -- "\$@"\` ); then
 	eval set -- "\${opts[@]}"
 	while [[ \$# -ge 0 ]]; do
 		curopt=\$1
@@ -267,26 +326,27 @@ if opts=( \`getopt -n \$0 -o hvq -l help,version,quiet -- "\$@"\` ); then
 		case \$curopt in
 			--help|-h)	echo "\$help_text"; exit 127;;
 			--version|-v) echo "\$version_text"; exit 127;;
+            --verbose|-V) let quiet_level--;;
 			--quiet|-q) let quiet_level++;;
-			--) echo "done with options"; break;;
-			*)	echo "handling option: \$curopt (next:\$nextopt)";;
+			--) is verbose && echo "done with options";  break;;
+			*)	is verbose && echo "handling option: \$curopt (next:\$nextopt)";;
 		esac
 	done
 	for arg; do
 		# verify/handle non-option arguments
 		case \$arg in
-			*)	echo "handling argument: \$arg";;
+			*)	is verbose && echo "handling argument: \$arg";;
 		esac
 	done
 
 else
-	echo "error, code is \$?, exiting with fail"
+	is notquiet && echo "error, code is \$?, exiting with fail"
 fi
 
 
-
-
 MY_EXTREME_END_OF_FILE
+#= = = = = = = = = = = = = = = = = TEXT CLIP = = = = = = = = = = = = = = = = = = =
+
 
 
 echo "#	template output completed (code=$([[ $? -ne 0 ]] && echo $? || echo 'OK(ERROR_NONE)' ))\n#\n#"
@@ -306,3 +366,42 @@ echo "#	template output completed (code=$([[ $? -ne 0 ]] && echo $? || echo 'OK(
 
 
 
+#  * this file has existed well before this date (2-3 years at least), but is A
+#    now documented as being truly created at this date and time
+#
+# (this header was created using the (very early alpha version of) template generator by Gabriel T. Sharp)
+
+# RANKING (notdone) (expected timespan to complete or decide)
+# 1 <---- this week                4        this month                  7             this year            9        this decade       ----> 10
+# RANKING (done) (how easy the task ended up being)
+# 0 <---- easy peasy     1.5 cool beans               2       not too hard       4  a little annoying          5   very time consuming                8  pain in the ass            9 major headache       rather be shot and tortured than do that again --> 10
+#
+# TODOs (ordered in MOST-IMPORTANT To least-important) move them into DONE when they are finished.
+# #RANK [PLANNED|ONHOLD|LONGTERM|ETC] (HOWIMPORTANT) description <- format your syntax like this, pulls that dont will not be accepted
+# once complete will be: #RANK --- done --> desc (revised steps if needed)
+#
+# TODOs NOT DONE YET: (most of these require program-changing decisions, so they are not yet implemented for this reason)
+# ---------------------
+# #1  PLANNED (VERY)               extract from name:emailname@addr, guess the github username form this, probably 'emailname' would be a good guess, or 'name', <- decide on this soon
+# #2  PLANNED (IMPORTANT)          move code to use a high-level language to take over this project, its getting a bit big to just be a script, even a higher level scripting language might be fine
+# #4  PLANNED (SO-SO)              add multiple and file-based template support, dynamic if possible, with template language description support (TDF, etc)
+# #4  PLANNED (MEH..)              add support for an XML template language (XGSTL possibly?) that will define a template, in a file, kinda dependant on above
+# #6  PLANNED (...MEH)             move X support in zenity into a single form or into a python glob of subcode (or more likely, perl) <- decide on perl/python/zenity for that
+# #5  ONHOLD MUSTDECIDE (...)      multi-license/filetype support <- so far this is just for zsh-like shells
+#
+# TODOs that are DONE:
+# ---------------------
+#	#2 ---  done--> possibly put template in a system or user binpath, possibly on eso??
+#   #3 --- done --> put into esoteric ubin for testing on github???
+#   $1.5 -- done --> added an option system and a more robust author thing
+#                    added a proper getopt parser
+#                    added a better template that starts you off with option parsing, messages with verbosity adjustment in either direction
+#                   added a way to add email and github info into the template (github has to be done via AUTHOR_GITHUB variable (ie, env AUTHOR_GITHUB="blah" template ...)
+#	#1 --- done ---> implement X integration to take values for $1 thru $6 since most
+#                    will probably have an X manager running that supports at the least
+#                    floating or stacked windows, decide on whether we should use one of:
+#                    kdialog, [[zenity]], gnome-dialog (but not dialog because thats CUI). <---- decided on zenity, and implemented it!
+#                    (we cant use any CUI input methods because they interfere with CUI editors!)
+#                    added it anyway: DATE_TIME: not sure why you need to change this really but if you forgot or something, or are on
+#                                     a deadline or have a specific release date it could be useful.
+#

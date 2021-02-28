@@ -72,6 +72,7 @@ if ($fpid == 0) {
 	given($pfid) {
 		when (/qfork/) {
 			# redirect to quiet output
+			print("qforking @ARGV");
 			open STDERR,">",$quiet_target;
 			open STDOUT,">",$quiet_target;
 			# execute normally

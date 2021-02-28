@@ -1,2 +1,220 @@
 #!/bin/zsh
-exec perldoc -f "$@"
+#
+#   perldoc-deduction-frontend
+#
+#   recognizes the following symbolic links to iteself as:
+#
+#   perlapi     perlwhere       rawpod      perlfunc        pa      pw
+#   perlvar     perlfaq         perlmod     rp              plv     pf
+#   perlfunc    pa              pw          pml             faq                  (see #2)
+#
+#    mini/eso
+#    small projects and stand-alone programs or documents, esoteric or dependant
+#
+#    Copyright (C) 1995-2021 Gabriel T. Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all projects can be
+#    obtained by visiting the repository at:
+#
+#    <https://github.com/osirisgothra>
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#   WARNING: NOT RESPONSIBLE FOR LOSS/DAMAGE TO SELF OR OTHERS AS A RESULT OF USING THIS PROGRAM OR ANY OTHER PROGRAMS OF MINE
+#
+#    NOTES
+#
+#       All notes are #numbered, and are listed at the END OF THIS FILE ONLY
+#       comments are NOT permitted unless they cannot be described without
+#       being inside the source, which should not really ever happen much.
+#
+#    HISTORY
+#
+#	 Fri 26 Feb 2021 08:59:41 PM EST
+#            osirisgothra@ initially created this file
+#            with the original name, perldoc-deduction-frontend
+#
+#
+#
+#  This template and header was created using the template generator by Gabriel T. Sharp
+#  You can download the latest version at: <https://www.github.com/osirisgothra/mini.git/eso/ubin-local/template>
+#  (the url is subject to changes on github's behalf, please submit a pull request to fix or request a fix on any url changes)
+#
+#
+
+setopt interactivecomments
+
+declare -gi quietmode=1
+declare -gx prog=perldoc
+declare -ga flags=( )
+
+showhelp()
+{
+echo "
+    Runs perldoc in a way dependant on the symlink that called it
+    $1 [option] [topic-name]
+
+    Two arguments max, first argument may be an option, but the
+    topic-name MUST be included or the program wont run. The
+    option itself is optional, of course, and can be exactly
+    one of these:
+
+        --raw            show raw pod text
+        --ignore-case    turn off case sensitivity
+        --use-file       topic-name is a filename
+        --quiet          do not run in verbose mode (hide messages)
+        --makelinks      force creation of sublinks (is very dangerous--only do if you know what your doing)
+        --help           this text (or no arguments at all will show it too
+
+    Written by Gabriel T. Sharp on Fri 26 Feb 2021 09:30:31 PM EST
+    Last Updated Fri 26 Feb 2021 09:30:54 PM EST
+    See LICENSE for more details.
+"
+    exit $2
+}
+prepare()
+{
+    echo "$0 called with: $@"
+    true
+    # create any files, etc
+    # opposite of cleanup() <- remember to put its destruction in here
+    echo "$0 done"
+}
+cleanup()
+{
+    echo "$0 executed with: $@"
+    true
+    # so far -- no destructiveness to the system has been done, this could change
+    # use this function when needed to cleanup
+    echo "$0: done"
+}
+
+#######################
+# MAIN PROGRAM        #
+#######################
+
+# setup init, and setup automatic-any-cause-cleanup safely exits even when CTRL+C or break, etc                 #5
+
+prepare $? $0 ${0:t} $PWD $# $@ $PIPESTATUS
+trap "echo aborted ok; cleanup; exit 127" SIGINT SIGTERM SIGKILL SIGQUIT
+
+if [[ $# -eq 0 ]] || [[ $* =~ '--help' ]]; then
+    showhelp $0 0                                                                                                                   #3
+elif [[ $1 == --raw ]]; then
+    flags+=( -T )
+elif [[ $1 == --ignore-case || $1 == "-i" ]]; then
+    flags+=( -i )
+elif [[ $1 == --use-file || $1 == "-l" ]]; then
+    flags+=( -F )
+elif [[ $1 == --quiet || $1 == "-q" ]]; then
+    quietmode=1
+elif [[ $1 == --makelinks ]]; then
+    echo "started makelinks (in $PWD)"
+    shift
+    [[ -d $1 ]] && pushd $1
+    echo "preparing makelinks (in $PWD)"
+    declare -ga l=( perlapi perlwhere rawpod perlvar perlfaq perlmod perlfunc pa pw rp plv pf pml pfaq )
+    declare -gi lc=${#l[@]}
+    echo "about to make all $lc links in $PWD, press ENTER to start or CTRL+C to abort"
+    read -sk1
+    if [[ -w . ]]; then
+        for x in $l; do
+                if [[ -r $x ]]; then
+                    echo "$x exists, not overwriting OK"
+                else
+                    if ln -vs "$0" "$x"; then
+                        echo "$x created ok"
+                    else
+                        echo "error when creating $x"
+                    fi
+                    [[ -x $x ]] || echo "warning: $x not executable, you need to check it manually!" 
+                fi
+        done
+    fi
+    echo "about to finish (in $PWD)"
+    [[ -d $1 ]] && popd
+    echo "finished (in $PWD)"
+    exit 0
+elif [[ $1 == '^--' ]]; then
+    echo "$1: unknown option"
+    showhelp ${0:t} 2
+fi
+if [[ -n $flags ]]; then                                                                                    #1
+    shift
+fi
+if ((quietmode)); then
+    flags=( )
+else
+    flags+=( -D )                                                                                          #2
+fi
+if [[ $# -eq 0 ]]; then
+    echo "error: You supplied flags, but no viable legal topic name..."
+    showhelp ${0:t} 3
+elif [[ $# -gt 1 ]]; then
+    echo "error: You supplied too many ($#) names (one is the limit)"
+    showhelp ${0:t} 3
+fi
+echo "sourcelink: ${0:t}"
+case ${0:t} in
+    pa|perlapi) flags+=( -a );;
+    pw|perlwhere) flags+=( -l );;
+    rp|rawpod) flags+=( -u );;
+    plv|pv|perlvar) flags+=( -v );;
+    pfaq|perlfaq) flags+=( -q );;
+    pm|plm|perlmod) flags=( );;
+    pf|plf|pfunc|perlfunc) flags+=( -f );;
+    *) echo "warning: unknown source link name $0, failing back to perlfunc";  flags+=( -f );;
+esac
+# transferring control to perldoc from here on
+exec $prog $flags "$@"
+# maybe #4
+echo "fatal: $prog is either missing or un-executable by current user ($USER)"
+exit 4
+
+# comments
+#
+# #1   [ re: shift when true: -n $flags ]
+#       the only way content could have been added, is through a value
+#       within $1 -- so we need to remove the item here as its not needed anymore
+#       and we really cannot send it to perldoc(!)
+# #2   [ re: Naming of the file and its links (sym) ]
+#       This file should be linked to with the recommended names in the header
+#       given below all the other names. Use ln(1) for that;
+#
+#   'ln -s perldoc-deduction-frontend perlfunc' 
+#
+#    This would make the perlfunc command available, and so on..
+#
+#        Deduces what flags for perldoc to use, based on the link or name of this source file
+#        note that perldoc-deduction-frontend is decorative and isnt recommended to be used
+#        at all except at first, you'll probably want to name it something shorter to make
+#        the subsequent calls to ln(1) easier to deal with. (or if you love to type, keep it, doesnt really
+#        matter eitehr way, its decorative sugar--thats all).
+#    If you are real lazy, just use --makelinks, WARNING: this is not tested very much, and should be done
+#   with extreme caution to prevent overwriting of other files, you have been warned!! Not responsible for
+#   losses or damages as a result of using any of my programs.
+# #3    [ re: showhelp ]
+#   used to simplify if calls to help are needed later on
+#   the code will always exit with given, and the first argument passed is assumed to be
+#   the program's name -- done because $0 loses its value to the function name once inside a function
+#
+# #4
+#   dont bother showing help here because its not a bad command line-perldoc just isnt executable
+#
+# #5
+#   from this point on, the cleanup() will be triggered automatically no matter what the method of exiting is
+#   however this does not sheild against stuff like power outages, sudden unblockable kills by admins, and
+#   all the stuff that isnt supposed to be able to be caugh in the first place!

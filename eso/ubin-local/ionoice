@@ -11,4 +11,9 @@ theconfig = configparser(	delimiters=('='),
 							comment_prefixes=('#'),
 							inline_comment_prefixes=('#'), strict=True, empty_lines_in_values=False)
 
+""" finish learning python for gossake							"""
+
+''' this must be done! '''
+
+
 

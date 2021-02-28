@@ -62,13 +62,60 @@ use Try::Tiny;
 use Getopt::Long::Descriptive;
 use File::MimeInfo::Magic   qw( mimetype magic inodetype describe );
 
-# ┏━━━━━━━━━━━━━━━━━━━━┓
-# ┋ special case libs  ┋
-# ┗━━━━━━━━━━━━━━━━━━━━┛
+# ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+# ┋ non-core modules that require checking before run ┋     #38
+# ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
+# use lib '/my/path/to/noncore/libs/perl_noncore/5.30.2/lib';   
+ 
+my @noncore_failures=();
+my $noncore_index=0;
+my $noncore_failures_bitfield=0;
+my @noncore_modules=qw? 
+                        Term::Put   
+                        IO::Proc
+                      ?;
+for (@noncore_modules) {
+    $noncore_index++;    
+    eval("use $_");
+    push(@noncore_failures,$_) if $@;
+    $noncore_failures_bitfield |= ($noncore_index**2);    
+}    
 
-use lib "/src/perl";    # wont need this if where Tern::Put is in your @INC, attotw its in-dev so its needed!
-use Term::Put;          # be sure to add ~/bin to your lib TESTING ONLY keep commented under all other circumstances!
+if (@noncore_failures) {
+        say("Cannot run $0 because the following modules are missing:");
+        say("\t$_") for @noncore_failures;
+        my $these="these";
+        my $theyre="they are";
+        my $s="s";
+        if ( @noncore_failures == 1 )
+        {   $s = "";
+            $theyre="it is";
+            $these="this";
+        }               
+        say("you must install $these non-core module$s first (make sure $theyre in your \@INC path. Alternatively, you can modify the source and add $these via the 'use lib' preprocessor.");
+        say("serving up /bin/ls if possible (MINI_LS_CMD and ARGV will be stripped of any insecure or non-common elements...\n\n");
+        push(@ARGV,$_) for split(":",$ENV{MINI_LS_CMD});        
+        my @args;
+        @args = map { 
+                no warnings 'experimental';
+            given($_) {
+                when(/^-[lC]$|^--(sort|help)|^[^-].+$/)
+                {   $_ = $_; }                
+                default
+                {  
+                    say("argument $_ is insecure or uncommon, it is removed to prevent instability");
+                    ();
+                }                               
+            };
+            
+         } @ARGV;                 
+        sleep(2) if path("/proc/loadavg")->slurp() =~ /^[1-9]\.[0-9]+/;
+        
+        system("/bin/ls", @args) if -x "/bin/ls";
+        say("...or not (found)") unless -x "/bin/ls";        
+        exit( -x "/bin/ls" ? $? : 127+$noncore_failures_bitfield);    
+}
 
 # ┏━━━━━━━━━━━━━━━━━━━━┓
 # ┋ features           ┋
@@ -99,9 +146,101 @@ use constant { DEV => 0,       INODE => 1,  MODE => 2,   HARDLINKS => 3, UID => 
                DEVICE_ID => 6, SIZE => 7,   ATIME => 8,  MTIME => 9,     CTIME => 10, BLK_SIZE => 11,
                BLK_COUNT => 12 };
 
+
+
+
+
 # ┏━━━━━━━━━━━━━━━━━━━━┓
 # ┋ self packages      ┋
 # ┗━━━━━━━━━━━━━━━━━━━━┛
+# ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+# ┋ precheck for shortcircuit-to-coreutils mode      ┋
+# ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+my $firstarg = $ARGV[0] // "unknown";
+my $nocoremode = 2;                  
+
+die("nocoremode has been set to an illegal value") if $nocoremode =~ /^[^012]$/g;
+                                                                                                                                           #42
+if ($firstarg eq "--core-mode" || $firstarg eq "-core" || $nocoremode == 2) 
+{   
+    unless ($nocoremode == 2) {
+        shift(@ARGV) if @ARGV;     
+    }
+             
+    if ($nocoremode)
+    {
+        exec("/bin/ls",@ARGV) if $nocoremode == 2;    
+   
+        print(STDERR "this option has been disabled (--core-mode and -core), in this version of lsx -- advancing automatically in a couple seconds");    
+    }
+    else
+    {
+        sleep(2);
+        #debug#print("initiating coremode... injecting ls(1)...");
+        exec("/bin/ls",@ARGV) or die("calling on coreutils'(1) ls did not work! ($? $!)");                                                                                        #4
+    }    
+}
+
+
+# ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+# ┋ Tie::Options                     ┋
+# ┋ Represents Current Settings      ┋                                                                             #35
+# ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+package Tie::Options;
+
+use Carp;
+use Path::Tiny;
+use Cwd;
+use JSON;
+
+sub new($classname, $file, $fmt)
+{
+    my $self = { uuid => UUID::uuid(),
+                 filename => $file,
+                 format => $fmt,
+                 options => { created => 1 },
+                 changed => 1,
+               };
+    if ( bless($self,$classname) ) {
+        say("created a new class (UUID=".$self->uuid.")");
+        return $self
+    }
+    confess("class creation FAILED (extra info=$! code=$?)");    
+    # died
+}
+sub persist($self,$writing)
+{
+    if ($writing)
+    {
+        
+    }
+    else
+    {
+    }
+}
+sub serialize($self)
+{
+}
+sub deserialize($self)
+{
+}
+sub changeformat($self,$fmt)
+{
+}
+sub setoption($self,$name,$newvalue,$default=undef)
+{
+}
+sub getoption($self,$name, $default=undef)
+{
+}
+sub __init($self,$filename,$fmt) {}
+sub __cleanup($self) {}
+
+
+
+
 
 
 # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -114,8 +253,6 @@ sub assert($expr) {  if ($expr) { confess("assert failed") } }
 sub wassert($expr) { if ($expr) { cluck("assert failed but is nonfatal") } }
 
 #1;
-
-
 
 # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 # ┋ Tie::LoadAvg                     ┋
@@ -197,13 +334,15 @@ sub _initproc($self,$opid) {
 
 package main;
 
-# ┏━━━━━━━━━━━━━━━━━━━━┓
-# ┋ option parsing     ┋
-# ┗━━━━━━━━━━━━━━━━━━━━┛
+# ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+# ┋ option parsing declarations      ┋
+# ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
 
 # special feature: arguments that are prefixxed with + (ie, like +-A) will seek out any matching argument in list (like -A) and remove it
 
-
+my $curterm = new Term::Put($ENV{"TERM"} // "linux");  # needs to be here 
 
 my $optsadded;
 my @toadd=( );  #32
@@ -229,40 +368,22 @@ my $lookahead_verbose = 0;
         push(@ARGV,@toadd);
     }
 
-sub elide($text,$maxwidth,$elidechars="...",$gravity="center")
-{
-    # WARNING INCOMPLETE FUNCTION-CONTAMINATED WITH COMMENTS DURING CONSTRUCTION! --------------
-    # DO NOT LEAVE THESE IN-DEVELOPMENT NOTES HERE ONCE FUNC IS COMPLETED
-    #                  L       C       R
-    #                  00000000011111111
-    #                  12345678901234567
-    # example:  elide("my mother is nice",11,"...","center")
-    #         outputs:|my m...nice|
-    # example:  elide("my mother is nice",11,"...","left")
-    #         outputs:|my m...nice|
-    # example:  elide("my mother is nice",11,"...","right")
-    #         outputs:|my m...nice|
-    # example:  elide("my mother is nice",11,"...","edge")
-    #         outputs:|...her i...|
-    # 
-    # gather intel
-    my $esize = length($elidechars);
-    my $tsize = length($text);
-    # assert requirements
+# special precheck: find if user specifically set column widths or column counts (but not both!)
 
-    # get # of chars needed by elidechars
-    my $tchars = ($gravity eq "edge");
-    # get positions
-
-    # die because function is incomplete
-    die("elide function is not yet completed, plesase dont use it yet");
-    # END INCOMPLETE FUNCTION AREA ---------------------------------------------------------
+my $userset_cwidth=0;    #11
+my $userset_cols=0;    #11
+for (@ARGV) {
+    $userset_cwidth = 1 if m/-(-columns|C)/g;
+    $userset_cols = 1 if m/-(column-width|W)/g;
 }
 
-sub acwd() {
-    return cwd if getcwd();
-    return undef;
-}
+
+
+
+
+# option-related utility subroutines
+
+sub acwd() { return cwd if getcwd();  die("cannot get current directory: $! $?"); }
 sub KB  { return 2**10; }
 sub MB { return ((KB())*(KB())); }
 sub GB { return ((MB())*(KB())); }
@@ -270,21 +391,36 @@ sub TB { return ((GB())*(KB())); }
 sub _s($ln,$sn=undef) { return ("$ln|" . ($sn // substr($ln,0,1)) . '=s'); }
 sub _i($ln,$sn=undef) { return ("$ln|" . ($sn // substr($ln,0,1)) . '=i'); }
 sub _o($ln,$sn=undef) { return ("$ln|" . ($sn // substr($ln,0,1)) . ''  ); }
+
 my ($opt, $usage) = describe_options(
     'my-program %o <some-arg>',
+    
     # string options
     [ _s( "sort" ),             "sort the list",  { default => "name" } ],
-    [ _s( "relative-to"),        "set fallback/relative path (default, current path)", { default => acwd } ],    
-    [ _s( "color-table", "T", ),        "either a list of colors delimited by ':', or a filename containing the colortable", { default => "" } ],
+    [ _s( "relative-to"),       "set fallback/relative path (default, current path)", { default => acwd } ],    
+    [ _s( "color-table","T" ),  "either a list of colors delimited by ':', or a filename containing the colortable", { default => "" } ],
+    [ _s( "color","C" ),        "select the color",
+                                {
+                                    default => "auto",
+                                    callbacks => { 
+                                        "mode checker" => sub { 
+                                        return 1 if shift() =~ /(auto|always|never)/;
+                                        print("\nExpected: auto, always, or never as --color= parameter, failed\n");
+                                        
+                                        exit(127);
+                                        #die("\n"); # cosmetic: prevent die from showing line number/file name
+                                     } }
+                                }],
     # integral options
     [ _i( "attrib-width", 'B' ),  "width in chars of the attribute bit area", { default => 6 } ],               #19
-    [ _i( "columns",      'C' ),        "number of columns to use in column mode  (def=1)",   { default  => 4 } ],
-    [ _i( "colors",       'N' ),        "number of colors to support (16, 256, 16384) (def=set by terminfo)",   { default  => undef } ],
+    [ _i( "columns",      'O' ),        "number of columns to use in column mode  (def=1)",   { default  => 4 } ],
+    [ _i( "colors",       'N' ),        "number of colors to support (16, 256, 16384) (def=set by terminfo)",   { default  => $curterm->colors } ],
     [ _i( "column-width", 'W' ),        "width of each column (def=32)",   { default  => 32 } ],
     [ _i( "column-indent",'I' ),        "columns to indent first line by (def=0)",   { default  => 0 } ],
     # filler/separator
     [],
-    # flag/bool options
+    # flag/bool options (last numeric option was: '4', keep track here so we dont miss any)
+    [ _o( 'no-hidden','4' ),                "hide . .. and .<entries>, basically reverses -A and -a" ],
     [ _o( 'directories','d' ),              "show the directory not the contents when passed as an argument" ],
     [ _o( 'reverse-match','r' ),            "show all files that do NOT match the specification (per element)" ],                               #24
     [ _o( 'hidden-only','H' ),              "only show hidden files" ],
@@ -297,14 +433,57 @@ my ($opt, $usage) = describe_options(
     [ _o( 'legend','L' ),                   "show a legend" ],
     [ _o( 'long' ),                         "long list format -not implemented yet-" ],
     [ _o( 'all' ),                          "all entries" ],
-    [ _o( 'almost-all','A' ),               "all entries but . and .." ],
+    [ _o( 'almost-all','A' ),               "all entries but . and .. (can be reversed by, but also reverses, -4 or --no-hidden)" ],
     [ _o( 'verbose' ),                      "print extra stuff" ],
+    [ _o( 'no-decorations','3' ),           "disable any decorative text that does directly relate to a file entry segment" ],
     [ _o( 'help' ),                         "print usage message and exit", { shortcircuit => 1 } ],
+    [],
+    [  "You can also set MINI_LS_CMD to a colon-delimited list of these arguments above (example: export MINI_LS_CMD='-l:-a:--sort=size', this " .
+       "command can be used in sh-like shells, between the quotes the text can be set from any program that modifies its environment)" ],
     # option display and exit on help request
 );  say($usage->text), exit if $opt->help;
 
 say ($optsadded) if $optsadded && $opt->verbose;                                                                                                  #30
 my $swd = path($opt->relative_to // ( @ARGV ? "/" : die("in a detached directory, and no elements given on command line, cannot list anything. ($!)") ) );
+# postcheck: validate size of..
+if ($userset_cwidth && $userset_cols)
+{
+    if ( ($opt->columns * $opt->column_width) > $curterm->width ) {
+        confess("user set column size and width, and the result would be wider than the screen, please check your arguments and try again");
+    }
+}
+else
+{
+    unless ($userset_cwidth)
+    {
+        
+        $$opt{column_width} =  $curterm->width / ( $opt->columns // 1 );                    #35
+    }
+    else 
+    {
+        
+        unless ($userset_cols)
+        {
+        
+            # warning: this text violates comment code of ethics, please remove or move to the proper section or they will be deleted in 30 days
+            #########
+            # (also, if userset columns, dont do it obviously they already specified what is wanted)
+            # use column width to calculate how many columns can be shown; 4 is padding for the space at: 1) startofline 2) startofentry 3) endofentry 4) endofline (todo: make them dynamic?)
+            #
+            # compensate
+            #
+            # let it be stressed that this value should NEVER be anything other than 1 or 2!!!! (1=disabled 2=compensate)
+            # however, i built in safety check just in case someone makes a no-no mistake here! 
+            # more info: compensate is an imaginary dimension, should be 1 but if it is way overwidth, set it to 2 (but never to 0!) 
+            
+            my $compensate=2; 
+
+           $$opt{columns} = $curterm->width / (($opt->column_width)+4*(($compensate == 1 || $compensate == 2)?$compensate:1));
+        }
+    }
+}
+
+
 my $colpos = $opt->column_indent;                                                                                                                 #14
 my $colwidth = $opt->column_width;
 my $maxpos = $opt->columns;
@@ -315,8 +494,15 @@ my $efmt = "%25s %-s\n";
 # ┋ scalars            ┋   \,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,/
 # ┗━━━━━━━━━━━━━━━━━━━━┛
 
+
+#### TEMPORARY, REMOVING VERY SOON (if you see this on github, it should never be here, notify the author!)
+sub setfg($val) { return "[38;5;${val}m" if $val; return ""; }
+sub setbg($val) { return "[48;5;${val}m" if $val; return ""; }
+sub crst() { return "[0m"; }
+
+
+
 my $indexlimit = 256;       
-my $curterm = 0;
 my $defpart = "fg";
 my $startuplavg = new Tie::LoadAvg();
 my $curdircnt = 0;
@@ -328,6 +514,7 @@ my $colorcount = $opt->colors;
 my $tput_binary = "/usr/bin/tput";
 my $noargmode = 0;
 my $fallbackcolor = 1;
+
                           #/'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''\
                           #|            U F A C   B I T S    T H A T    A R E    S E T       |
                           #}-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---{
@@ -409,133 +596,84 @@ my %clr_xlat_table = ( 16 => \@col_xlat_tab16,
 # ┋ prototypes         ┋
 # ┗━━━━━━━━━━━━━━━━━━━━┛
 
-sub csay :prototype(@) { say(colorize($_)) for @_; }
+sub csay :prototype(@) { say($curterm->colorize($_)) for @_; }
 
 # ┏━━━━━━━━━━━━━━━━━━━━┓
 # ┋ subs               ┋
 # ┗━━━━━━━━━━━━━━━━━━━━┛
 
 
-sub termio
+sub human_readable($size)
 {
-    for (@_) { die("no punctuation allowed in termio strings! (security)") if /[[:punct:]]/; }
-    my $tput = `$tput_binary @_`;
-    chomp $tput;
-    return $tput;
+    # makes human readable, and colorizes size
+    
+    local $_ = "";
+    my $lidx = 0;
+    my $foundcolor = $fallbackcolor;
+    my $suf = "bytes";
+    my $psuf = \$suf;
+    my $hsize = hrs($size,\$suf);
+    
+    for ( @filecolormap ) {
+        $lidx++;
+        my $min = $_->{min};
+        my $max = $_->{max};
+        my ($hmin,$hmax) = (hrs($min), hrs($max));
+        my $color = $_->{color};
+        $foundcolor = $color if ( $size >= $min && $size <= $max );
+     }
+     
+     return setfg($colormap[$foundcolor]) . $hsize . crst();
+        
 }
-sub setup_term_ctl_strings()
-{
-    $curterm = new Term::Put($ENV{"TERM"});
-    $colorcount //= termio('colors');
-    $afstr = termio('setaf',DUMMY_COLOR);
-    $abstr = termio('setab',DUMMY_COLOR);
-    $rst   = termio('sgr0');
-}
-sub setcursor($x,$y,$retstr=false)
-{
-    if ($retstr)
-    {
-        return termio('hpa', $x) . termio('vpa', $y);
-    } else {
-        printf("%s%s",termio('hpa',$x),termio('vpa',$y));
-    }
-}
-sub getlines()
-{
-    return termio('lines');
-}
-sub getcols()
-{
-    return termio('columns');
-}
-sub seta($val,$part)
-{   
-    $val //= 0;
-    $part //= $defpart;
-    $val %= $colorcount;
-    if ($part eq "fg") { $val = 1 if $val == 0; }
-    my $sendstr = "<invalid val=$val part=$part to seta()>";
-    #TODO: add in (somehow) support for: <=16, 88-256, rgb256, and 24-bit nonstd colors
-    #(urgent)
-    given($part) {
-        when (/fg/) {
-            $sendstr = $afstr;
-            $sendstr =~ s/9999/$val/g;
-            return $sendstr;
-        }
-        when (/bg/) {
-            $sendstr = $abstr;
-            $sendstr =~ s/9999/$val/g;
-            return $sendstr;
-        }
-        when (/rst/) {
-            return $rst;
-        }
-        default
-        {
-            warn("seta() called with invalid values");
-            return $sendstr;
-        }
-    }
-}
-sub setfg($num)
-{
-    return seta($num,"fg");
-}
-sub setbg($num)
-{
-    return seta($num,"bg");
-}
-sub crst($num=0)
-{
-    return seta($num,"rst");
-}
-sub colorize($str) {
-    my @items = split(/~(\d+)/,$str);
-    my $final = "";
-    if (@items > 1)
-    {
-        for my $_item (@items)
-        {
-            given($_item)
-            {
-                when (/^\d+$/)                                                                                              #15
-                {
-                    my %ranges = ( uninitialized => 1 );
-                    my $num = $_item;
-                    if ($num >= 256 && $num < 512)
-                    {
-                        $final .= setbg($num - 256);
-                    }
-                    elsif ($num >= 512)
-                    {
-                        if ( length($num) == 6 )    { %ranges = ( f => 0, b => 3, l => 3 ); }
-                        elsif ( length($num) == 4 ) { %ranges = ( f => 0, b => 2, l => 2 ); }
-                        else                        { %ranges = ( f => -1 ) };
-                        if ($ranges{'f'} < 0) { $final .="<?=$num>"; }
-                        else                  { $final .= setfg(substr($num,$ranges{'f'},$ranges{'l'}));
-                                                $final .= setbg(substr($num,$ranges{'b'},$ranges{'l'})); }
-                    } else {
-                        $final .= setfg($num);
-                    }
-               }
-               default
-               {
-                    $final .= $_item;
-               }
-           }
-        }
-    }
-    else
-    {
-        $final = $str;
-    }
-    return $final;
-}
+
+# TEMPORARY, MOVED INTO Term::Put
+#sub colorize($str) {
+#    my @items = split(/~(\d+)/,$str);
+#     my $final = "";
+#    if (@items > 1)
+#    {
+#        for my $_item (@items)
+#        {
+#            given($_item)
+#            {
+#                when (/^\d+$/)                                                                                              #15
+#                {
+#                    my %ranges = ( uninitialized => 1 );
+#                    my $num = $_item;
+#                    if ($num >= 256 && $num < 512)
+#                    {
+#                        $final .= setbg($num - 256);
+#                    }
+#                    elsif ($num >= 512)
+#                    {
+#                        if ( length($num) == 6 )    { %ranges = ( f => 0, b => 3, l => 3 ); }
+#                        elsif ( length($num) == 4 ) { %ranges = ( f => 0, b => 2, l => 2 ); }
+#                        else                        { %ranges = ( f => -1 ) };
+#                        if ($ranges{'f'} < 0) { $final .="<?=$num>"; }
+#                        else                  { $final .= setfg(substr($num,$ranges{'f'},$ranges{'l'}));
+#                                                $final .= setbg(substr($num,$ranges{'b'},$ranges{'l'})); }
+#                    } else {
+#                        $final .= setfg($num);
+#                    }
+#               }
+#               default
+#               {
+#                    $final .= $_item;
+#               }
+#           }
+#        }
+#    }
+#    else
+#    {
+#        $final = $str;
+#    }
+#    return $final;
+#}
 # ^main functions^    vlower-level functionsv                                                                                                      #23
 sub _ispic($file) {
     return 0 if $startuplavg->one > 1.25;
-    $_ = $file;
+    local $_ = $file;
     return 1 if /$picmatch/;
     return 0;
 }
@@ -550,7 +688,7 @@ sub _getstat($pathname,$blink)
     return path($pathname)->stat() unless $blink;
     return path($pathname)->lstat();
 }
-sub _ansi_sgr(@sequence )                                                                                                                        #1
+sub _ansi_sgr(@sequence )                                                                                                                          #1
 {
     @_ = qw( 40 37 0 ) unless @_;
     return sprintf("\e[" . join(";",@sequence) . 'm');                                                                                           #13
@@ -572,6 +710,11 @@ sub _rgb24($r,$g,$b)
 {
       return $r << 16 | $g << 8 | $b;
 }
+
+sub tycat()
+{
+}
+
 sub _gsc($r, $g=-1, $b=-1, $direct=-1, $fg=1)
 {
     if ($direct > 0)
@@ -595,53 +738,46 @@ sub _bgc($r,$g,$b,$direct=-1)
 {
     return _gsc($r,$g,$b,$opt->use_direct_colors,0);
 }
-sub hrs($rsize) # size to human-readable size
+sub hrs($rsize, $p_suf=undef) 
 {
+    my $dummy="";
+    my $suf = ref($p_suf) eq "SCALAR" ? $p_suf : \$dummy;    
+    warn("arg 2 in hrs, p_suf, should be SCALAR or undef: (is ".ref($p_suf).")") if (length(ref($p_suf)) > 0) && ref($p_suf) ne "SCALAR";
+    $$suf = $rsize == 1 ? "byte" : "bytes";
+    
+
     if ($rsize == -1) {
+        $suf = "(nil/inf)";
         return ""; }
     elsif ($rsize == 0) {
+        $suf = "";
         return "empty"; }
     elsif ($rsize >= TB()) {
+        $suf = "TiB";
         return int($rsize / TB()) . "Tb"; }
     elsif ($rsize >= GB()) {
-        return int($rsize / GB()) . "Gb"; }
+        $suf = "GiB";
+        return int($rsize / GB()) . "Gb"; }        
     elsif ($rsize >= MB()) {
+        $suf = "MiB";        
         return int($rsize / MB()) . "Mb"; }
     elsif ($rsize >= KB()) {
+        $suf = "KiB";
         return int($rsize / KB()) . "Kb"; }
     else {
-        return $rsize . "b"; }
+        return $rsize . "b"; 
+        }
 
 }
 
 sub filecolor($filename)    #27
 {
-    # NOTE: the positioning of these comments are illegal, please move them to the end of the file to reduce clutter before the next push!
+    
 
-    my $size = 0;
-
-#
-#
-# Quick backreference on lstat/stat indicies:
-#
-#              0 dev      device number of filesystem
-#              1 ino      inode number
-#              2 mode     File Permissions (Octets: Special, GroupOwnerPerms, UserOwnerPerms, EveryonePerms*)
-#              3 nlink    File's Hardlink Count (this should NEVER be zero)
-#              4 uid      Owning UID (User ID Number, root is 0)
-#              5 gid      Owning GID (Group ID Number, root is 0)
-#              6 rdev     for special files, provides a device ID
-#              7 size     file's size, in bytes (8 bits = 1 byte)
-#              8 atime    last access time          ( these are measured in: [seconds - epoch],
-#              9 mtime    last modify time            on modern systems, this is Jan 1, 1970, it
-#             10 ctime    inode change time           varies greatly on antiquated systems)
-#             11 blksize  I/O block size preferred when transferring data to/from file (can vary)
-#             12 blocks   "system specific" blocks on the disk (one block is usually 512 bytes)
-#
-#             Permissions: 1 = Read 2 = Write 4 = Execute (example Read+Execute for all users would be 0555)
-
+    my $size = 0;           #37
     my $file_owned_by = $filename->lstat()->[4];
     my $owner = 0;
+    
     if ($file_owned_by == $< ) {
         $owner = 0;
     }
@@ -661,10 +797,11 @@ sub filecolor($filename)    #27
             $size = 5;
         }
     }
-
-
+    
     my $foundcolor = $fallbackcolor;
     my $lidx = 0;
+    local $_ = "";
+    
     for ( @filecolormap ) {
         $lidx++;
         my $min = $_->{min};
@@ -674,15 +811,21 @@ sub filecolor($filename)    #27
 
         $foundcolor = $color if ( $size >= $min && $size <= $max );
      }
+     
      return setfg($colormap[$foundcolor]) . setbg($owner);
 
 
 
 
 }
+sub entry_size($item,$deref=1)
+{    
+    return 0; # WORK IN PROGRESS (again)    
+}
 
 sub setup_legends() {
 
+    local $_;
     my $lidx = 0;
     for ( @filecolormap ) {
             my $ltxt = "";
@@ -747,6 +890,7 @@ sub get_xtra_data($target)
 
 sub showentry($_pwd,$_item)
 {
+    local $_;
         ($_item,$_pwd) = ( path($_item), path($_pwd) );
         if ( $opt->single )
         {
@@ -766,7 +910,7 @@ sub showentry($_pwd,$_item)
                      tac => 0,            # t - tty-opened/binary-file/ascii-file
                      usuid => 0,          # u - setuid/setgid/sticky modes
                    );
-        $_ = $_item;
+        local $_ = $_item;
         $bits{euid}|=1 if -r;
         $bits{euid}|=2 if -w;
         $bits{euid}|=4 if -x;
@@ -806,32 +950,44 @@ sub showentry($_pwd,$_item)
                 $bitcount++;
                 my $bitcolor = $clr_xlat_table{256}->[$bits{$_}];
                 my $bitcolorf = $clr_xlat_table{256}->[$curbit];
-                $bitout .= setbg($bitcolor) . setfg($bitcolorf) . substr($_,0,1) . crst;
+                $bitout .= setbg($bitcolor) . setfg($bitcolorf) . substr($_,0,1) . crst();
                 last if $bitcount >= $maxbits;
             }
             $curbit++;
         }
         $bitout .= (" " x ($maxbits - $bitcount)) if $bitcount < $maxbits;
         my $entry = $_;
+
+#        print("$_ " . (human_readable($entry->lstat()->[7])) . "\n");
+        
+        my $szw = 12;                                                                       # 33 !
+        
+        
+        my $sz = sprintf("%${szw}s", substr( human_readable($entry->lstat()->[7]), 0,$szw));
+        
         my $xtra = get_xtra_data($entry);
+        my $eclip = $opt->column_width - 12; 
+        $eclip = (($eclip / 2)-4) if -l;
+        my $elided = ($opt->column) ? sprintf("%-${eclip}s",substr($entry,0,$eclip)) : $entry;
+       
 
         if ( -d ) {
-            $finalent=sprintf(colorize("%s %s ~240[~28%s%s%s~242]~28"),$xtra,$bitout,filecolor($entry),$entry,setbg(0));
+            $finalent=sprintf($curterm->colorize("%s %s %s ~240[~28%s%s%s~242]~28"),$sz,$xtra,$bitout,filecolor($entry),$elided,setbg(0));
         }
         else {
-            $finalent=sprintf("%s %s %s%s%s",$xtra,$bitout,filecolor($entry),$entry,setbg(0));
+            $finalent=sprintf("%s %s %s %s%s%s",$sz,$xtra,$bitout,filecolor($entry),$elided,setbg(0));
         }
         if ( -l )
         {
-            my $linkitem = readlink($_);
-            $finalent .= sprintf(colorize(" ~236-~237> ~240[~238%s~240]~28"),$linkitem) if -e;
-            $finalent .= sprintf(colorize(" ~236-~237> ~240[~160%s~240]~28"),$linkitem) unless -e;
+            my $linkitem = $opt->column ?  sprintf("%${eclip}s",substr(readlink($_),0,$eclip)) : readlink($_);
+            $finalent .= sprintf($curterm->colorize(" ~236-~237> ~240[~238%s~240]~28"),$linkitem) if -e;
+            $finalent .= sprintf($curterm->colorize(" ~236-~237> ~240[~160%s~240]~28"),$linkitem) unless -e;
         }
         if ( $opt->column )
         {
             if ( $colpos >= $maxpos )
             {
-                system("tycat","-g","1x1",$_) for @pics;
+                tycat("-g","1x1",$_) for @pics;
                 printf("\n") unless @pics > 0;
                 $colpos = 0;
                 @pics = ( );
@@ -847,6 +1003,7 @@ sub showentry($_pwd,$_item)
             printf("[0m[%dG%s[0m",$colpos*$colwidth,$finalent);
             $colpos++;
         } else {
+            
                 printf("%s",$finalent);
                 if ($maxdirpic >= $curdircnt && _ispic($entry)) {
                     system("tycat","-g","1x1",$entry);
@@ -862,9 +1019,8 @@ sub dosort(@targets)
 {
     my @target = @targets;       
     my @result;
-    
     # entry sorting
-    $_ = $opt->sort;
+    local $_ = $opt->sort;          # 34 (!!!)
     if ( /name/ )
     {
         # sort by name (generic)
@@ -944,7 +1100,46 @@ sub dosort(@targets)
     
     return @result;
 }
-
+use constant {   WARN => "warn",     INFO => "info",  ERROR => "error",  
+                FATAL => "fatal",     ALL => "all",     ANY => "any"    };
+sub vsay(@items) {
+    local $_;
+    say(@items) if $opt->verbose;    
+}
+sub vsay_c($cond,$kind,$msg,@items)
+{   
+    local $_;
+    # workaround for a default "slurpy" parameter, @items
+    # warning, passing empty list will have the same effect!
+    if (@items == 0) {
+        @items = (0);       # automatically change to zero to indicate no test, just fail (slurpy cannot have default, so this is a current workaround for that caveat -- until it is addressed (if it ever is) by the perl authors
+    }
+    
+    if ($opt->verbose || $kind =~ /fatal|error|warn/ ) {
+        my $bok;
+        given($cond) {
+            when (/all(_?of)?/) { $bok=1; $bok&=$_ for @items; }
+            when (/any(_?of)?/) { $bok=0; $bok|=$_ for @items; }
+            default             { die("vsay_c(@_) called with bad condition: $cond"); }
+        }
+        # condition unmet, print message that it failed        
+        if (!$bok) {
+            my $out = sprintf(colorize("~210%s~8(~202$?~190$!~8)~4: ~12%s~7\n"),$kind,$msg);
+            confess($out) if $kind eq FATAL;
+            croak($out) if $kind eq ERROR;
+            cluck($out) if $kind eq WARN;
+            print($out) if $kind eq INFO;
+            die("critical: had to come back and kill due to internal error: $!") if $kind =~ /(fatal|warn|error)/;                        
+            
+        } else {
+            # condition ok/green, dont do anything but return nonerror-like!
+            return 1;
+        }
+    }
+}
+sub vsay_all($kind,$msg,@items) { return vsay_c(ALL,$kind,$msg,@items); }
+sub vsay_any($kind,$msg,@items) { return vsay_c(ANY,$kind,$msg,@items); }
+sub verr($msg="generic error (undocumented)",@items)           { return vsay_c(ALL,ERROR,$msg,@items); }                                    
 sub print_legends($columnmode=1)
 {
     return;     # temporarily suspended this operation
@@ -969,6 +1164,7 @@ sub print_legends($columnmode=1)
 
 sub setup_colormaps()
 {
+    local $_;
     my $lastmax=0;
     for ( @filecolormap )
     {
@@ -982,32 +1178,54 @@ sub setup_colormaps()
 
 sub showentries($wd=$swd,$multimode=1, $traversedir=1 )
 {
-    # transform into path objects
+    local $_;
+    
+    ### transform $swd and $wd into Path::Tiny objects
+    
     $swd = path($swd);
     $wd = path($wd);
-
     if ( -d $wd && !$opt->directories ) {
         $wd = $swd->child($wd) unless $wd =~ m:^/:;   #11
         chdir($wd);
     }
-    given ( $wd )
+    ### check item validity ###    
+    given (path($wd))     #34 (!!!)
     {
+        ####################################### valid entry ################################################
         when ( -d  or -e or -l )
         {
+            #  LOCAL    declarations
+            
             my @entries = ();
+
+            # HEADER    print header (if multimode or more than one entry)
+            
             say("\n" . $wd . "\n") if $multimode or (@entries > 1);
+
+            #   BODY    print each entry dependant on type
+
+            #### GET ENTRIES 
+
+            #### SINGLE ITEM/DIR
+            
             unless ( -d $wd && !$opt->directories )
             {
                 @entries = ( glob($wd) );
                 $curdircnt = scalar (@entries);
-                warn("(warning: -H (--hidden-only) does not make sense with specific entry mode (did you mean --reverse-match?)") if ($opt->hidden_only);
-                if ( $opt->verbose ) {
-                warn("(warning: -a and -A are useless with single entry specified)\n") if $opt->all or $opt->almost_all;
-                warn("(warning: -a and -A are useless with single entry specified)\n") if $opt->all or $opt->almost_all;
+                if ( $opt->verbose ) 
+                {
+                    
+                    
+                    vsay_all("warn", "-H (--hidden-only) does not make sense with specific entry mode (did you mean --reverse-match?)", $opt->hidden_only);
+                    vsay_any("warn","(warning: -a and -A are useless with single entry specified)",$opt->all,$opt->almost_all);
                 }
             }
+
+            #      ALL N
+
             else
             {
+                ## 
                 if ($opt->hidden_only) {                                                                                                        #24
                     @entries = glob('.*');
                     push(@entries, qw( .. . ) );
@@ -1022,11 +1240,15 @@ sub showentries($wd=$swd,$multimode=1, $traversedir=1 )
                 }
 
             }
+
+            # parse entries
+            
             if (@entries || ($noargmode == 0))  {
+
                 showentry( $wd, "$_" ) for dosort(@entries);
                 say( "\n" . @entries . " item(s)\n" ) if $multimode or ( @entries > 1 );
             } else {
-                if ($colorcount > 16) {
+                if ($colorcount and $colorcount > 16) {
                     csay("~17\t100% E~18M~19P~20T~21Y~22 D~23I~24R~25E~26C~27T~28O~29R~30Y \n\n~232[~250No Items~232]~7\n");
                 } else {
                     say("\tEmpty\n\n[No Items]");
@@ -1034,13 +1256,20 @@ sub showentries($wd=$swd,$multimode=1, $traversedir=1 )
             }
             # legend always last
             print_legends();
-
         }
+        ###################################### invalid entry ###############################################
+
         default
         {
             say("$wd : not found (wd=$wd swd=$swd multimode=$multimode islink=" . _tf(-l $wd) );
         }
+
+        ####################################################################################################
+
     }
+
+    ###################### return to original directory ########################
+    
     chdir($swd) if -d $wd;
 }
 
@@ -1048,7 +1277,8 @@ sub showentries($wd=$swd,$multimode=1, $traversedir=1 )
 # ┋ main               ┋
 # ┗━━━━━━━━━━━━━━━━━━━━┛
 
-setup_term_ctl_strings();                                                                                                   #2
+#setup_term_ctl_strings();                                                                                                   #2
+
 setup_colormaps();
 setup_legends();
 
@@ -1259,8 +1489,122 @@ if (@ARGV) {
 #     examiner to get false positives (items it added or did not add yet), for this reason, @toadd was needed to buffer the items until the operation
 #     has completed, then it is added in after the fact. TODO: add some sort of security sanitizing of the environment variables before they are put in
 #     attotw it does not have access to system, qx, fork, or exec, ``, etc so its not a priority.
-# (reserved: #33 #34 #35 (add more when needed))
+# #33 sz, szw, added because i wanted them, may later add a switch to enable/disable them, but for now 12 digits is ok
+#              (fyi 12 digits = xxx,xxx,xxx,xxx which is 0.9 TB filesize max will be visible, which is ok for now, larger will be chopped
+#               servers and people with beefy machines can change this to 15 or 18, but beyond 18 (999 PB!) wont be needed in the near future for desktop users
+#               (near 2021), clusters, forests, datacenters, may need 21 or 24 by mid 2025, but you can change it so go ahead...open source!
+# #34 given, when using given anywhere, must pass a copy unless we want our variable to be changed when some other inner method/function uses $_!
+#     this could be a problem normally, as long as local $_ is used in subs it should be ok. To doubly protect $wd, not only is the first method (passing a copy of path($wd) a new ref)
+#     used, but also, in dosort, local is added to prevent any changing to $_, which would of changed the value of $wd to whatever sort method is used, in most cases, 'size'.
+# #35 these use terminal width and number of columns to calculate how wide each column should be, or vice-versa in the second unless statement
+#     down below: else-{-unless == aka elsunless ($userset_cols))
+# #36 make dynamic at some point, but for now the 4 is for spacing (1 space each) around: begin-of-line, begin-of-entry, end-of-entry, end-of-line
+# #37 
+#      did: - (NOTE: the positioning of these comments were illegal, please move them to the end of the file to reduce clutter before the next push!)
+#           - MOVED: to 37
+#           - Quick backreference on lstat/stat indicies refs
+#              0 dev      device number of filesystem
+#              1 ino      inode number
+#              2 mode     File Permissions (Octets: Special, GroupOwnerPerms, UserOwnerPerms, EveryonePerms*)
+#              3 nlink    File's Hardlink Count (this should NEVER be zero)
+#              4 uid      Owning UID (User ID Number, root is 0)
+#              5 gid      Owning GID (Group ID Number, root is 0)
+#              6 rdev     for special files, provides a device ID
+#              7 size     file's size, in bytes (8 bits = 1 byte)
+#              8 atime    last access time          ( these are measured in: [seconds - epoch],
+#              9 mtime    last modify time            on modern systems, this is Jan 1, 1970, it
+#             10 ctime    inode change time           varies greatly on antiquated systems)
+#             11 blksize  I/O block size preferred when transferring data to/from file (can vary)
+#             12 blocks   "system specific" blocks on the disk (one block is usually 512 bytes)
+#             Permissions: 1 = Read 2 = Write 4 = Execute (example Read+Execute for all users would be 0555)
+# ---------------------- end of #37 ----------------------------------------------------
+# #38  non-core modules (the two blocks that deals with them)
+#     each topic starts with 're: topic' or 're: sourcecode'     
+#     newest additions are first
+#     re: sleep(2) if path("/proc/loadavg")->slurp() =~ /^[1-9]\.[0-
 #
+# #39 re: exit(127) inside a callback!? there is a reason...
+#         must exit (t)here and now. Otherwise, user wont see message the --help screen 
+#         is way long now also, Params::Validate::PP will put its ugly message up too, 
+#         and die("\n") only deornaments 'die' not PP. Furthermore, injecting into 
+#         module is out of the question because PP is just one big function making it 
+#         far too much overhead to rewrite and/or inject (plus no injection points are 
+#         appropriate)
+#
+#     re: "uncommon" and "insecure" args
+#         uncommon: arguments that do not exist in both coreutils /bin/ls
+#                   AND minils (aka mls or xls)
+#         insecure: arguments that either differ or are just not yet added
+#                   as accepted (they may be added later once they are cleared as being secure)
+#                   note: this is a fallback feature, it should not really have
+#                   more than just a minimal amount of support as it is, as we do not want
+#                   the minils code to grow into a hideous monstrosity.
+#     re: during argv reassignment
+#           used the following for debugging output:
+#               say("before:"); say for @ARGV; say("after:"); say for @args;
+#     re: use lib 'path'
+#           uncomment the above line if Tern::Put is not your @INC
+#           you should set it to the correct path also, above is an example only.
+#     re: defined variables starting with 'noncore':
+#            @noncore_failures: list of all modules that failed to load
+#           $noncore_index: current index of @noncore_modules that is being loaded
+#           $noncore_failures_bitfield: a bitfield defining exactly which modules failed, for error reporting and exit code calculation
+#           @noncore_modules: names of modules are placed inside this list, separated by whitespace
+#     re: the two blocks (for block, and if block)
+#           prevent having user install a module, then find out another one is missing
+#           and installing it only to find yet another is missing (this happens alot
+#           in perl and C programs) so test ALL missing modules so user can go get them 
+#           all at once. 
+#     re: possible TODOs for No. 38: 
+#           - offer to install via cpan, cpanp, or cpanm (if user has them)
+#     re: second block (if block) internal variables:
+#           these/theyre/s variables are just for the message so plain english can be used properly when only 1 item is present [instead of 1 items are present, for example]
+# #39
+# #40
+# #41
+# #42 re: shortcircuit-core-at-bof
+#           a command to switch to coreutils' ls(1), all other arguments are sent to the new target
+#           (will fail if ls cannot be located) also added, for admins, $nocoremode, to prevent users from accessing coreutils version
+#           added another value to nocoremode, 2, to prevent use of lsx and always go to core mode, without the argument to do so
+#           added die when nocoremode is not 0, 1 or 2
+#           added optional alternate -core (derived from original --core-mode)
+# #43
+# #44
+# #45
+# #46
+#        
+#  FIRST SUBCLASSED OBJECT FOR SETTINGS USAGE
+#  (this is a bit long, but I appologize to no one!)
+#
+#     The program has grown to the point where options on the command line, environment variable(s), a possible future rcfile, and the actual 
+#     effective settings, the settings themselves that are actually enabled need to be separated into a concrete object. This is due to overlapping and
+#     overriding behaviors of the previously mentioned items (further referred to as the "setters"). Due to this (intentional) behavior, which is a
+#     feature expected of *nix and BSD applications that run under a command line, there must now be implemented such an object. 
+#
+#   SUBCLASSING
+#
+#      This will be the first subclassed object relying on Tie variables and possibly Moose as well. [the following is stated prior to its creation:] The object is
+#     needed because the setters will be constantly changing the state of the program, and the program should not be expected to check all the setters
+#     each time a setting's value is needed. Even a single setter can have contradicting arguments that toggle a setting on and back off again, in
+#     the user's expected manner of doing so. A good example of this is the -A (--almost-all) and the -4 (--no-hidden) which are the reverse of each
+#     other. 
+#
+#  WHY ARE THE ALTERNATIVES IGNORED?
+#
+#       I could have gone with using '+A' which would require a different getopt since G:L:D does not support that[1], but it wouldnt solve the
+#     problem introduced by MINI_CMD_LS="-A" being present as well (or a future 'almost-all=1' in an rcfile, these cannot be checked at every point
+#     in a reasonable way: if x == y do z is ok, but it becomes 'if h == i OR j == k OR l == m OR n == o ...... x == y do z, which is unacceptable
+#     especially with hundreds of options DURING operation to be checked. Instead, all options are applied at start-up, and then stay the same 
+#     throughout the operation, and instead we get if stable_constant_object.x == y do z. Much better. Now, to further fixup performance, there might
+#     be one more thing added; yes im talking about SHA checking of settings files and states. If they grow big and they will, SHASUMs will be used
+#     before anything is even processed, if the SHAs match, we can just use the same cached settings for a resonable performance boost (any boost 
+#     that has no actual repercussions is a good boost and worth checksumming). This also allows for a degree of error correction that can be easily
+#     implemented.
+#     [1] Getopt::Long (sorta) supports it though, though not simply enough and nowhere near enough to be a central object for options
+#         (this would add an extra call to Getopt::Long::Getoptions, with passthrough enabled)
+#     [2] Getopt::* the options are in fact writable, via dereferencing the hash but that is iffy and error prone, an object will be simpler
+#      
+
 # end of embedded notes section
 
 # sub Sidenotes

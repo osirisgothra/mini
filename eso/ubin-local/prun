@@ -224,13 +224,15 @@ update_bincache()
 ########################################
 ######################### MAIN PROGRAM #
 ########################################
+#set -x
 
-if opts=( `getopt -n $0 -o a:s:UhvqdtwWcL:p: -l update,loadlow:,window,exact-case,prompt,agent,src,help,version,quiet,debug,term,wait -- "$@"` ); then
+if opts=( `noglob getopt -n $0 -o a:s:RUhNvqdeEtwWcL:p: -l update,loadlow:,never-wait,noerrors,empty-ok,window,exact-case,prompt,agent,src,help,version,quiet,debug,term,wait -- "${(q)@}"` ); then
 	eval set -- "${opts[@]}"
 	while [[ $# -ge 0 ]]; do
-		curopt=$1
-		nextopt=${2-none}
+		curopt="$1"
+		nextopt="${2-none}"         #9
 		shift						# see m-2
+		
 		case $curopt in
 			--noerrors|-N)	let noerrors=1;;
 			--loadlow|-L)	if [[ -x $nextopt ]] {
@@ -243,6 +245,8 @@ if opts=( `getopt -n $0 -o a:s:UhvqdtwWcL:p: -l update,loadlow:,window,exact-cas
 								shift
 							fi
 							;;
+			--no-empty|e)       let emptyok=0;;
+			--empty-ok|-E)      let emptyok=1;;
 			--never-wait|-R) 	let wait=0 nowait=1;;
 			--exact-case|-c)	exactcase=1;;
 			--window|-w) 	winId=${$(xprop -notype -root _NET_ACTIVE_WINDOW)[-1]};;
@@ -250,7 +254,7 @@ if opts=( `getopt -n $0 -o a:s:UhvqdtwWcL:p: -l update,loadlow:,window,exact-cas
 			--agent|-a) 	n=$(which $nextopt); [[ -x $n ]] && agent="$n"; shift;;
 			--wait|-W) 		let wait++;;
 			--term|-t) 		let term++;;
-			--prompt|-p) 	promptmsg=$nextopt; shift;;
+			--prompt|-p) 	promptmsg="${(Q)nextopt}"; shift;;                                                                                   #9
 			--help|-h)		builtin echo "$help_text\n"; exit 127;;
 			--version|-v) 	builtin echo "$version_text\n"; exit 127;;
 			--quiet|-q) 	let quiet_level++;;
@@ -324,12 +328,24 @@ fi
 [[ $exactcase == "" ]] && dmenu_args+=( '-i' )
 [[ $promptmsg == "" ]] || dmenu_args+=( '-p' "$promptmsg" )
 [[ $winId == "none" ]] || dmenu_args+=( '-w' "$winId" )
-result="$(cat $cachefile $histfile | dmenu $dmenu_args)"
+echo "cache=$cachefile"
+echo "hist=$histfile"
+echo "dmenu_args=($dmenu_args)"
+echo "each argument (per line), ${#dmenu_args[@]}"
+declare -gi n=0
+for z in "${dmenu_args[@]}"; do
+    let n++
+    print "argument $n=[$z]"
+done
+
+result="$(cat $cachefile $histfile | dmenu "${dmenu_args[@]}")"
+
 dprintf "result=[$result]"
 [[ "$result" == "[" ]] && dfatal 126 "special case: [ cannot be used in prun because it is a language element"
-[[ "$result" == "" ]] && [[ `tty` =~ dev ]] && dfatal 125 "exiting (no selection)"
-[[ "$result" == "" ]] && dfatal 0 "non-error no item selected (but is ok because we arent going from terminal)"
+[[ $emptyok -eq 0 ]] && [[ "$result" == "" ]] && [[ `tty` =~ dev ]] && dfatal 125 "exiting (no selection)"
+[[ $emptyok -eq 0 ]] && [[ "$result" == "" ]] && dfatal 0 "non-error no item selected (but is ok because we arent going from terminal)"
 [[ -x $agent ]] && result="$agent $result"
+[[ $emptyok -eq 1 ]] && result="$agent"
 dprintf "compiled result=[$result]"
 # split as if z command, we even support inline comments!
 declare -ga results=( ${(Z:C:)result} )
@@ -539,3 +555,11 @@ fi
 ## if we are here, we made it through, we will want to add our new command to the history list
 echo "${results}" >> ~/.cache/prun_vhist
 
+
+
+# CSCS2020 Compliance
+# status: not compliant (partial)
+#
+# CSCS2020 Comments
+#
+#9 commands such as 'bindsym $win+p exec /home/osirisgothra/bin/prun -w --term -a man -s /home/osirisgothra/.perlhelp -p perl-help' in I3 are fine but when -p is used with symbols, not, need the promptmsg to be in quotes to avoid this!

@@ -46,7 +46,12 @@ use Path::Tiny qw(path);				# core module for handling paths in an oop sort of w
 use JSON;					# this is a core module that autoselects JSON::XS, JSON::PP, JSON::?? whatever is found first
 use Term::ReadKey;
 use POSIX;
- 
+use Carp;
+
+# notify user that Term::Put is a private non-cpan module (at the time of this writing)
+
+confess("Term::Put required, this is a private module from github/osirisgothra/perl") unless eval "require Term::Put";
+
 
 
 # note POSIX::exit == CORE::exit, no shims needed!
@@ -54,6 +59,13 @@ use POSIX;
 
 # keep this line after BEGIN/END and 'use' directives
 
+# rerun in xterm
+#system("xterm","-e","$0") unless `tty` =~ /not.a/;
+
+`sudo modprobe snd_emu10k1; sudo alsactl init`;
+
+# initialize terminal
+my $term = new Term::Put(); # pass nothing and let Term::Put deduce the terminal itself (via $TERM or other queries)
 
 # shell mockup
 
@@ -61,6 +73,7 @@ sub false { return (0 or (shift // 0)); }
 sub true { return (1 and (shift // 1)); }
 sub echo { return CORE::say(@_ > 0 ? @_ : ""); }
 sub secho($sdelay,$smsg) {	echo($smsg); sleep(abs($sdelay) // 0);	} # undef will be promoted to '0'
+
 
 # signal map
 
@@ -79,9 +92,12 @@ sub signal_map($signal)
 	&display_menu_text() if defined(&display_menu_text);
 
 }
+
+
+
 $SIG{$_} = \&signal_map for qw( INT TSTP QUIT CONT STOP );
-my @precmds = ( "killall -SIGSTOP java &> /dev/null" );
-my @exitcmds = ( "killall -SIGCONT java &> /dev/null" );
+my @precmds = ( "killall -SIGSTOP java 2> /dev/null 1> /dev/null" );
+my @exitcmds = ( "killall -SIGCONT java 2> /dev/null 1> /dev/null" );
 my $i3width = "579";
 my $i3height = "120";
 my @argv = @ARGV;
@@ -119,23 +135,30 @@ sub clear_screen()
 sub display_menu_text()
 {    #1
 	clear_screen();
-    print(
-"                ┏━━━━━━━━━━━━━⇛ ⋀⋀∆∶∏ ⋀⋀∈∏⋃ ⇚━━━━━━━━━━━━━━━┓
-                ┃ ℜ rakarrack            ℮  renoise         ┃
-                ┃ ⅁ guitarix             ℚ  quit or exit    ┃
-                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-                                      ");
+    my @menutext = (
+                    "%12┏━━━━━━━━━━━━━⇛ ⋀⋀∆∶∏ ⋀⋀∈∏⋃ ⇚━━━━━━━━━━━━━━━┓",
+                    "┃ ℜ rakarrack            ℮  renoise         ┃",
+                    "┃ ⅁ guitarix             ℚ  quit or exit    ┃",
+                    "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛",
+                    "(press [r], [g], [e] or [q] to quit)"
+                );
+    say($term->colorize($_)) for @menutext;                
 }
 sub execute_menu_item($item) {
-    given ($item) {
-	#2
 
-            run_jackenabledapp("/usr/bin/rakarrack") when /r/;
-            run_jackenabledapp("/usr/bin/guitarix") when /g/;
-			run_jackenabledapp("/usr/local/bin/renoise") when /e/;
-            default { return 0; }
-    }
-    return 1;
+  
+
+    $_ = $item;   
+
+            run_jackenabledapp("/usr/bin/rakarrack") if /^r(rakarrack)?/;
+            run_jackenabledapp("/usr/bin/guitarix") if /^g(uitarix)?/;
+			run_jackenabledapp("/usr/local/bin/renoise") if /^e|^renoise/;
+			if (/--help/) { 
+			    print("usage: jrun [rakarrack|guitarix|renoise] or [r|g|e]\n");
+			}
+			
+    exit if $argv[0];            # one shot command used
+    return;
 }
 
 
@@ -209,6 +232,9 @@ get_i3_workspaces();				# determines i3exitworkspace
 
 set_i3_workspace($i3menuworkspace,1);
 set_window_geometry();
+#### short circuit command args
+
+####
 
 given ($argc) {
     when (/0/) {
@@ -229,8 +255,8 @@ given ($argc) {
         }
     }
     when (/1/) {
-        unless (execute_menu_item($argv[1])) {
-            echo("unknown action: $argv[1]");
+        unless (execute_menu_item($argv[0])) {
+            echo("unknown action: $argv[0]");
         }
     }
     default {

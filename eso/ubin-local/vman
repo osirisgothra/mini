@@ -15,12 +15,14 @@ if ((dodump != 1)) {
     exec man "$@"
 }
 
-# nothing past here gets read anyway... but this is not guarenteed to be an up-to-date .vimrc-man file:
-# note you will have to dump it with
-# dodump=1
-# at the beginning of this file, paste that, and it will spit this out formatted in the file
-# or you can do this: env dodump=1 vman
+# file dump
+# ---------
+# this is set up so you dont need to worry about if this line changes position or whatnot:
+# to use, type 'env dodump=1 vman'
 #
+
+exec cat "$0" | tail -n+$LINENO
+
 
 vimrc_man_dump='" vim: write:modifiable:mls=2:cc=80:nomore:nofen:et:ts=4:sw=4:bs=2:laststatus=2
 

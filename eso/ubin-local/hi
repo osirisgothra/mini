@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 #
+#
+#
 #    hi
 #    script for highlighting things
 #    mini
@@ -61,7 +63,7 @@
 #
 # 	NOTES		LEGEND: (PKG::|FUNC::)(sig::)?LINENO ("sig" and PKG cannot both be used, when sig is used, line referrs to the line number within the signature, not the function block)
 #
-#		
+#  NB:::: DO NOT LEAVE CODE IN AN UN-RUNNABLE/USABLE STATE!!!!!!!!!!!!!!!!!!!!!!!!!!!		
 #			showhelp::sig::0
 #
 #	
@@ -399,16 +401,22 @@ sub showprs
                         
 				    }
 				    if ( $pcolortables{$preset} )						  
-                        {  
-						    say ("found a colortable for $preset, adding it") if $opt->verbose;
-						    @colortbl = @{ $pcolortables{$preset} };						    
- 						     if ($opt->verbose) {
-						        say ("added colortable entry: $i $_") for @colortbl
-						     }
-						    $color_preset_used = 1;  
+                    {  
+					    say ("found a colortable for $preset, adding it") if $opt->verbose;
+					    @colortbl = @{ $pcolortables{$preset} };						    
+					    sub verbose_report_list_array($msgfmt,$array_ref)
+					    {
+    					    if ($opt->verbose) 
+	    				    {
+		    			        say ("added colortable entry: $preset $_") for @$array_ref;
+			    		    }
+			    	    }
+
+			    	    
+			    	    $color_preset_used = 1;  
 						    
-						}
-					# say("done adding $arg preset expression(s)");		# uncomment for preset/metapreset testing\v/
+					}
+    				# say("done adding $arg preset expression(s)");		# uncomment for preset/metapreset testing\v/
 																}
 				}
 				# say("done checking presets against $arg")				# uncomment for preset/metapreset testing\v/

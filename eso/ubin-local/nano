@@ -1,6 +1,7 @@
 #!/bin/zsh
 # ^  in case this doesnt work or gets changed somehow linked to sh
 # v- check to make sure we are running zsh and not sh
+
 emulate sh
 printf "checking shell\n"
 if test "x${ZSH_VERSION}" = "x";  then
@@ -14,10 +15,31 @@ if test ${ZSH_VERSION%%.*} -lt 3; then
 	exit 126
 fi
 printf "setting mode of operation\n"
+
 # v- by this point, zsh is running, and its either v3.0 or newer, safe to end sh emulation
+
 emulate zsh
-#
+
+declare -ga created=( )
+
+cleanup()
+{
+    if [[ $created != "" ]] && [[ $#created -ge 1 ]]; then
+        for c in $created; do
+            if [[ -s "$c" ]]; then
+                echo "file $c has data, closed ok!"
+            else
+                echo "file $c is empty, removing and adding its name to ~/.nano-empties..."
+                echo "$c" >> ~/.nano-empties
+                rm "$c" && echo "file $c removed ok"
+            fi
+       done
+    fi
+}
+trap -- cleanup HUP INT EXIT QUIT KILL
+
 # autoexpand locations (look-for-here-locations) (NEVER put system paths in here!!!)
+
 debug_pollargs()
 {
     echo -n "main::$0: args=${(j:,:)@}"
@@ -26,32 +48,172 @@ debug_pollargs()
 }
 
 #debug_pollargs $@
-declare -ga lfhls=(  ~/bin ~/www )
-# fixup command line (first pass)
-declare -ga cml=( )
-print -P "checking pre-expansions..."
+
+# lfhls: look for file here list
+# format: any zsh-expandable string (ie, ~ is same as /home/yourname or $HOME)
+#         prefix with a '@' to include entire directory tree underneath*
+#
+# * dangerous if misused (like '/' is a VERY bad idea and is blacklisted but others exist, cough*/usr*cough)
+# discern if we need to look
+
+# rules at this time:   rule                if true then need_to_look equals...
+# 1                     files all exist     0
+# 2                     user is not root    1
+# 3                     load averages > 2.4 0
+# 4                     memory < 50MB       0
+# 5                     user can read tmp   mask 1**
+# 6                     --help is the only arg (special: bypasses all)
+# **set to 1 if already 1, 0 otherwise
+# *** TODO: some of this is still not implemented!
+setopt aliases; alias array='declare -ga' dict='declare -gA' global='declare -g'
+
+integer -g need_to_look=0
+integer -g load_is_high=0
+integer -g mem_is_low=0
+float   -g load_level=1
+array   -g lfhls=(  ~/bin ~/www @/tmp/recur @/src/perl )
+float   -g loadlimit=2.5
+float   -g load_level="${$(</proc/loadavg)[1]}"
+integer -g mem_limit_mb=50
+integer -g mbfree=$(( $(awk '{ if (/mF/) print $2; }' /proc/meminfo) / 1024 ))
+array   -g cml=( )
+array   -g nano_nonexec=( '.txt' '.md' 'README' '.html' '.htm' '.ini' 'rc' '.cnf' '.conf' 'tab' '(more to come, add  them here)' )
+global     pts_assume_gui=1
+global     gui_term="xterm-256color"
+array   -g ignore_terms=( stterm st fbterm ansi vt100 vt350 )
+global     con_term="linux"
+global     nano_target="/bin/nano"
+global     gui_file=~/.nanorc-x
+global     con_file=~/.nanorc-console
+global     rc_file=~/.nanorc
+
+
+
+# AUTONANO_NOPERLINC            0/undefined=use perl paths from @INC  
+#                               1=disable all perl paths
+# AUTONANO_PERLINC_NORECURSE    0/undefined=when using paths for perl, recurse into subdirs prefix is added (see later for what that does)
+#                               1=only use top-level paths from @INC
+
+# rule 6 done first because it short circuits the program altogether:
+if [[ $# -eq 1 ]] && [[ $1 == --help ]]; then
+    exec $nano_target --help
+fi
+# rule 1, files all exist
 for x; do
-    print "x=$x "
-    for y in $lfhls; do
-        print "y=$y "
-        print -Pn $y/$x"..."
+    # stays zero unless a missing file is found
+    # no zero check because its the first rule and not stateful
+    # if file exists [nothing] else [need to look=1]
+    [[ -f $x ]] || {
+        let need_to_look=1
+        # no need to check the rest, it wont change anything -- found or not
+        break
+    }
+    
+done
+if [[ $need_to_look == 0 ]]; then
+      print -P "%O%F{10}INFO: command line FILENAMES are explicit existing filenames, ($@), no further searching will be done!!%f%b"
+fi
+# rule 2, user is not root
+if [[ $UID -eq 0 ]]; then
+    need_to_look=0
+    print -P "%B%F{1}WARNING: USER is root, some functions will be bypassed!%f%b"
+
+fi
+# rules 3, load average > 2.5
+# 2.53 2.73 2.95 5/365 120328 <- example 1/5/15 min, active/sleeping, lastpid
+if [[ $load_level -gt $loadlimit ]]; then
+    need_to_look=0
+    load_is_high=1
+    print -P "%F{1}WARNING: SYSLOAD is very high, some functions will be bypassed!%f"
+fi
+# rule 4, mem < 50mb
+if [[ $mbfree -lt $mem_limit_mb ]]; then
+    need_to_look=0
+    load_is_high=1
+    mem_is_low=1
+    print -P "%F{1}WARNING: FREEMEM is very low, some functions will be bypassed!%f"
+
+fi
+# rule 5, user can read tmp
+if [[ ! -w /tmp ]]; then
+    print -P "%F{1}WARNING: user $UID cannot manipulate /tmp, some functions will be bypassed!%f"
+    # from program's point of view, /tmp IS memory so...
+    mem_is_low=1
+    # which will hurt load eventually...
+    load_is_high=1
+    # so dont...
+    need_to_look=0
+fi
+# test case: disable when path elements are used anywhere in command line (may be removed later)
+if [[ $* =~ '/' ]]; then
+    need_to_look=0
+fi
+
+# had an argument
+if [[ $need_to_look -eq 1 ]]; then
+
+    if [[ $AUTONANO_NOPERLINC -ne 1 ]]; then
+        if [[ $AUTONANO_PERLINC_NORECURSE -eq 1 ]]; then
+            pfx=""
+        else
+            pfx="@"
+        fi
+        if [[ $* =~ '\.p([ml]|od|erl|[0-9]?pm)$' ]]; then
+            declare -ga extrapaths=( `perl -we 'CORE::say for @INC'` )
+        else
+            declare -ga extrapaths=( )
+        fi
+        if [[ $* =~ '\.[Pp]([Yy][mc23MC]?)$' ]]; then
+            print -P "%F{2}adding python paths because documents may be of that format...%f"
+            for pyp in ``; do
+                extrapaths+=$pyp
+            done
+        fi
+        for incpath in $path $extrapaths $fpath; do
+            if [[ -d $incpath ]]; then
+                lfhls+="$pfx$incpath"
+                echo "added $incpath to list of paths, in recursive mode"
+            fi
+         done
+         # no errors wanted
+         unset pfx perlinc_path &> /dev/null
+    fi
+    # fixup command line (first pass)
+    print -P "checking pre-expansions..."
+    for x; do
         if [[ -f "$x" ]]; then
             echo "not expanding $x because $x exists as a file!"
-        elif [[ -f $y/$x ]]; then
-            echo "expanding $x to $y/$x because it exists and ($PWD)$x does not"
-            x=$y/$x
+        else
+            print "x=$x "
+            for z in $lfhls; do
+                if [[ $z =~ '^@' ]]; then
+                    declare -ga p=( $(find ${z#@} -type d) )
+                else
+                    declare -g p="$z"
+                fi
+                for yy in $p; do
+                    # remove any trailing path-sep elements
+                    y=${yy:P}
+                    print -Pn "${y}/${x}..."
+                    if [[ -f $y/$x ]]; then
+                        print -P "%F{2}found!%f"
+                        x=$y/$x
+                    else
+                        print -P "%F{198}no%f"
+                    fi
+                done
+            done
         fi
+        cml+=$x
     done
-    cml+=$x
-done
-#debug_pollargs $@
+    #debug_pollargs $@
 
-set -- $cml
-# no longer needed
-#debug_pollargs $@
+    set -- $cml
+    # no longer needed
+    #debug_pollargs $@
 
-unset cml
-
+    unset cml
+fi
 printf "$ZSH_VERSION detected\n"
 # v- lets see if a file exists or not
 #    we'll create any nonexisting files and make them executable so we dont have to later (since i usually make executables with nano)
@@ -71,7 +233,6 @@ if [[ $* =~ not.found ]] || [[ $* =~ aliased.to ]] || [[ $* =~ '^\s*\S+\s*\(\)' 
 	exit 122
 fi
 
-declare -ga nano_nonexec=( '.txt' '.md' 'README' '.html' '.htm' '.ini' 'rc' '.cnf' '.conf' 'tab' '(more to come, add  them here)' )
 for x ( ${*%%-*} ) {
 	if [[ -e $x ]]; then
 		printf "not setting $x to anything (exists)\n"
@@ -82,12 +243,20 @@ for x ( ${*%%-*} ) {
 		if ((nonexec_score)); then
 			printf "skipped %s (nonexec score of %d\n" $x $nonexec_score
 		else
+		    created+="$x"
 			printf "creating %s and setting executable: %s" $x $(touch $x && chmod a+x $x && printf ok || printf failed:$?)
+			printf "\n"
 		fi
 	fi
 }
 
-#    nano
+# section end   --autonano
+
+# TODO: re-organize after converting to perl
+
+# section start --nanobyscore
+#
+#    nanobyscore
 #    start nano depending on situation
 #    mini/eso/ubin-local
 #    esoteric scripts and projects
@@ -208,14 +377,6 @@ fi
 
 
 
-pts_assume_gui=1
-gui_term="xterm-256color"
-ignore_terms=( stterm st fbterm ansi vt100 vt350 )
-con_term="linux"
-nano_target="/bin/nano"
-gui_file=~/.nanorc-x
-con_file=~/.nanorc-console
-rc_file=~/.nanorc
 
 # CHECK USER'S TEMPLATE FILES (for gui and console modes, you need one each)
 
@@ -278,19 +439,11 @@ if [[ -r "$rc_file" ]]; then
     done
     ((h > 0)) && extra_args="sudo" || extra_args=""
 
-	#launch zsh way
+	####################################### ENTERING: NANO BINARY RUN ###
 
     env TERM=$mterm ${extra_args} $nano_target $@
 
-	# TODO: maybe detect these, if we actually want them (not right now we dont, its /for/ zsh so we should be using zsh!)
-	#launch bash way
-	# env TERM=$mterm "${extra_args[@]}" "$nano_target" "$@" # bash only#
-	#launch generic way
-	# TERM=$mterm
-	# export TERM
-	# _bin="${extra_args[@]} $nano_target"
-	# _par="$@"
-	# $_bin $_par
+	####################################### EXITING: NANO BINARY RUN
 
 else
 	printf "error: \"$rc_file\" unavailable (proceeding anyway in case of a rofs!)\n"
