@@ -1,35 +1,138 @@
 #!/bin/bash
+#
+#    twil
+#    target a working path and file into a launcher
+#    mini
+#    eso/ubin-local
+#
+#    Copyright (C) 1995-2021 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sat 28 Nov 2020 09:04:36 PM EST
+#            root@ initially created this file
+#            with the original name, twil
+#   ABOUT
+#
+#	adapter program for launching stuff with other stuff
+#
+#	arguments: passed to program (not launcher)
+#	variables expected on ENVIRONMENT TABLE: working  launcher  target (all array form)
+#
+#	name      | type  | description
+#	-----------+-------+--------------------------------------------------------------------------------------------
+#      working | string |  the directory to chdir(1) to before running anything
+#	  launcher | string |  the program which will recieve the target and arguments to act on
+#	    target | string |  the target to pass to launcher, which will recieve the arguments from
+#	           |        |  the command line.
+#	largs	   | sarray |  a single variable to an array with splitting, to send to launcher (not arguments for target)
+# 	 positional| array  |  the built-in arguments ($1-$9 etc) will be passed directly after the target
+#	           |        |  and are usually arguments for the target program
+#  -----------------------------------------------------------------------------------------------------------------
+#
+#
 
-vassert() { test -v $1 || { echo "cannot configure - program forgot to setup $1 variable"; exit $((127+${2-0} )); }; }
+case $1 in
+	conf*)
+		shift
+		exec twil_editor "$@"
+		echo "returned from exec (failed, code: $?)"
+		exit
+		;;
+	make)
+		shift
+		fname="$1"
+		lname="$2"
+		target="$3"
+		wname=$(dirname $target)
+		if [[ -r $fname ]]; then
+			echo "already exists, use editor to modify"
+		else
+			if touch $fname; then
+# ---------------------------------------------------------------------------------- #
+				echo "#!/bin/bash
+launcher=\"$lname\"
+working=\"$working\"
+target=\"$target\"
+" > $fname && echo "created $fname" || echo "failed to finish writing $fname";
+# ---------------------------------------------------------------------------------- #
+			else
+				echo "failed to write $fname"
+			fi
+		fi
+		exit
+		;;
+esac
 
-vassert working
-vassert launcher
-vassert target
 
+# vassert
+# syntax: vassert([var],[exitoffset],[msg])
+#	[var] 			variable to check (remember you need to EXPORT variables when running the script instead of sourcing
+#					if the special value 'GENFAIL' is used, then $3 ([msg]) is printed then exits with exitoffset (see below)
+#   [exitoffset] 	the return code is usually 127 if ommitted, but, this value will be ADDED if supplied, to 127 (if you specify '4' the return value is '131' which is '127+4')
+#                   the code is only used when the assert fails (which is when the variable IS NOT defined at all, beware of other programs using such names!)
+#	[msg]			used before exit, only when GENFAIL is used
+# notes: if GENFAIL is used in [var], the assert ALWAYS fails, this is used in post-failing situations, you'll see below...
+function __vassert()
+{
+	if [[ $1 == GENFAIL ]]; then
+		echo "${3-A General Undescribed Failure Has Happened, Exiting}"  > /dev/stderr
+		exit $((127+${2-0}))
+	else
+		test -v $1 || {
+			echo "cannot configure - program forgot to setup $1 variable"  > /dev/stderr
+			exit $((127+${2-0} ))
+		}
+	fi
+}
 
+# codes: working 137	launcher 147	target 157
 
+__vassert working	10
+__vassert launcher	20
+__vassert target	30
 
 if [[ -d $working ]]; then
-	chdir "$working"
-
-	# unlike zsh, bash uses zero based arrays by default on non-positional parameter arrays (not 1-based)
-	if [[ -x ${target[0]} ]]; then
-		if [[ -x ${launcher[0]} ]]; then
-			# bash requires arrays to be quoted to have each element split instead of whitespace and expansion (this goes for target, launcher, AND positionals)
-			exec "${launcher[@]}" "${target[@]}" "$@"
+	cd "$working"
+	if [[ -x $target ]]; then
+		if [[ -x $launcher ]]; then
+			if [[ $largs != "" ]]; then
+				exec "$launcher" $largs "$target" "$@"
+			else
+				exec "$launcher" "$target" "$@"
+			fi
 			ec=$?
-			echo "error: exec on $launcher (lastarg=$_) failed (lasterr=$ec)"
-			let ec+=129
-			(( ec < 255 )) && exit $ec || { echo "error code is $ec but wont be returned  it is out of range!";  exit 129; };
+			__vassert GENFAIL $ec "error: exec on $launcher (lastarg=$_) failed (lasterr=$ec)"
 		else
-			echo "error: launcher $launcher is not found" > /dev/stderr
-			exit 128
+			__vassert GENFAIL $LINENO "error: launcher $launcher is not found"
 		fi
 	else
-		echo "warning: cannot find or execute $target" > /dev/stderr
-		exit 127
+		__vassert GENFAIL $LINENO "warning: cannot find or execute $target"
 	fi
 else
-	echo "fatal: cannot chdir into working dir: $working" > /dev/stderr
-	exit 126
+	__vassert GENFAIL $LINENO "fatal: cannot chdir into working dir: $working"
 fi
