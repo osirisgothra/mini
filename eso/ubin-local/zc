@@ -1,0 +1,12 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+use v5.20;
+use lib "$ENV{HOME}/bin";
+use osirisgothra::core qw( bgcdo );
+use File::Basename qw( basename dirname );
+use Path::Tiny qw( path rootdir );
+
+chdir "/src/zc";
+system "./zelda-l";

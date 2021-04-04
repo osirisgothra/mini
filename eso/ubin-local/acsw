@@ -1,0 +1,2 @@
+#\!/bin/bash
+cat ax/doc/ax.str.compact-acsw;echo

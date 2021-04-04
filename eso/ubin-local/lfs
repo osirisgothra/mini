@@ -1,0 +1,41 @@
+#!/bin/bash
+# 
+# lfs - a no-nonsense list of mounted volume labels based on
+#       paradisim's buess-gest(TM) technology
+#
+#		written by Gabriel Sharp (C) 2016 http://github.io/osirisgothra
+# 		osirisgothra@hotmail.com
+#
+#		revision: first version (pre-release)
+# 		parent package: autox (github.io/osirisgothra/autox)
+#
+#		NOTES:
+#		
+#			VARIABLES
+#						items	formatted string can only be displayed within quotes expansion array
+#						item	the physical inverse of items (above)
+#						xitem	composite version of item for sedding or awking
+#						i,x		general indexing registers
+
+
+
+declare -ga items=( $( { for x in `mount | grep -Po '(?<=on )\S{2,}' | sort | uniq`; do basename "$x"; done; } ) )
+echo ""
+echo "Mounted Volumes on $HOSTNAME available to $USER($UID)"
+echo ""
+( for i in "${items[@]}"; do echo $i; done ) | column
+echo ""
+echo "Total ${#items[@]} Item(s) Listed out of:"
+echo "  $(grep '.*' -Pc /etc/mtab) Item(s) Exist in the MTAB (/etc/mtab)"
+echo "  $(grep '^[^ #]*\S+' -Pc /etc/fstab) Active Entries in the FSTAB (/etc/fstab)"
+echo ""
+echo ""
+echo "Mounted Filesystems on $HOSTNAME for $USER($UID)"
+echo ""
+item=( "$(echo -e '\nblockdevice\tlabel\tmountpoint\tblockdevice\tlabel\tmountpoint\n';lsblk -o NAME,LABEL,MOUNTPOINT -rnp | sed -nr '/dev.+\s[^[].+$/p' | tr ' ' '\t' | fgrep '[SWAP]' -v | sed 's/\s\/$/*ROOT*\t\//g' | column;echo -e '\n'; )" )
+xitem="${item[@]}"
+echo "$xitem"
+echo ""
+echo "Note: MTAB counts are the 'real' mount counts, and the FSTAB is the configured-by-user count"
+echo ""
+

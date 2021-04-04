@@ -1,0 +1,122 @@
+#!/bin/zsh
+
+#!/bin/bash
+#
+#    mocp-autoserver
+#    (named mocp in home/bin) used with mocp.service to pass-through when server is running, DO NOT USE IF NOT USING THE SERVER ONLY!!
+#    mini
+#    eso/ubin-local
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sun 29 Nov 2020 10:33:24 PM EST
+#            osirisgothra@ initially created this file
+#            with the original name, mocp-autoserver
+#
+# TARGET NOTES
+#
+# 	EXECUTIVE STATE CHANGES
+#		marking single existing file executable
+#			- mode of 'mocp-autoserver' changed to u+rwx/og+rx.. []
+#		completed (0)
+# 	ARGUMENTUAL ANALYSIS
+#       remaining arguments:
+#			no arguments to list
+#       disposition:
+#			4 were used during execution of template
+#   		0 were extra and/or unexpected
+# 	TEMPLATE SUMMARY OF GENERATION
+#	     outcome: good
+#	     errors: 0
+# 	FINAL NOTE
+#	     template program under renovation
+#        you should REMOVE the TARGET NOTES section once youve reviewed this!
+#		 (Sun 29 Nov 2020 10:33:24 PM EST): osirisgothra ignored the final note and left this behind for
+#		           the user(s) to see, how embarassed I am for the author!
+#
+# UPDATE
+#
+#  The mocp server was disabled after testing because of shortcomings in multi-use environments
+#  and also because of problems with other program interfaces expecting mocp to act like normal
+#  and not being able to catch everything those programs do with mocp, though transparent the
+#  interface may seem. mocp.service is now disabled by default, and possibly discontinued in
+#  the next round of "updates".
+#
+#  It will most likely be upgraded to a user-local runtime that will stay resident for each user
+#  turning on the mocp binary whenever playing, it might even be replaced by a more elegant sox
+#  interface once i dope out the front end. (because sox supports filters, eqs, galore and very
+#  small memory footprint, works well with e17+ and bodhi)
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#
+
+
+
+# mocp binary running is checked first
+# dont bother if its not running (server will be in background)
+# get run count (# of binaries from system)
+# if server is active and its the only instance, otherwise multiple instances indicate a multi-use environment
+# however that is untested!
+runcount=`grep mocp -c < /proc/*/comm`
+if (( runcount == 1 )); then
+
+    # next, check if service is active
+    # if its not, then mocp running is most likely a user (assume us)
+    # multiuser systems with more than one active user, you would have to add more support here
+    # but then again, this type of service would be useless for a multi-use system anyway!
+    running=0
+    systemctl is-active mocp.service
+    # check code
+    case $? in
+        0)  # service is running
+            running=1
+            ;;
+        3)  # service is dead
+            echo "note: service is dead"
+            ;;
+        *)  # service is some other state
+            echo "note: service neither dead nor running, check your config!"
+            ;;
+    esac
+fi
+# next, run based on if we are server or not
+if ((running)); then
+	echo "passing to the running server (verified running)"
+	sudo -H mocp --moc-dir=/var/mocp "$@"
+else
+    if ((runcount > 1)); then
+        echo "warning: not sure where to send commands, using default user"
+    fi
+    if [[ -r /home/osirisgothra/.moc ]]; then
+        # esoteric for myself, but will detect if its not my filesystem:
+        /usr/bin/mocp --moc-dir /home/osirisgothra/.moc "$@"
+    else
+        /usr/bin/mocp "$@"
+    fi
+fi

@@ -1,0 +1,23 @@
+#!/usr/bin/perl
+
+use v5.14;
+use feature "switch";
+use warnings;
+no warnings "experimental";
+use Test::File;
+
+
+my $target = "/home/gabriel/Emulation/SNES/zsnesw.exe";
+my $invoker = "/usr/bin/wine";
+
+
+
+my $result = system($invoker,$target,@ARGV) # adds any extra arguments called as well
+	if file_exists_ok($target) and file_exists_ok($invoker);
+
+
+
+
+# return to system, the result
+exit $result;
+

@@ -1,0 +1,20 @@
+#!/bin/zsh
+# make --help use --help-all and vice versa
+
+case $# in
+	1)	if [[ $1 == "--help" ]]; then
+			set -- --help-all
+		fi
+		;;
+	*)	#set nothing (reserved for future use possibly)
+		;;
+esac
+# some systems might be elsewhere, this is CORE system only for
+# -ubuntu 7.04+	-linux mint 14+ -redhat 3+  -fedora 2+  -other linux based on debian
+target="/usr/bin/zenity"
+if diff "$0" "$target"; then
+	echo "error: $0 IS $target, edit the file or rename either $0 or $target to something else"
+	exit 127
+else
+	"$target" "$@"
+fi

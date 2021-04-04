@@ -1,0 +1,3 @@
+#!/bin/bash
+cd ~/.mcskinedit
+java -jar mcskinedit.jar 2>&1 & disown

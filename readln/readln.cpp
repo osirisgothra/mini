@@ -22,8 +22,8 @@ int main(int argc,char* argv[], char* envp[])
 	char* result = readline(NULL);
 	if (result) 
 	{
-		fprintf(stderr,"%s",result);
-		printf("%s",result);
+		fprintf(stdout,"%s",result);
+		//printf("%s",result);
 		return 0;
 	}
 	return 1;

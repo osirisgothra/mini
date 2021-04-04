@@ -1,0 +1,21 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+use v5.20;
+use Term::ANSIColor;
+use Getopt::Long::Descriptive;
+use Path::Tiny;
+
+my $isource = shift(@ARGV);
+
+my $inifile = path( $isource );
+my $syntax = "missing/invalid\n\n\tsyntax: ${0} COMMAND SECTION KEY\n(use --help for help)\n";
+package File::Config::INI;
+
+my ($cmd, $sec, $key) = @ARGV;
+
+die("command $syntax") unless defined($cmd);
+die("section $syntax") unless defined($sec);
+die("itemkey $syntax") unless defined($key);
+

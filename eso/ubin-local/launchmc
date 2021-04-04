@@ -1,0 +1,143 @@
+#!/bin/bash
+HOME=~
+MC_MULTI="$HOME/.minecraft-multi"
+MC_MULTI_JAR=mcl.jar
+MC_SINGLE="$HOME/.minecraft-single"
+MC_SINGLE_JAR=launcher.jar
+MC_LINK="$HOME/.minecraft"
+JAVA_EXECUTABLE=/usr/local/bin/java
+USE_OTHER_JAVA=0
+if [[ -r ~/.mcpwprot ]]; then
+	SKIP_PASS=0
+else
+	SKIP_PASS=1
+fi
+
+if [[ $LMC_DETACH = 1 ]] && ! [[ $- =~ i ]] ; then
+	function echo()
+	{
+		# preserve the reval stat ($?)
+		local r=$?
+		# double-quotes needed to prevent items that start with - from being misinterpreted
+		# this doubles as an exploitation security measure 
+		# always scrub the builtins with eval and builtin keys first!
+		notify-send -- "$*" || eval builtin echo -- "$*"
+		# return retval's state causing it to go right back into $? as it was before the calls above
+		# we also save the notify-send result code in this next line
+		local LMC_LAST_ECHO_RETVAL=$?
+		# and return with original on this next line:
+		return ${r}
+	}
+fi
+
+# filter for interactive mode (bad thing)
+echo "checking for interactive shell..."
+
+if [[ $- =~ i ]]; then
+	echo "interpreter is interactive and/or bound to current shell"
+	echo "warning: this script is being sourced with 'source' or '.', which"
+	echo "         would modify the environment, forcing the program to be"
+	echo "         executed from here to avoid corruption of current environment..."
+	"${BASH_SOURCE[@]}" "$@"
+	echo "done, returning the exit code via the return value to the source command..."
+	return $?
+else
+	echo "non-interactive interpreter verified ok"
+	echo "...continuing execution startup"
+fi
+if [[ $LMC_DETACH -eq 1 ]]; then
+	echo "detaching child script..."
+else
+	echo "checking shell's tty to see if we can detach or want to..."
+	# filter for tty session, if we are a tty session, lets detach
+	if tty -s; then
+		echo "tty detected..."
+		if [[ $1 == "--nodetach" ]]; then
+			echo "not detaching because you specified --nodetach"
+		else
+			echo "detaching because you did not specify --nodetach"
+			# redirect is MANDITORY as are the quotes!
+			export LMC_DETACH=1
+			"${BASH_SOURCE[@]}" "$@" & disown %
+			unset LMC_DETACH
+			exit $?
+		fi
+	else
+		# no detach needed
+		true
+	fi
+fi
+echo "...done with checks, executing now..."
+
+
+# set these to your personalized locations if needed
+# HOME should not need to be set unless emulating another account (ie, from root)
+
+
+if [[ $SKIP_PASS -ne 1 ]]; then
+
+    passtxt="The Minecraft MUL/SUL Launcher is Password Protected\nwith SHA 256-bit Encryption, You MUST Enter a\nValid Password To Decode The Launchers!"
+    realhash=$(cat ~/.minecraft-password)
+    passdata=$(mktemp)
+    passcount=0; until zenity --forms --text "$passtxt" --add-password="Password" > $passdata; do zenity --info --text "Cancelled! Press OK to exit!"; exit 122; done
+    myhash=$(hashalot sha256 < $passdata)
+    [[ -r $passdata ]] && rm -f $passdata || echo "warning: $passdata not deltable, OS reports it doesnt exist! (corrupted machine state?)"
+
+    if true; then
+        zenity --info --text="Password Accepted! Press OK To Decode The Remainder of the Launcher:"
+    else
+        zenity --info --text="Access Denied, Wrong Password!!! (Logging Time+Date and your name)"
+        echo "$(date) - $USER on $HOSTNAME got the password wrong and used $mypass instead as an attempt!" >> /tmp/mclaunch-failures
+        exit 128
+    fi
+
+    if [[ $USE_OTHER_JAVA ]]; then
+        function java()
+        {
+            command "$JAVA_EXECUTABLE" "$@"
+        }
+    fi
+
+fi
+
+if pgrep java -a | grep -P "$MC_MULTI_JAR|$MC_SINGLE_JAR"; then
+    zenity --info --text="Sorry, an instance of minecraft is already running, please exit it FIRST or get help!"
+    exit 2
+fi
+
+
+while [[ ! -L "$MC_LINK" ]] && [[ -d "$MC_LINK" ]]; do
+    zenity --info --text="Error: a non-linked (stand-alone) minecraft directory exists, this is not supposed to be! Ask system adminsitrator to fix it first! (this usually happens when the launcher gets started outside of this program -- please dont do that!)" --caption="Houston, we have a problem!"
+    if zenity --question --text="Remove by force (dont do this if you are a kid!)"; then
+        rm -fr "$MC_LINK"
+    else
+       zenity --info --text="Not doing anything, goodbye"
+       exit 1
+    fi
+done
+
+if [[ -r "$MC_LINK" ]]; then
+    rm "$MC_LINK"
+    echo "warning: launcher needs to be picked or last selection failed..."
+fi
+
+unset MULTISESS
+if [[ $1 == "-multi" ]]; then
+    MULTISESS=1
+elif [[ $1 == "-single" ]]; then
+    unset MULTISESS
+elif zenity --question --ok-label "Irian and/or Ethelind" --cancel-label "Daddy" --text="Who is playing minecraft this time around?"; then
+    MULTISESS=1
+    echo "hint: running from console you can select -multi or -single in the command line to save time!"
+fi
+
+if [[ -v MULTISESS ]]; then
+     ln -s "$MC_MULTI" "$MC_LINK"
+     cd "$MC_LINK"
+     java -jar "$MC_MULTI_JAR"
+else
+     ln -s "$MC_SINGLE" "$MC_LINK"
+     cd "$MC_LINK"
+     java -jar "$MC_SINGLE_JAR"
+fi
+

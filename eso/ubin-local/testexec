@@ -1,0 +1,31 @@
+#!/bin/zsh
+declare -r rc=$? pipestatuses="$pipestatus" entrydir="$PWD" entrypid="$$"
+declare -r delegated="/policy/delegate/testexec/anypid"
+
+# test executable
+# for testing naughty programs in X or console
+
+if [[ $TERM == "linux" ]] || [[ $DISPLAY == "" ]] || [[ "$1" == "$delegated" ]]; then
+	# console mode
+	echo "console mode, using block mode:"
+	echo "entry exit code (source only): $rc ${pipestatuses-no pipe status}"
+	echo "this process/script name-- $0"
+	echo "           |"
+	echo "           +-- PID ------- $$"
+	echo "			 +-- PARENTPID-- $PPID"
+	echo "           +-- Command Line"
+	echo "                   +-------- $# element(s)"
+	for a; echo "                        +---$a"
+	echo ""
+	echo "took $SECONDS to show you this"
+	if [[ "$1" == "$delegated" ]]; then
+		echo "closed with errcode $?"
+	else
+		echo "press any key to exit"
+		read -sk1
+	fi
+else
+	# X mode
+	echo "starting in X mode ( delegating to a terminal )"
+	zenity --info --text="$($0 $delegated)"
+fi

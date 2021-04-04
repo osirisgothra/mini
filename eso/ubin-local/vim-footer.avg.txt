@@ -1,0 +1,2 @@
+# keep vim directives to very end
+# vim:ft=sh:ts=4:sw=4:noet:cc=160:fen:fdm=indent:fcl=all:vbs=0:nospell:tw=120:nowrap:mls=5

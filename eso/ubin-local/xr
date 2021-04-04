@@ -1,0 +1,196 @@
+#!/bin/bash
+#
+#    xr
+#    run program and revert i3 to its original default mode of operation
+#    eso-bin
+#    esoteric projects and executables
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sat Dec  1 06:01:29 EST 2018
+#            osirisgothra@larnica initially created this file
+#            with the original name, xr
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+#
+# TARGET NOTES $
+#
+# target resides in /home/osirisgothra/bin ...yes
+#
+# $ can be safely removed for releases 
+#
+
+# possible error codes (not all may be used)
+
+ERR_BASE=127
+ERR_ARGS=$((ERR_BASE+1))
+ERR_FILE=$((ERR_BASE+2))
+ERR_MEM=$((ERR_BASE+3))
+ERR_INTERACTIVE=$((ERR_BASE+4))
+ERR_LAST=$((ERR_BASE+100))
+ERR_SIGBASE=$((ERR_BASE+101))
+ERR_SIGINT=$((ERR_SIGBASE + 1 ))
+# not really an error
+ERR_SIGNORM=$((ERR_SIGBASE * 0 ))
+ERR_OK=$((ERR_SIGNORM))
+I3RC=~/.i3rc
+
+# pre-run checks
+if [[ "$1" =~ ^[0-9][0-9]\ [:A-Z0-9a-z]*\ ?$ ]]; then
+	mustexist=yes
+	if [[ $1 =~ ::$ ]]; then
+		# workspaces ending with '::' dont have to exist
+		__workspace="${1%%::}"
+		shift
+		set -- "$__workspace" "$@"
+		mustexist=no
+	fi
+	if [[ $mustexist == yes ]]; then
+		echo "looking for $1 in workspaces (it had the workspace format)..."
+		if grep -Pq '^\s*set \$.*'"$1" "$I3RC"; then
+			echo "is a valid workspace defined in your .i3rc"
+			TARGETWORKSPACE="${1%% } "
+			shift
+			case $- in 	*i*)
+							echo "running \"$*\" in \"$TARGETWORKSPACE\" by request of call stack:"
+							echo "$(callers)";;
+						*)
+							echo "running \"$*\" in \"$TARGETWORKSPACE\" by request of calling process, $PPID, (`ps -p $PPID -o cmd=`)";;
+			
+			esac
+		fi
+	else
+		echo "assigning workspace $1 (doesnt have to exist)"
+		TARGETWORKSPACE="${1%% }"
+		shift
+	fi
+	( dbus-launch "$@" &> /tmp/xr-output-last.log & disown ) &> "/tmp/xr-docmd_func-output-last"
+	SECONDS=0
+	until pgrep "$1" &> /dev/null; do
+		# sleep gives up timeslice
+		# sync ensures all disk writes are committed
+		sleep 0.5
+		sync
+		# timeout so we dont wait forever
+		if [[ $SECONDS -gt 10 ]]; then
+			break
+		fi
+	done
+	# NB: switching to workspace then starting does not work
+	#     because it takes far longer to run dbus than to pool it
+	# put the active window in its place
+	i3 move workspace $TARGETWORKSPACE
+	# then go there
+	i3 workspace $TARGETWORKSPACE
+	rc=$?
+	i3 mode default
+	# this part supports both interactive and noninteractive
+	case $- in *i*) return $rc;; *)
+	exit $rc;; esac
+fi
+# - no interactive past this line -
+case $- in
+	*i*) echo "dont run interactive, execute this program!"
+	     echo "this error only happens when you use 'source' or dot (.) to run the script"
+	     echo "to run from current dir, type './$BASH_SOURCE' and hit enter"
+	     exit $ERR_INT
+	     ;;
+esac
+if [[ $1 =~ ^-?-c(leanup)? ]]; then
+	rm /tmp/xr-* -vf
+	exit $ERR_SIGNORM
+fi
+if ! [[ -x "$BASH_SOURCE" ]]; then
+	echo "fatal: execution of file flag is not set"
+	echo "this is required!"
+	exit $ERR_FILE
+fi
+
+# variable settings
+
+KR_MODE_DEBUG=0
+KR_DEFAULT_MODE="default"
+KR_DEFAULT_WORKSPACE="01 UXTERM "
+KR_SET_WORKSPACE=0
+KR_NO_MODESET=0
+
+# functions
+
+function docmd()
+{
+	# TODO: add command replacement support
+	( command "$@" &> /tmp/xr-output-last.log & disown ) &> "/tmp/xr-docmd_func-output-last"
+}
+function setworkspace()
+{
+	i3-msg workspace "$KR_DEFAULT_WORKSPACE"
+}
+function setmode()
+{
+	i3-msg mode "$KR_DEFAULT_MODE"
+}
+
+# actual program in all its glory
+
+main()
+{
+
+if ((KR_MODE_DEBUG)); then
+	function i3-msg()
+	{
+		hr
+		echo "i3 message sending: $*"
+		command i3-msg "$@"
+		echo "return code was: $?"
+		hr
+	}
+	 echo "warning: debug mode enabeld, click message to continue"
+	 kdialog --msgbox "xr test argument: $*" --title="press ok to continue"
+fi
+
+docmd "$@"
+
+if ((KR_SET_WORKSPACE)); then
+	setworkspace
+else
+	echo "warning: setworkspace enabled"
+fi
+if ((KR_NO_MODESET)); then
+	echo "warning: modeset disabled"
+else
+	setmode
+fi
+
+}
+
+# but kept in main to encapsulate when testing or lightloading
+
+main "$@"
+exit "$?"

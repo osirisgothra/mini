@@ -1,0 +1,20 @@
+#!/bin/zsh
+
+# kvlc - kill and run cvlc
+
+proclist()
+{
+	for x in /proc/[0-9]*/cmd
+}
+
+while true; do
+	killall -KILL vlc cvlc qvlc vlcremote vlcd vlc-daemon VLC vlcserver vlcclient &> /dev/null
+	drop 1
+	cvlc
+	drop 1
+ 	notify-send --urgency=low -i mooo 'restarting vlc: waiting for vlc to exit, enjoy!'
+	while pgrep vlc; do
+		sleep 5
+	done
+done
+

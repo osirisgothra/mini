@@ -1,0 +1,116 @@
+#!/bin/zsh
+emulate zsh
+# zd 1.10 (c)2015-20 Gabriel T. Sharp <osirisgothra@hotmail.com>
+# a zeal, man, info, html, and single-file documentation reader
+# credits:	gabriel sharp, zd, mini (original author)
+#			thomas knoll, adobe (pdf support)
+#			Colin Watson <cjwatson@debian.org> (maintainer of man as of 2018)
+#			ChangZhuo Chen  <czchen@gmail.com> (zeal man author)
+#			Texinfo Authors <http://www.gnu.org/software/texinfo>
+# 			John W. Eaton (jwe@che.utexas.edu) (original man author)
+#			Jorge Arellano <dillo website only>
+#			Raph Levien <raph@acm.org> (main dillo/gzilla authors)
+# License: GNU GPL (v3.0), fallback to GNU GPL (v2.0) for informative purposes only.
+
+# DISABLE CONFLICTING
+# LANGUAGE ELEMENTS
+
+disable hash
+disable true
+disable false
+
+# PSEUDO LANGUAGE
+cint64=( readonly -gxi )
+cstring=( readonly -gx )
+carray=( readonly -gxa )
+chash=( readonly -gxA )
+int64=( declare -gxi )
+string=( declare -gx )
+array=( declare -gxa )
+hash=( declare -gxA )
+
+
+# CONSTANTS
+
+
+readonly -gi yes=1
+readonly -gi no=0
+readonly -gi true=$yes
+readonly -gi false=$no
+
+# SETTINGS (these can be set by users esp. helpdocs)
+
+cache=$yes
+cachefile="${cachedir}/zdcache.dat"
+cachedir="/var/cache/zd"
+debugging=$yes
+tracing=$no
+helpdocs="/zd"
+ignorecase=yes
+helpfiles=( index.html
+			index.htm
+			contents.html )
+helpmatchlogic="or"
+testloconly=$no
+testindexonly=$yes
+
+# predeclared types
+declare -xgxr cache=$yes
+declare -xgxr cachedir="/var/cache/zd"
+declare -xgxr cachefile="${cachedir}/zdcache.dat"
+declare -xxgx curhelpfile=""
+declare -xxgx curindex=""
+declare -xgxr debugging=$yes
+declare -xgxr helpdocs="/zd"
+declare -agxr helpfiles=( 	index.html
+				            index.htm
+            				contents.html
+						)
+declare -xxgx helpmatchlogic="or"
+declare -igxr ignorecase=$yes
+declare -agxx indexes=( )
+declare -agxx locations=( )
+declare -xgxx name="name"
+declare -igxx pos=0
+declare -igxr testindexonly=$no
+declare -igxr testloconly=$no
+declare -igxr tracing=$no
+
+# OPTIONS
+
+setopt dotglob
+setopt nullglob
+[[ $debugging == yes ]] && setopt noerrexit || setopt errexit
+[[ $tracing == yes ]] && setopt xtrace || setopt noxtrace
+
+
+
+# program, dont touch
+decho() { ((debugging)) && echo "[32;1m$SECONDS/$?/$pipestatus:  $*[0m"; }
+techo() { ((tracing))   && echo "[33;1m$SECONDS/$?/$pipestatus:  $*[0m"; }
+
+	if ((ignorecase)); then
+		name=iname
+	else
+		name=name
+	fi
+
+
+integer pos=0
+for curhelpfile in $helpfiles; do
+	[[ $pos -gt 0 ]] && locations+=( -or )
+	let pos++
+	locations+=( -$name $curhelpfile )
+	decho "locations($pos) became: $locations"
+done
+[[ $testloconly == yes ]] && exit
+
+# index test
+
+pushd $helpdocs
+decho "using find $locations as command"
+indexes=( `find $locations` )
+for curindex in $indexes; do
+	decho "added index of $curindex"
+done
+((testindexonly)) && exit

@@ -1,0 +1,36 @@
+#!/bin/bash
+
+if which colorme &> /dev/null; then
+	COLORME=colorme
+else
+	COLORME=cat
+fi
+
+function me() 
+{
+	local SUBJECT="$1"
+	local TOPIC="$2"
+	echo $TOPIC; 
+	echo; 
+	if whatis "$SUBJECT" &> /dev/null; then
+		command man "$SUBJECT" | (
+		perl -wne '
+			loc() if (/'"$TOPIC"'/ ... /^[A-Z]+[A-Z ]+$/ ); 
+			sub loc 
+			{ 
+				print unless /^[A-Z+]/; 
+			};
+		') | $COLORME
+	else
+		echo "command not found by man whatis/apropos: $SUBJECT"
+	fi
+		
+}
+if (( $# % 2 == 0 )); then
+	while [ $# -gt 0 ]; do	
+		me "$1" "$2"
+		shift 2
+	done
+else
+	echo "fatal: all topics must have a subject! (mtopic [subj] [topic])"
+fi

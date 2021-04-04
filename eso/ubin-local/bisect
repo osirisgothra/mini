@@ -1,0 +1,17 @@
+#!/bin/bash
+for x; do
+	if [[ $x =~ ^[0-9][0-9]*$ ]]; then
+		declare -i n=$x
+		if [[ ${#outstr} > 0 ]]; then
+			outstr+=";${x}p"
+		else
+			outstr="${x}p"
+		fi
+	else
+		echo "error: non-numeric parameter: $x" > /dev/stderr
+	fi
+done
+[[ ${#outstr} > 0 ]] && sed -n "$outstr" || echo "usage: bisect [[line] ...]"
+
+
+

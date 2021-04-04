@@ -1,0 +1,219 @@
+#!/usr/bin/env bash
+#
+# folding is used liberally - this file is easiest to edit in vim (auto folds enabled and some other fancy stuff, no
+# addons needed)
+# vim:ft=sh:ts=4:sw=4:noet:cc=160:fen:fdm=indent:fcl=all:vbs=0:nospell:tw=120:nowrap:mls=5
+#
+# /usr/local/bin/man [original filename]
+# ~/bin/man [recommended install location]
+#
+# the slightly-smarter man script
+#
+# Author:
+#		Gabriel T. Sharp <osirisgothra@hotmail.com>
+#
+# Copyright (C)2013-2014 Paradisim Enterprises, LLC
+# <http://paradisim.github.com>
+# <http://www.gitorious.org/+paradisim>
+# <http://paradisim.twilightparadox.com>
+#
+# Created on  
+# (Last Major Update 8-25-14 at 2:25pm
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+#
+# File Revision/Update History
+# _____________________________________________________________________________
+#
+# Aug 25 2014 2:25pm		Initial Creation
+# 
+# Extra Details
+# -------------
+#
+#    It is a slightly smarter manual page finder, semi-strictly for console use
+#    use 'man smartoff' to disable this thing and 'man smarton' to re-enable it
+#    also, if flags are passed to us, we assume you want to use the "real" man
+#    program, and will step aside. You force it to be used always if you change
+#    its name (or the link pointing to it) to something OTHER than "man".
+#
+#    EXAMPLE::       user@host /usr/local/bin $ mv -v 'man' 'fooman'			
+#  (this is real     ‘/usr/local/bin/man’ -> ‘/usr/local/bin/fooman’
+#   output, not      user@host /usr/local/bin $ fooman smartoff_
+#   theoretical)      ~~~CUT HERE~~~
+#                    Fooman mode: smartmode bypassed
+#                     ~~~CUT HERE~~~
+#
+#  Footnotes
+#  ----------
+#   -  Some of the smells in here are bad, but i tried to keep it clean :)   
+#   -  The :set foldclose=all can be annoying, type :set foldlevel=99 to keep it all open (g/vim users only)
+#   -  Contributors, please don't reformat the code, especially if you dont use vim, since the indents have 
+#      meaning not evident in other editors. If you are running a fork however, do whatever you want :)
+#   -  Commercial use is.
+#   -  I didn't forget to finish typing that previous line (ie, the quote "Ugly men are." --anonymous) .
+#   -  If your 'man' prefix is /usr/local/bin/man, DO NOT install it there!  Put it in your home directory
+#      or better yet, in ~/bin which is added to the path by default (unless you took it out).
+#
+# use this if you have problems with man-dependant programs to find out some info
+#unction shout()
+#{
+# echo "I was called on $(date) by ${BASH_SOURCE[1]} trace: ${BASH_SOURCE[@]}"
+# echo "My arguments are: $*"
+#}
+#shout &> $(tty)
+#shout &> /tmp/man-shout-$(date +"%m%d%y_%H%M%S").log
+#shout &> ~/man-shout-$(date +"%m%d%y_%H%M%S").log
+# 
+# a redirect to > $(tty) usually wont work since many programs fork and dont create a stty (first option), a shout to the /tmp is
+# pretty fool proof (second option). Change it to your home directory if you want to keep shouts (the third option)
+
+
+	case $- in 
+		*i*) $BASH_SOURCE "$@"; return $?;; 
+	esac 
+	for i in "$@"; do
+		if [[ $i =~ ^--.* ]] || [[ $i =~ ^-.* ]]; then
+			# first flag we find will trigger this, and then exit
+			# WARNING: the next 2 lines are commented out because they interfere with man-dependant programs that do not
+			# check the prefix, or just use the first 'which' they find, even if it is this script. We must operate
+			# EXACTLY like man would, returning what it would, not outputting anything it wouldn't. If you REALLY need
+			# to see this, you can uncomment it, but it is not recommended. DO NOT remove the > $(tty) redirect because
+			# it will DEFINITELY cause major problems with /usr/bin/info which relies on output from a 'man -a [str]'
+			# call.
+		
+			# ( 
+			#  echo "You are passing flags to man, smartscript will be /temporarily/ bypassed for this time..."
+			# sleep 0.25 ) > $(tty)	
+
+			# must be absolute so we dont call ourself
+			/usr/bin/man "$@"
+			exit $?
+		fi
+	done
+
+
+	# MAIN SCRIPT	
+
+		shopt -s extglob
+		shopt -o -u histexpand
+	
+
+	# MAN_?_BROWSER: separate arguments by whitespace, if any and surround with ( ) because its an array!
+	# MAN_?_SUFF: sets the suffix needed / wanted when searching (by default, google's &BtnI for an instant surf-to-result
+	# MAN_?_URL: the search engine URL, by default we use http://google.com/search?q=
+	# NOTE: assuming that search engines separate arguments with "+" which ive never seen otherwise, you can change this in the code below if you like
+	#       by setting the lines "IFS='+'" to "IFS='whatever_you_want'"
+
+		MAN_GUI_BROWSER=( "firefox" "--new-window" )
+		MAN_GUI_URL="http://www.google.com/search?q="
+		MAN_GUI_SUFF="&btnI"
+		MAN_CONSOLE_BROWSER=( "links2" "-g" )
+		MAN_CONSOLE_URL="http://www.google.com/search?q="
+		MAN_CONSOLE_SUFF="&BtnI"
+		[[ $MAN_IGNORE_TTY ]] && TTY="/dev/pts/ignored" || TTY=`tty`
+		[[ $(basename $BASH_SOURCE) != man ]] && MANFOO=1 || MANFOO=0
+
+	# NOTES:
+	# - Even if DISPLAY is set, we must not be on a console tty which is indicative of a remote use case, which isn't helpful in this situation!
+	#   ...if you REALLY need it though, you can use "export MAN_IGNORE_TTY=1" and the TTY will be ignored
+	# - For each of the MANxxxx variables below, if any are previously defined and imported from parent's environment, those values will OVERRIDE these, 
+    #   allowing you to set these in your .bashrc to your liking, or to have presets set in aliases, you could also add a prompt to change them if you really 
+    #   are ambitious.
+
+	# SET INTERNAL, INTERNAL VARIABLES (YOU DONT NEED TO MESS WITH THESE, YOU WANT THE ONES IN THE PREVIOUS SECTION!!)
+
+	if [[ $DISPLAY ]] && [[ ! $TTY =~ .*tty.* ]]; then
+		[[ ! -v MANBROWSER ]] && MANBROWSER=( "${MAN_GUI_BROWSER[@]}" )
+		[[ ! -v MANLSUFF ]] && MANLSUFF="$MAN_GUI_SUFF"
+		[[ ! -v MANWURL ]] && MANWURL="$MAN_GUI_URL"
+	else
+		[[ ! -v MANBROWSER ]] && MANBROWSER=( "${MAN_CONSOLE_BROWSER[@]}" )
+		[[ ! -v MANLSUFF ]] && MANLSUFF="$MAN_CONSOLE_SUFF"
+		[[ ! -v MANWURL ]] && MANWURL="$MAN_CONSOLE_URL"
+	fi
+	
+
+	[[ $MANFOO -gt 0 ]] && [[ $1 =~ ^smart(on|off)$ ]] && { echo "Fooman mode: smartmode bypassed!"; shift;	}
+	case $1 in
+		smarton)
+		
+			rm -f ~/.config/man-smartdisabler
+			echo "smart is now re-enabled!"
+			[[ $1 ]] && man "$@"
+			exit $?		
+			;;
+		smartoff)
+			touch ~/.config/man-smartdisabler
+			echo "smart is now disabled! [ Use 'man smarton' to turn it back on ]"
+			[[ $1 ]] && man "$@"
+			exit $?		
+			;;
+		*)
+			if [[ -r ~/.config/man-smartdisabler ]] && [[ $FOOMAN -eq 0 ]]; then
+				echo "smart is disabled, use 'man smarton' to turn it back on..."
+				sleep 0.45
+				/usr/bin/man "$@"
+				exit $?
+			else			
+				echo "smart is ENABLED, looking up your request (the best of my ability)...."
+		
+
+
+				if INFLOC=`info -w "$@"` && MANLOC=`/usr/bin/man -w "$@"`; then
+					# we wont show the 'bash help' unless there actually is help for that builtin
+					if builtin help "$@" &> /dev/null; then
+						/gxbase/bin/menu $INFLOC $MANLOC "Web Lookup" "See Existing Bash Help on $@"
+					else
+						/gxbase/bin/menu $INFLOC $MANLOC "Web Lookup of $@"
+					fi
+
+					case $? in
+						0)
+							info "$@";;
+						1)
+							/usr/bin/man "$@";;
+						3)
+							builtin help -m "$@" | less ;;
+						2)
+							IFS='+'
+							# quotes and IFS are essential!!! 
+							"${MANBROWSER[@]}" "$MANWURL$*$MANLSUFF"
+							unset IFS;;
+						*)
+							echo "aborted."
+							;;
+					esac
+				else
+					if info -w "$@"; then
+						info "$@"
+					elif /usr/bin/man -w "$@"; then
+						/usr/bin/man "$@"
+					elif builtin help "$@" &> /dev/null; then
+						builtin help -m "$@" | less
+					elif [[ -f /usr/share/doc/$* ]]; then
+						less /usr/share/doc/$*/*
+					else
+						IFS="+"
+						# quotes and IFS are essential!! 
+						"${MANBROWSER[@]}" "$MANWURL$*$MANLSUFF!"
+						unset IFS
+					fi
+				fi
+			fi
+
+		;;
+	esac	
+		
+			

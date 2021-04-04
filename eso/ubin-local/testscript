@@ -1,0 +1,58 @@
+#!/bin/zsh
+#===============================================================================
+#
+#          FILE: testscript.sh
+# 
+#         USAGE: ./testscript.sh 
+# 
+#   DESCRIPTION: Cake
+# 
+#===============================================================================
+
+setopt extendedglob
+setopt nullglob
+setopt kshglob
+
+setopt aliases
+disable hash
+disable true
+disable false
+
+alias die='echo "failed in: $zsh_context err=$? perr=${pipestatus-n/a}"; () { eval "exit die_error_$*"; }'
+alias char='typeset -gg'
+alias int='typeset -gi'
+alias array='typeset -ga'
+alias hash='typeset -gA'
+alias bool='typeset -gi'
+alias echo='print -P'
+alias necho='print -Pn'
+alias rint='typeset -gir'
+
+rint false=0
+rint true=1
+
+
+
+
+dadd() { dirs+=( $@ ); }
+fadd() { files+=( $@ ); }
+dmk() { for d ($dirs) { mkdir -p $d || die $0 }}
+fmk() { for f ($files) { touch $f || die $0 }}
+imakeall() { dmk; fmk; items=( $dirs $files )}
+
+dadd /tmp/tempdir/test_dir
+fadd /tmp/tempdir/existing.file
+dadd /tmp/tempdir/existing.dir
+imakeall "$0" "$?" "$@"
+
+for somefile ($items) {
+	echo "inline----"
+	echo "head of $somefile:" $somefile(:h)
+	echo "tail of $somefile:" $somefile(:t)
+	echo "coded----"
+	headfile=( $somefile(:h) )
+	tailfile=( $somefile(:t) )
+	echo "head reassigned: $headfile"
+	echo "tail reassigned: $tailfile"
+	[[ -d $somefile ]] && rmdir $somefile || { [[ -e $somefile ]] && rm -f $somefile; }
+}

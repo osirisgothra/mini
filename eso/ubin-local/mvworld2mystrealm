@@ -1,0 +1,149 @@
+#!/bin/zsh
+
+# mvworld2mystrealm
+setopt extendedglob
+typeset -g dryrun=1
+typeset -g overwrite=0
+typeset -A msg=(	dbgon	"**NOTICE DRY-RUN IS ON!!!   ----  dryrun has not been disabled (its on by default) --- no files will be created or copied, however, DIRECTORY TRAVERSAL WILL HAPPEN (landing you back in the same directory you started in, so long as no errors happen. Please do not test from scripts as this behavior is mostly experimental (startup directory is attempted to be restored but another process could remove it during our walk)."
+					errexit "**error: need 2 arguments, both need to be existing readable directories! (use -h for proper syntax!"
+					help    "
+	 						syntax: $0 -sh -O [source] [destination]
+
+							parameters (required):
+							   source -> where to copy files from
+	 						   destination -> where to put files (existing files will be backed up into a .backup folder inside it
+
+							optionals:
+							   -s -> use when ready to do it for real, otherwise debug mode is on and nothing is really done
+
+							notes:
+							    paths are resolved to absolute physical paths. for symbolicly linked directory structures, the
+							    relative path is resolved before the translation to its actual physical location. please read
+							    the docs on realpath(1) for how this is handled.
+
+							coreutils dependencies:
+							    realpath(1)		cp(1)	mv(1)	mkdir(1)	zsh(1)    touch(1)    cat(1)
+							"
+					fwpf 	"** found waypoints, you might want to use /tpx with one of these entries **"
+					entdir  "**entering directory: "
+					exitdir "**leaving directory: "
+					backdir "**now working in directory: "
+					gtm		"**going to copy:\n\t from: %s\n\t into: %s\n\n is this okay??\n [y=yes any=abort]"
+					abort	"\n\n\n***aborting (on users request)***"
+					backupexists "\n\n\n*** aborting -- backup exists, please move it or remove it before running ***\n\n\n"
+					skipo   "skipping backup, user opted out with -O"
+					skipnone "skipping backup, no visible files in parent destination! (no hidden files will be copied, those are ignored)"
+					owo 	"DANGER: OVERWRITE MODE ACTIVATED VIA -O COMMAND LINE\npress any key to continue... (or ctrl+c to abort)"
+					badoutput "[%s] and [%d] are to blame"
+					crashing "fatal: bad output from getopt, crashing..."
+					goerr "invalid command line, use -h to get help!"
+
+
+				);
+# base from under wherever you want it to look, that has to be found of course by you (this is an example!)
+typeset -g wptsbase="$HOME/tw2/mods/VoxelMods/voxelMap"
+
+# appropriately handle command line
+# user may enter arguments in their usual manner
+
+typeset -a ARGS=( `getopt -n "$(basename $0)" shO "$@" || echo STATUS_ERROR` )
+if [[ ${ARGS[-1]} == STATUS_ERROR ]]; then
+	echo $msg[goerr]
+	exit 127
+fi
+eval set -- "${ARGS[@]}"
+while [[ $1 != "--" ]]; do
+	NEXTFLAG="$1"
+	case ${NEXTFLAG##-} in
+		O)  echo "$msg[owo]"
+			read -sk1
+			overwrite=1
+			;;
+		s)	dryrun=0
+			;;
+		h)	echo ${msg[help]//	/}
+			exit 127;;
+		*)  echo $msg[crashing]
+			printf $msg[badoutput] "$NEXTFLAG" "$?"
+			exit 127
+			;;
+	esac
+	shift
+done
+# remove the final "--" from the command line
+shift
+
+typeset -g src="$(realpath -L -- $1)"
+typeset -g dst="$(realpath -L -- $2)"
+
+
+############ CHECK TARGETS AND ARGUMENT COUNT #
+integer troublecount=0
+for x; do [[ -d ${x} ]] || let troublecount++; done
+[[ $# -ne 2 ]] && let troublecount++
+if [[ $troublecount -gt 0 ]]; then
+	echo "${msg[errexit]}"
+	exit 127
+fi
+function {
+	[[ $dryrun -eq 0 ]] && return $?
+	mv() 	( echo fake-mv "$@" )
+	cp() 	( echo fake-cp "$@" )
+	mkdir() ( echo fake-mkdir "$@" )
+	touch() ( echo fake-touch "$@" )
+	echo "${msg[dbgon]}";
+}
+##############################################
+
+########## ASK FOR CONFIRMATION
+printf "$msg[gtm]" "$src" "$dst"
+while read -sk1; do
+	case $REPLY in
+		y) break;;
+		*) echo "\n$msg[abort]"
+			exit 127
+			;;
+	esac
+done
+#################################
+
+# separate from messages for visibility
+echo "\n"
+
+
+if [[ $overwrite -eq 0 ]] && [[ -d "$dst/.backup" ]]; then
+	echo "$msg[backupexists]"
+	exit 127
+fi
+mkdir  "$dst/.backup"
+# save original starting point
+pushd .
+echo "$msg[entdir] $dst"
+cd $dst
+integer bicnt=$(ls $dst | wc -l)
+if [[ $bicnt -gt 0 ]] && [[ $overwrite -eq 0 ]]; then
+	mv ^.backup .backup
+elif [[ $overwrite -eq 1 ]]; then
+	echo $msg[skipo]
+
+else
+	echo $msg[skipnone]
+fi
+cp -rv $src/region .
+cp -rv $src/data .
+cp -rv $src/forcedchunks.dat .
+cp -rv $src/multipart.dat .
+cp -rv $src/RedstoneEther .
+touch RuinsPositionsFile.txt
+echo "$msg[exitdir] $dst"
+# return to point we started at before walking tree
+popd
+echo "$msg[backdir] $PWD"
+pointsfile="$src/$wptsbase/$(basename $src).points"
+if [[ -r $pointsfile ]]; then
+	cat "$pointsfile" -P"$msg[fwpf]"
+fi
+
+
+
+

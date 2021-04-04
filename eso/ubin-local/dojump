@@ -1,0 +1,109 @@
+#!/bin/bash
+#
+# statistics
+#
+# name: dojump
+# desc: sends /jump to current (minecraft) client on :0
+#
+# dependencies
+#
+# xmacroplay(1)        - Play keystrokes and mouse movements recorded by xmacrorec/xmacrorec2
+# sudo (8)             - execute a command as another user
+# nice (1)             - run a program with modified scheduling priority
+# ionice (1)           - set or get process I/O scheduling class and priority
+# bash (1)             - GNU Bourne-Again SHell
+#
+# packages          (use 'apt-get install <insert_name_here>' to install it, without the arrows <>)
+#
+# coreutils - GNU core utilities
+# xmacro - Record / Play keystrokes and mouse movements in X displays
+# bash - GNU bourne-again shell
+#
+# command-help
+#
+# xmacroplay 0.3)
+#     Usage: xmacroplay [options] remote_display
+#     Options: 
+#       -d  DELAY   delay in milliseconds for events sent to remote display.
+#                   Default: 10ms.
+#       -s  FACTOR  scalefactor for coordinates. Default: 1.0.
+#       -v          show version. 
+#       -h          this help. 
+# (
+# nice)
+#     Usage: nice [OPTION] [COMMAND [ARG]...]
+#     Options:
+#       -20 (most favorable to the process) to 19 (least favorable to the process).
+#       -n, --adjustment=N   add integer N to the niceness (default 10)
+#           --help     display this help and exit
+#           --version  output version information and exit
+#
+# ionice)
+#     Usage: ionice [options] [ -p <pid>... | -P <pgid>... | -u <uid>... ] <command>
+#     Options:
+#      -c, --class <class>    name or number of scheduling class,
+#                               0: none, 1: realtime, 2: best-effort, 3: idle
+#      -n, --classdata (0..7) the priority for best-effort(-c2) or realtime(-c1) classes
+#      -p, --pid <pid>...     act on these already running processes
+#      -P, --pgid <pgrp>...   act on already running processes in these groups
+#      -t, --ignore           ignore failures
+#      -u, --uid <uid>...     act on already running processes owned by these users
+#      -h, --help     display this help and exit
+#      -V, --version  output version information and exit
+#
+# partial commands*
+#
+# sudo) Usage: sudo [-u username] <command>     
+# bash) Usage: bash [-c <command-and-exit> | --norc | --rcfile <rcfile>] <flags, optional>
+#
+# *note: sudo and bash command help is very long and can be read with 'info bash -n invoking' and 'man sudo' 
+#
+# the preceeding descriptions and labels were generated automatically by 'whatis (man)' and 'apt-get cache'
+# and are subject to change without any notice to the author, or from the author. These names/desc are valid
+# as of June 18, 2016 and are guarenteed for at least 2.5 years beyond. Separate licenses apply. See files for that.
+#
+# BEGIN WARNING ABOUT ZERO LIABILITY AND KEY EVENT MISROUTING
+#
+# WARNING: when bound to a keyboard key, you MUST flush the buffer first, by using Key[lastshortcut]Release and the modifiers
+#          must be handled as well (like Alt and Ctrl, even Shift)
+#          if bound to a virtual key like a mouse button that generates a SINGLE extended key that does not include a modifier, then
+#          the release event does not need to be sent at all, unless some other program picks up on it in such a way as  you can't.
+#          in which case contact your system administrator or nearest software help desk for solutions. I WILL NOT BE RESPONSIBLE FOR
+#          ACCIDENTAL KEY EVENTS BEING SENT AND CAUSING DESTRUCTIVE COMMANDS OR BREAKING OTHER PROGRAMS RESULING IN LOSS OF ANY KIND!
+#          THAT INCLUDES LOST WAGES, LOST SLEEP, LOST HARD DRIVE CONTENTS, LOST JOB, LOST GIRLFRIEND, ETC, ETC. 
+#
+# END WARNING
+
+# Easy-set variables
+shopt -s interactive_comments
+NICENESS='-10'
+DISPLAY=${DISPLAY-$DISPLAY}
+KEY_DELAY_MSEC=15
+PROLOGUE_DELAY=0.15
+CLIMATIC_DELAY=0.05
+EPILOGUE_DELAY=0.05
+
+
+sleep $PROLOGUE_DELAY
+sudo nice -n $NICENESS xmacroplay -d $KEY_DELAY_MSEC $DISPLAY <<EOF
+KeyStrPress slash
+KeyStrRelease slash
+EOF
+sleep $CLIMATIC_DELAY
+sudo nice -n $NICENESS xmacroplay -d $KEY_DELAY_MSEC $DISPLAY <<EOF
+KeyStrPress j
+KeyStrRelease j
+KeyStrPress u
+KeyStrRelease u
+KeyStrPress m
+KeyStrRelease m
+KeyStrPress p
+KeyStrRelease p
+EOF
+sleep $EPILOGUE_DELAY
+sudo nice -n $NICENESS xmacroplay -d $KEY_DELAY_MSEC $DISPLAY <<EOF
+KeyStrPress Return
+KeyStrRelease Return
+EOF 
+# replaces ....ay :0 < /home/osirisgothra/bin/jumpcmd
+

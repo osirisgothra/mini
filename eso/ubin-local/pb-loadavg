@@ -1,0 +1,146 @@
+#!/usr/bin/perl
+
+#
+# 
+#  pb-loadavg - report load averages
+# 
+#  Author:
+#       Gabriel Sharp <osirisgothra@hotmail.com>
+# 
+#  Copyright (c) 2018 Gabriel Sharp
+# 
+#  Created on Sat Jun 30 09:49:56 EDT 2018, Last Major Update on (none yet)
+#   [--create-rc "file"]
+# 
+#  Author:
+#      	Gabriel Thomas Sharp <osirisgothra@hotmail.com>
+# 
+#  Copyright (c) Gabriel Thomas Sharp (Intellectual)
+# 
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+# 
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU Lesser General Public License for more details.
+# 
+#  You should have received a copy of the GNU Lesser General Public License
+#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
+#  For more support, visit our homepage: http://github.com/osirisgothra
+#  Report any bugs to author's main e-mail or visit our FAQ on our website.
+# 
+#
+
+# this small yet powerful program was written to completion in: 47 minutes, 6 seconds (that includes debugging, testing, etc)
+# extra detail was added later (a 4-5 minutes of editing max)
+
+use warnings;
+use v5.20;
+use strict "subs";
+use POSIX ":sys_wait_h";
+use Path::Tiny qw! path rootdir !;
+use File::Slurp qw! read_file write_file prepend_file edit_file edit_file_lines read_dir !;
+use Getopt::Long::Descriptive;
+use Term::ANSIColor;
+
+
+my $progname = path("$0")->basename();										# this program's name (use $0 in the case that end-user has a differently configured name by their local system administrators or analysts)
+my $progdesc = "$progname reports load averages from /proc/loadavg"; 		# place your program description here, you may also reference $progname or $0 without consequence
+my %defaults = ( 'repeat' => 1 );
+my ($opt, $usage) = describe_options(
+	$progname . ' %o ' . "\n" . "$progdesc", 
+	[ 'returnavg|r', "return the load average (1-minute by default) multiplied by one hundred" ],
+	[ 'avgindex|i=i', "set which index to use (1=1 minute 2=5-minute 3=15-minute)" , { default => 1 } ] , 
+	[ 'separate-lines|s', "show in detailed separated lines" ],
+	[ 'repeat|n=i',   "repeat n times (n is a positive nonzero whole integer)" ,   { default  => $defaults{'repeat'} } ],
+	[ 'csv|c', "do in comma separated list (overrides -s)" ],
+	[],
+	[ 'verbose|v',  "print extra stuff"     ],
+	[ 'help',"print usage message and exit" ],
+);
+say("avgindex: " . $opt->avgindex);
+die("STOP\nERROR: avgindex value MUST be either 1, 2 or 3!!") if $opt->avgindex < 1 || $opt->avgindex > 3;
+die("STOP\nERROR: repeat count is not greater than zero! (got repeat == " . $opt->repeat . ", expected repeat > 0 !)")
+	if $opt->repeat < 1;
+
+say($usage->text), exit if $opt->help;
+say("options given by user: sep= " . $opt->separate_lines) if $opt->verbose;
+say("                       rep= " . $opt->repeat) if $opt->verbose;
+say("                   verbose= " . $opt->verbose) if $opt->verbose;	
+
+# windows users *might* need to tweak this
+# loadavg source location (attempting to stay compatible with most linux systems)
+my $loadavg = rootdir()->child('proc')->child('loadavg'); # usually /proc/loadavg or /my/os/root/proc/loadavg
+
+# repeat count start/stop
+my $start = 0;
+my $max = $opt->repeat;
+
+# contents of /proc/loadavg
+my @lines;
+my $out;
+
+# reads loadavg into @lines and $out
+sub update_loadavg
+{
+	$out = read_file($loadavg);
+	@lines = split(/\s/,$out);
+	chomp(@lines);
+}
+sub read_loadavg
+{
+	update_loadavg();
+	my $sep = shift;
+	$sep = 1 if $opt->csv; # csv overrides sep (see below)
+	print($out), return unless $sep;	
+
+	unless ($opt->csv)
+	{
+		          print(" Item(average over minutes) | Value \n");
+		          print(" ---------------------------+---------\n");
+		my @detail = (  " System Load(1)             |",
+						" System Load(5)             |",
+						" System Load(15)            |",
+						" Starable Entities/Running  |",
+						" Last Created Process ID    |",
+						);
+		my $detn = 0;
+		print($detail[$detn++] . $_ . "\n") for @lines;
+		print(          " This Program's Process ID  |\n") unless $detail[4] == $$;
+		print(          "----------------------------+---------\n");
+	}
+	else
+	{
+		my $i = 0;	# keeps track of first entry for separating items with commas
+		# overridden by csv, sep is not important now
+		for (@lines) {
+		print(',') if ($i++);	# prefix because we can tell start of list but not end
+		print('"'.$_.'"');
+		}
+		print("\n"); # postfix perviously chomped entries had no newline, so insert one here
+		
+	}
+}
+read_loadavg($opt->separate_lines) while ($start++ < $max);
+
+if ( $opt->returnavg )
+{
+	exit(@lines[$opt->avgindex - 1]*100);
+}
+else
+{
+	exit(0);
+}
+
+
+
+
+
+# TODO: REMOVE BELOW THIS LINE AND THIS LINE WHEN NO LONGER NEEDED
+# my @bg_procs = qw! xrandr-normaldpi drop xgamma-normalgamma i3 !;
+# for my $bgp (@bg_procs) {
+#	exec($bgp) if ( ( $bgp =~ m/i3/g) || !fork() );	}

@@ -1,0 +1,2 @@
+#!/bin/zsh
+xprop -root -notype | sed -r 's/ = /=( /g;s/$/ )/g;s/^(\S+): /\1=( /g;s/(window|pixmap) id # //g;s/\( \)/(/g;s/(min|max)imum icon size: ([0-9]+) by ([0-9]+) \)/\1=\2x\3/g;s/incremental size change: ([0-9]+) by ([0-9]+)/increment=\1x\2/g' | sed -r 's/[^)]\s*$/\0END_LINE/gm' | perl -wpe 's/END_LINE\n//g;s/\h{2,}/ /g'

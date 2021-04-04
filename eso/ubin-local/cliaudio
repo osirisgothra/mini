@@ -1,0 +1,20 @@
+#!/bin/bash
+while read -a R && [[ ${R[0]} != "exit" ]]; do
+    case $R in
+        quit|exit)
+            echo "should have exited, but oh well..."
+            break;;
+        m)
+            amixer "${R[@]}"
+            ;;
+        x)  alsamixer
+        ;;
+        g)  gnome-alsamixer
+        ;;
+        q)  exit
+        ;;
+        *)
+            eval "${R[@]}" || echo "Bad command or filename! sound familliar"
+        ;;
+      esac
+done

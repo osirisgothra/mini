@@ -1,0 +1,41 @@
+#!/bin/zsh
+
+zmodload zsh/mathfunc
+repeat ${1-1} {
+
+declare -g pick="UNKNOWN"
+declare -g REPLY="u"
+
+
+until [[ $REPLY != "${(L)pick[1]}" ]]; do
+	[[ $pick != UNKNOWN ]] && echo "stalemate: try again"
+	echo "[r]ock [p]aper [s]cissors?"
+	declare -gxa RPS=( rock paper scissors )
+	REPLY=""
+	until [[ $REPLY =~ ^[rps]$ ]]; do
+		read -sk1
+	done
+	declare -gi p=$[ int(rand48()*3) +1 ]
+	pick=$RPS[$p]
+	echo "computer chose: $pick (result was $p)"
+	case $REPLY in
+		r)	[[ $pick == scissors ]] && { echo "rock smashes scissors"; let win++; } || lost=1;;
+		p)	[[ $pick == rock ]] && { echo "paper covers rock";  let win++; } || lost=1;;
+		s)	[[ $pick == paper ]] && { echo "scissors cuts paper"; let win++; } || lost=1 ;;
+		*)  echo "error in program"; exit 12;;
+	esac
+	if ((lost)); then
+		echo "computer wins this round"
+	else
+		echo "you have won this round"
+	fi
+
+	lost=0
+done
+
+}
+if ((win > (${1-1} / 2) )); then
+	echo "YOU HAVE WON ($win time$( ((win != 1 )) && printf s))"
+else
+	echo "YOU HAVE LOST (wins: $win)"
+fi

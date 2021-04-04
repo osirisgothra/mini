@@ -1,0 +1,25 @@
+#!/bin/bash
+[[ $1 == '--nowait' ]] && ( NOWAIT=TRUE && shift ) || unset NOWAIT
+[[ $1 == '--multi' ]] && MULTI=TRUE || unset MULTI
+if [[ $MULTI == TRUE ]]; then
+  shift
+	for i in "$@"; do
+		kquitapp "$i"
+		declare -i j=0
+		# wait 5 seconds, checking every 500ms
+		if [[ $NOWAIT ]]; then
+			echo "not waiting for $i" || notify-send "not-waiting" || true
+		else
+			while pidof $i; do sleep 0.5; let j++; [[ j > 10 ]] && break; done
+		fi
+		kstart "$i"
+	done
+else
+	dingrun kquitapp "$1"
+	sleep 1
+	dingrun kstart "$1" &
+	notify-send "restarted $1"
+fi		
+	
+	
+	

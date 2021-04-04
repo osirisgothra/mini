@@ -1,0 +1,15 @@
+#!/bin/zsh
+
+_hr=0
+_mn=0
+_sc=1
+_iv=$(( (_hr*60*60) + (_mn*60) + (_sc) ))
+while true; do
+
+out="$(date) - $(cat /proc/loadavg)"
+output="$out $(echo -n DMckZchickensZZDMckZdMcks | tr 'DMZ' 'Fu ') everyone in their crew sucks, punk mother-fucks"
+
+printf "%s\n" "$output"
+sleep $_iv
+
+done

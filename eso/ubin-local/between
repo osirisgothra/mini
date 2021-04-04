@@ -1,0 +1,104 @@
+#!/bin/zsh
+emulate zsh
+setopt nodotglob
+setopt nonullglob
+setopt nopromptsubst
+setopt noextendedglob
+
+programname=$(basename $0)
+if [[ $programname == between-original ]]; then
+	echo "error: original conflict"
+	exit 242
+fi
+
+showhelp()
+{
+	cat <<EOF
+
+Usage: $programname [OPTION]... [HEAD] [TAIL] [[+-]LINES]
+Concatenate a section of standard input, to standard output.
+
+  -A, --show-all           equivalent to -vET
+  -b, --show-both          include both HEAD and TAIL match with output
+  -t, --show-tail          include TAIL match with output
+  -h, --show-head          include HEAD match with output
+  -v, --verbose				for item selection display
+      --help     display this help and exit
+      --version  output version information and exit
+
+no filename is accepted, this program always will read standard input.
+
+Examples:
+  ls $programname -b "total" "foo.*bar"      Output lines from ls(1) starting at "total" and up to plus 
+                                        any line with "foo" AND "bar"
+  cat file | $programname "start" "finish"   Output contents of file between lines containing "start" until
+                                        a line containing the text "finish".
+
+The HEAD and TAIL specifications can be any perl regular expression (regex features subject to
+the currently installed perl on the target machine). You can read more about regular expressions
+in the perl documentation. Recommended starting point is the perlretut(3perl) reference, you can
+access it (if installed) using the command 'perldoc perlretut'.
+
+The LINES specification is optional and defaults to showing all lines (same as using "-0").
+Otherwise, the number of lines shown, if less than the total, will be shown. If there is a prefix
+then the '+' prefix will start from the beginning (head) or '-' for the end (tail). The special
+values '-0' and '+0' mean to show all lines (-0) or no lines at all (+0).
+
+
+This program uses GNU coreutils to accomplish it's tasks:
+features include 'cat', 'basename'
+GNU coreutils online help: <http://www.gnu.org/software/coreutils/>
+Full documentation at: <http://www.gnu.org/software/coreutils/<feature-name
+or available locally via: info '(coreutils) <feature> invocation'
+This program is written in zsh 5.1.1 (x86_64-ubuntu-linux-gnu language
+You can obtain the latest copy with your favorite software finder app.
+
+Questions/Comments? See the github discussion board and docs for more details at:
+	http://github.com/osirisgothra/mini/eso/ubin-local/$programname/$programname.md
+or	http://github.com/osirisgothra/mini/eso/ubin-local/between-original/between-original.md
+
+(External Resources Subject to Availability)
+EOF
+
+}
+if [[ $1 == -v ]]; then
+		vecho() { echo $@; }
+		shift
+else
+		vecho() { : }
+fi
+if [[ $* =~ --?help ]]; then
+	showhelp
+elif [[ $# -eq 2 ]]; then
+			perl -wne '$r1="'"$1"'";$r2="'"$2"'";print if /$r1/ ... /$r2/ and not ( /$r1/ or /$r2/ )'
+elif [[ $# -eq 3 ]]; then
+	flag=$1
+	shift
+	case $flag in
+		-b)
+			vecho "include both"
+			perl -wne '$r1="'"$1"'";$r2="'"$2"'";print if /$r1/ ... /$r2/'
+
+			;;
+		-t)
+			vecho "include tail"
+			perl -wne '$r1="'"$1"'";$r2="'"$2"'";print if /$r1/ ... /$r2/ and not ( /$r1/ )'
+			;;
+		-h)
+			vecho "include head"
+			perl -wne 'BEGIN { @results = qw(); }; $r1="'"$1"'";$r2="'"$2"'";push(@results,"$_") if /$r1/ ... /$r2/; END{ my $i=0; while(1) { print($results[$i]);$i=$i+1; last if $i == $#results; }  }'
+# and not ( /$r2/ )'
+			;;
+		*)
+			echo "bad args! 1 must be -b -h or -t when using 3"
+			exit 127
+			;;
+	esac
+else
+	echo -e "\n error: arguments passed ($#) are not the right amount\n\n"
+	showhelp
+fi
+
+
+
+

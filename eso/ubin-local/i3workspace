@@ -1,0 +1,3 @@
+#!/bin/zsh
+
+i3 workspace "$1"

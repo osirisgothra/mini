@@ -1,0 +1,511 @@
+#!/usr/bin/perl
+#
+#
+#
+#    hi
+#    script for highlighting things
+#    mini
+#    eso/ubin-local -- executable scripts and other exotic or xenographic works
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY			LEGEND: +addition  -removal  =change  %sidenote
+#
+#	 Mon Jan 15 10:13:22 EDT 2019
+#            + osirisgothra@larnica initially created this file
+#              with the original name, hi
+# 			 + hi(1) supports 1 to 5 highlight groups, each on its own argument as a regex:
+#	 Sun Apr  7 00:25:18 EDT 2019
+#			 + this template was added
+#            + changes not logged since Jan 15:
+#				= changed group limits, allows as many groups as the perl will allow for integers 
+#                 this has been tested up to 4k groups!
+#               = dealt with color of groups, instead we use a randomly generated "palette" to
+#                 ensure that 256-colors are not next to each other (some chroma bleeding causes
+#                 colors to run together because they are so simmilar.
+#               = changed calculated palette to be defined before execution, for dynamic matching
+#               = color table now starts with the 16 standard colors, for more consistent group matches
+#               + added backgrounds to facilitate use of more than 256*256 groups!
+#				+ added better error checking
+#				+ added command line options: 
+#				   + show only matching lines (like grep -C0) or just the words (like grep -o) 
+#			       + scan limiter (scans only range n<->m)
+#				   + added mono and none for color modes (none only useful for isolated matches!)
+#			
+#	Sat 15 Aug 2020 09:25:18 PM EDT (osirisgothra)
+#			-	removed help text from header (you just use --help now!)
+#			+	added constants and some signatures
+#			+   added NOTES section below
+#
+# 	NOTES		LEGEND: (PKG::|FUNC::)(sig::)?LINENO ("sig" and PKG cannot both be used, when sig is used, line referrs to the line number within the signature, not the function block)
+#
+#  NB:::: DO NOT LEAVE CODE IN AN UN-RUNNABLE/USABLE STATE!!!!!!!!!!!!!!!!!!!!!!!!!!!		
+#			showhelp::sig::0
+#
+#	
+#
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+
+
+package Term::ANSIColor::Highlighter::Main;
+
+use warnings;
+use strict;
+use v5.20;
+use vars 	 qw@ $usage $groups_desc @;
+use constant {
+	true		=>	1,
+	allon 		=> 	3,
+	nil 		=> 	undef,
+	false 		=> 	0,
+	tristate 	=> 	2,
+	 FALSY		=>	"	falser"
+};
+
+### MODULES
+####################################################################################################################
+
+use Getopt::Long::Descriptive;
+use Path::Tiny qw( path );
+use Term::ANSIColor 4.00 qw( uncolor colorstrip colorvalid coloralias :constants :pushpop );
+
+### FEATURES
+####################################################################################################################
+
+use feature 'signatures';
+no warnings 'experimental::signatures';
+
+### INIT -- Getopt::Long::Descriptive
+####################################################################################################################
+
+# TODO: decide if we want to add it as an argument or use '-p simple' instead (both do about the same but push@ARGV is a bit ugly
+if ( @ARGV < 1 ) { push(@ARGV,"simple"); }
+
+# TODO: decide on podizing or manifying (or texInfo?)
+my $progname = path($0)->basename();
+my $groups_desc = <<FEOF
+
+    highlight groups ( [group] ... )
+        
+        a list of perl regular expressions must be given 
+        on the command line for highlighting if output of
+        the pipe is to be displayed. Input text is expected
+        to be piped in, but, if it is not, lines will be
+        read directly from stdin.  This usually means that
+        the program will accept lines being typed on the
+        keyboard, until an EOF is typed. Using CTRL+C or
+        CTRL+BREAK (CTRL+FN+BREAK on laptops) will cause the
+        program to stop immidiately and produces no further
+        output. The exit code in this case is usually >=254
+        depending on your operating system.    
+
+    typing an EOF
+
+        You can type an EOF by pressing CTRL+D on most 
+        nix-based systems. On more exotic operating 
+        systems like Windows, you will need to use CTRL+C
+        or CTRL+BREAK (on laptops CTRL+FN+BREAK). However,
+        output would be interrupted instead of an EOF being
+        inserted. On command windows you can enter an actual
+        EOF sometimes by pressing ALT+026. This feature must
+        be entered on the numeric keypad and is not always
+        supported. It is recommended to use cygwin since it
+        allows use of CTRL+D. Use a native linux shell like 
+        bash if you are able. This program was tested with 
+        zsh, sh, and bash under Linux Ubuntu 15.10, 17.04.
+
+    flags
+
+        Allowed flags are 'msixpogcalud'. This is subject to change.
+        Most of the time, you will find that the default, 'g' is just fine.
+        Flags that are supported (from perlreref(3pm)):
+
+           m  Multiline mode - ^ and \$ match internal lines
+           s  match as a Single line - . matches \\n
+           i  case-Insensitive
+           x  eXtended legibility - free whitespace and comments
+           p  Preserve a copy of the matched string -
+              \${^PREMATCH}, \${^MATCH}, \${^POSTMATCH} will be defined.
+           o  compile pattern Once
+           g  Global - all occurrences
+           c  don't reset pos on failed matches when using /g
+           a  restrict \\d, \\s, \\w and [:posix:] to match ASCII only
+           aa (two a's) also /i matches exclude ASCII/non-ASCII
+           l  match according to current locale
+           u  match according to Unicode rules
+           d  match according to native rules unless something indicates
+              Unicode
+
+        It is advised that you should avoid the flags "poc", because their
+        effects cannot be controlled externally by users.
+
+        Most of the other flags are only useful for those who
+        are customizing this program from within (developers).
+        Any not-allowed flags or ones that just dont exist
+        are removed from the string at startup, so if you put
+        a string like 'ihateyou' it will become 'eo' because
+        the other characters are not allowed. Use this feature
+        with caution if you are a regular user.
+
+
+    customizing
+    
+        This program (at this time) can be customized with specific colors
+        and patterns by modifying the source code. At this time there is
+        no rcfile for that purpose yet (devloping Config::INI and friends
+        for that purpose atm). See the %presets hash within the source code
+        to modify the presets (use at your own risk!).
+    
+            
+FEOF
+;
+my ($opt, $usage) = describe_options( "$progname %o [group(s)]",
+									  [], ["output options"], [],						
+									  [], ["color"], [],						
+									  ['colorseed|S=i',"seed to use for the random color generator, use same value if you want to get the same random color sequence every time (default is -1 which picks a random seed)", { default => -1 } ],
+									  ['charcount|n=i',"numerical value to limit each line to number of characters from start, negative measures from end", { default => 0 } ],
+									  ['color|c=s',"colorized output mode: color(default) none, or mono", { default => 'color' }, ],
+									  [], ["i/o handling"], [],						
+									  ['l-isolate|l', "show only lines that have highligts on them"],
+									  ['w-isolate|w', "show only highligted text/words"],
+									  ['substitute|s', "strings are substituted in the form: 'org_expr/replacement_text'"],
+									  ['flags|f=s', "flags to send to regex parser (egomrs)", { default => 'g' }],									 
+									  [], ["presets"], [],						
+									  ['use-preset|p=s', "preset expressions to be used (use -P to get entries, see 'presets' below).", { default => '__none__' } ],
+									  ['presets|P', "list available presets that can be used with -p" ],
+    								  [], ["miscellaneous"], [],
+									  ['verbose|v', "print extra stuff", ],
+                                      ['help', "print usage message and exit"],
+                                    );
+
+
+
+### SUBROUTINES
+#####################################################	###############################################################
+use Term::Cap;
+use POSIX;
+my $terminal = undef;
+sub termsetup
+{
+    # TermCap does not give us info about the hardware terminal's size, nor the window size
+    # for that we will have to use ioctl or some other module (who uses ioctl, or some other mechanism)
+    # at this time no core module offers a portable solution that is also accurate
+    # tput binary may be the best route but doesnt solve windows issues
+	warn("TERM not set, things may not go well") unless defined $ENV{TERM};
+	my $termios = new POSIX::Termios;
+	$termios->getattr();	
+    $terminal = Tgetent Term::Cap { TERM => $ENV{TERM}, OSPEED => $termios->getospeed() };
+    $terminal->Trequire(qw/ce ku kd co li/);
+    
+}
+sub amatch 
+{
+	my $src = shift;
+	my @items = @_;
+	my @rets = ();
+	for (@items) 
+	{
+		unshift(@rets,
+	$_) if /^$src/;
+	}
+	return @rets;
+}
+
+sub showhelp($ = 0) 	# showhelp::sig::0
+{
+	my $skipexit = shift // 0;
+	say($usage->text);
+	say($groups_desc);
+	exit(127) unless $skipexit;
+}
+
+sub errdef
+{
+	showhelp(1);
+	my $a = int(shift) // 127; 
+	my $msg = shift // "unspecified error";  
+	print("error($a): $msg\n"); 
+	exit($a); 
+}
+sub set_default_groups
+{
+	if ( $opt->use_preset eq "__none__" ) {
+		say "using default preset";
+	}
+	else
+	{
+		say "using selected preset: ". $opt->use_preset;
+	}
+	
+}
+
+### PRESET HANDLER
+####################################################################################################################
+
+
+my %presets = (		markdown => [ '[[:punct:]]', '\b[0-9]+\b', '\*\*\*.*\*','\*\*', ],
+					ini		 => [ '\A\s*\S+(?==)', '(?<==)[^#;]+', '[#;]+[^\'"]+.*\z', '\A\s*\[[A-Za-z_][A-Za-z_0-9]+\]' ],
+					simple	 => [ '[:,\?\!\@\#\$\%\|\^\(\)\{\}]',  '\b[-A-Z]+\b', '\b\[a-z]+\b' ],
+					ccomment => [ '\/\*.*?\*\/', '\/\/.*' ],
+					scomment => [ '#[^"\']+*$' ],
+				   pycomment => [ '\A\s*"{2,}\s?.*' ],
+  					ckeywords => [ '\b(void|static|int|const|long|short|double|float|bool|void|if|then|else|elseif|switch|return|struct|union|cast|char|wchar|(un)?signed|case|do|while|until|goto|null|undef|0L|0UL|L".*")\b', 'dynamic_cast'  ],
+                    xdf => [ '[.0-9]+M', '[.0-9]+G', '9[.5-9]%', '100%' ],
+					perl	 => [  '^\s*[A-Za-z_0-9]+(?=\()', '\b(warning|use|strict|no|package|sub|my|our|carp|croak|warn|die|exit|if|else|elsif)\b', "[:,.-+\/\\\$\@\%\=\>\<,]","[\(\)\{\}]", '^\s*[[:punct:]]include', ';\s*\$', '"[^\"]+\"' ],
+				);
+my %metapresets = (	cpp => [ "perl", "ccomment", "ckeywords" ] );
+
+my %pcolortables = (   markdown => [ 8, 6, 10, 2 ],
+                       xdf => [ 9, 10, 11, 9, 2, 2 ],
+                        
+                       
+                       );
+
+my ($preset_name, $preset_array, $preset_element, $preset_new_presetlist_ref) = ( "", [], "", [] );
+for $preset_name ( keys( %metapresets ) ) {
+	my $preset_new_presetlist_ref = [ ];
+	for $preset_array ( @{ $metapresets{$preset_name} } ) 		{
+	for $preset_element ( @{ $presets{$preset_array} } )    		{
+			push( @{ $preset_new_presetlist_ref }, $preset_element );		
+											};};
+	$presets{$preset_name} = $preset_new_presetlist_ref;
+	$preset_new_presetlist_ref = undef;			# dec refcount cleanly
+}
+my $fmtstr = undef;
+sub cr { say(""); }
+sub hr
+{
+	my $LINE_CHAR = shift // "-";
+	my $SW = shift // $ENV{COLUMNS} // 80;
+	my $PERLINE = $SW / length($LINE_CHAR);
+	printf($LINE_CHAR x $SW . "\n") unless $SW < 1;
+	say("ERROR: HR bad params SW=$SW LINECHAR=$LINE_CHAR PERLINE=$PERLINE") unless $SW > 0;
+
+}
+sub elide
+{
+	my $str = shift;	
+	my $echar = shift // "...";
+	my $ELN = length($echar);
+	my $SW = shift // $ENV{COLUMNS} // 80;
+	if ( length($str) > $SW ) {
+		my $start = substr($str,0,($SW/2)-$ELN);
+		my $end = substr($str,length($str)-($SW/2)+$ELN);
+		return( $start . "$echar"  . $end );
+	} else {
+		return $str;
+	}
+		
+}
+sub showprs
+{
+	my $SW = ( $ENV{COLUMNS} // 80 ) - 10;	
+	my $SWPAD = 4;
+	my $SW1 = int($SW / 4);		# 25% to the name field
+	my $SW2 = $SW - ($SW1 - $SWPAD);
+	my $SWPAD_CHAR = " ";
+	my $SWPAD_CHARS = $SWPAD_CHAR x $SWPAD;
+	#printf("sw=%s sw1/sw2=%s/%s swpad=%s",$SW,$SW1,$SW2,$SWPAD);
+	$fmtstr = "%-${SW1}s${SWPAD_CHARS}%-${SW2}s\n";
+	hr; printf($fmtstr, "PRESET NAME","MATCH CRITERIA"); hr;
+	my ($pnum,$cnum)=(0,0);
+	for ( keys(%presets) ) {
+		my @dat =  @{ $presets{$_} };
+		my $first = shift(@dat);
+		printf(	$fmtstr, $_, elide($first,"...",$SW2) );
+		printf( $fmtstr, "", elide($_,"...",$SW2) ) for @dat;
+		$pnum++;	 												# $pnum = $pnum + 1;				updated for newer perl
+		$cnum+=(scalar(@dat) + 1);										# $cnum = $cnum + scalar(@dat) + 1;		the +1 is for the $first entry, always works because every entry MUST have a nonempty value
+		printf( "\n" );	
+	}; hr;
+	printf("%d presets and %d criterias listed",$pnum,$cnum); cr;hr;cr;
+	
+	exit(0);
+}
+			
+
+
+
+
+### MAIN PROGRAM #########################################################################################################################
+
+{
+	showprs if $opt->presets;
+	showhelp if $opt->help;				# show --help content and exit when --help is specified on the CLI
+	srand($opt->colorseed) unless $opt->colorseed == -1;	# seed for color randomizer: gets randomized seed if not touched here
+	my $flags = $opt->flags;
+	my $oldflags = $flags;
+	$flags =~ s/[^egomrs]+//g;							# remove forbidden characters from
+	
+	if ( $oldflags eq $flags ) {
+		say("flags ok") if $opt->verbose;
+	} else {
+		say("WARNING: invalid characters detected in flags passed ($oldflags) and has been corrected to ($flags)");
+	}
+		
+
+	set_default_groups unless @ARGV;
+    my $color_preset_used = 0;
+	my $grouplimiter = 1;
+	my $groups = $#ARGV+1;
+	my $grouplimit = 40000;
+	my @group = @ARGV;
+	my $color = $opt->color;
+	my $show_matching_line_only = $opt->l_isolate // 0;
+	my $show_matching_word_only = $opt->w_isolate // 0;
+	my @colortbl = qw( 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 );
+	
+	errdef(122,"color (or -c) must contain unique enough characters to match against 'color', 'mono', or 'none'\n") unless scalar(amatch($opt->color,"color","mono","none")) > 0;
+	errdef(121,"too many arguments (> $grouplimit)") if $groups > $grouplimit && $grouplimiter == 1;
+	errdef(120,"nothing to highlight") if $groups < 1;
+	errdef(119,"l-isolate and w-isolate are mutually exclusive, please use one or the other") if $show_matching_line_only && $show_matching_word_only;
+
+	# presets
+	#while(0) {	# keep commented out, unless bypassing preset feature (must also uncomment closing } way   \v/ over there)
+		for my $arg (@ARGV)
+		{
+			for my $preset (keys(%presets)) {
+				# say("checking argument $arg against preset $preset");	# uncomment for preset/metapreset testing\v/
+				if ( $preset eq $arg )							{
+					# say("match, adding expressions...");				# uncomment for preset/metapreset testing\v/
+					for my $ex ( @{ (%presets{$preset})[1] } )	{
+						# say("add: $ex");								# uncomment for preset/metapreset testing\v/
+						push(@group,$ex);
+						$groups = $groups+1;					
+                        
+				    }
+				    if ( $pcolortables{$preset} )						  
+                    {  
+					    say ("found a colortable for $preset, adding it") if $opt->verbose;
+					    @colortbl = @{ $pcolortables{$preset} };						    
+					    sub verbose_report_list_array($msgfmt,$array_ref)
+					    {
+    					    if ($opt->verbose) 
+	    				    {
+		    			        say ("added colortable entry: $preset $_") for @$array_ref;
+			    		    }
+			    	    }
+
+			    	    
+			    	    $color_preset_used = 1;  
+						    
+					}
+    				# say("done adding $arg preset expression(s)");		# uncomment for preset/metapreset testing\v/
+																}
+				}
+				# say("done checking presets against $arg")				# uncomment for preset/metapreset testing\v/
+		}
+	#}			# comment out unless bypassing preset features		<<                         <<
+	#exit(12);	# test point, keep commented when not testing
+
+
+	# FIX: fixed unintended closure on @colortbl within next if() statement just before its contained for() statement
+	# TODO: use Term::Cap to do this /IF/ it ends up being needed (at this time its not)
+	my $term_colors=`tput colors`;
+	if ( $color_preset_used ) {
+	    say("already have a color preset table, skipping generation/approximation") if $opt->verbose;
+	}
+	elsif (  ($term_colors-16) > $groups )	# enough colorful colors to facilitate a good color table?
+	{
+		my $start=17;                                   
+		my $stop=$term_colors if $term_colors < 230;	#\ clamp hi limit to 230 because
+		$stop=230 if $term_colors > 230;				#/ we do not want the greys that live there
+		$stop=$term_colors if $term_colors > 512;	# true color terminal override		
+		@colortbl=();
+		for (my $x=0; $x < $groups; $x++)
+		{
+			$colortbl[$x] = ( int((rand() * 230-17) + 17) ) ;	 # 17 - 230 range (colorful colors only)
+			say("$x index, added ". $colortbl[$x] . " to colortable") if $opt->verbose;	# keep commented out unless testing
+		}
+	}
+	
+	# exit(15); # test point - testing color table (see above code)
+
+
+	while (<STDIN>)
+	{
+		my $i = 0;
+		my $mcolor = undef;
+		my $matched = 0;
+		my $matchtext = "";
+		my $ccolor = "";
+		my $creset = "[0m";		 
+		my $orgline = $_;
+		my $restline = $_;
+		# exit(1) # test point - keep commented unless testing
+		if ($opt->charcount > 0)
+		{
+			#positive: pos(0),count
+			$_ = substr($orgline,0,$opt->charcount);
+			$orgline = substr($orgline,$opt->charcount);
+		}
+		elsif ($opt->charcount <= 0)
+		{
+			$_ = substr($orgline,$opt->charcount);
+			$orgline = substr($orgline,0,$opt->charcount);
+		}
+		# exit(1) # test point - keep commented when not testing this block
+		while ($i < $groups) 
+		{
+			
+			my $cgroup = $group[$i];
+			#say($cgroup);
+			$ccolor = "[38;5;$colortbl[$i]m";
+			#say("\nusing: $colortbl[$i] for $ccolor\n");
+			$mcolor //= $ccolor;
+			if ($i > 200) {
+				my $j = $colortbl[$i / 200];	
+				$ccolor .= "[48;5;${j}m";
+			}
+			$ccolor = $mcolor if $color =~ /mono/;
+			$ccolor = "" if $color =~ /none/;
+			$ccolor = $ccolor if $color =~ /color/;	# gfcs
+			eval '$matched = ( s/($cgroup)/${ccolor}${1}${creset}/'.$flags.' )';;
+			$matchtext .= (length($matchtext) > 0 ? " " : "") . "${ccolor}${1}${creset}" if defined($1);
+			$i++;
+		}	
+		#exit(1);	# test point, keep commented when not testing
+		if ($show_matching_word_only) 	# $show_matching_word_only -> show matches from groups only (invalidates $show_matching_line_only)
+			{ print("$matchtext\n") unless length($matchtext) <= 0; }
+		else  # $show_matching_line_only -> show matching lines only
+		{ 
+			unless ($matched == 0 && $show_matching_line_only == 1)
+			{
+				if ($opt->charcount > 0)	# [matchtext]remainder
+				{
+					print($_); print($orgline);
+				}
+				else
+				{
+					print($orgline,$_);
+				}
+			}
+		}
+	}
+}

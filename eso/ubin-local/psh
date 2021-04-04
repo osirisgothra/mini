@@ -1,0 +1,62 @@
+#!/usr/bin/perl
+
+use v5.20.2;
+use warnings;
+use strict;
+use Cwd;
+use Path::Tiny;
+use File::MimeInfo;
+use Term::Cap;
+use Symbol;
+
+use feature "signatures";
+no warnings "experimental";
+
+my $running = 1;
+my %builtins = (    exit => sub { $running = 0; say("exit called"); },
+                    help => sub { say("HELP called\n\n");print("help: help exit\n"); },
+               );
+my @uses = ( "Path::Tiny", "v5.20.2", "strict","warnings" );
+              
+my $prompt = "Psh 1.0 %w> ";
+
+# sigoff - signals available but not implemented
+# signals - used by handler %SIG - mapper to handler (set up dynamically)
+my @sigoff = qw: TRAP BUS USR1 USR2 PIPE ALRM STKFLT CHLD CONT STOP TSTP TTIN TTOU URG XCPU XFSZ VTALRM PROF WINCH POLL :;
+my @signals = qw: INT HUP KILL ILL ABRT FPE SEGV TERM SYS PWR QUIT :;
+my %SIG = ();                
+
+sub sigsetup() { for (@signals) { $SIG{$_} = \&sighandler; say "allocated $_ signal handler"; } }
+
+sigsetup;
+
+sub pprint($msg) 
+{
+    my $CWD = cwd();
+    $msg =~ s/%w/$CWD/g;
+    print($msg);
+}    
+
+while ($running)
+{
+    pprint($prompt);
+    chomp( my $nextcmd = readline() );
+    for (keys(%builtins)) { 
+        say("checking '$nextcmd' against '$_'");        
+        if (/\A$nextcmd\z/)
+        {
+            say("Match: $nextcmd");
+            last;
+        }
+    }    
+    given($nextcmd) {
+
+        default 
+        {
+            pprint("\n\t$nextcmd not understood, use 'help' for help.\n");            
+        }
+        
+    }
+    
+
+}

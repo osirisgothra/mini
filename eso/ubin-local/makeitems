@@ -1,0 +1,183 @@
+#!/bin/zsh
+#
+#    makeitems
+#    upsample 8x - 60x textures into 64x using imagemagick's 2xSAI sampler
+#    mini
+#    eso/ubin-local
+#
+#    Copyright (C) 1995-2021 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sun 01 Nov 2020 03:11:21 PM EST
+#            osirisgothra@ initially created this file
+#            with the original name, makeitems
+#
+# TARGET NOTES
+#
+# 	EXECUTIVE STATE CHANGES
+#		marking single existing file executable
+#			- mode of 'makeitems' changed to u+rwx/og+rx.. []
+#		completed (0)
+# 	ARGUMENTUAL ANALYSIS
+#       remaining arguments:
+#			no arguments to list
+#       disposition:
+#			4 were used during execution of template
+#   		0 were extra and/or unexpected
+# 	TEMPLATE SUMMARY OF GENERATION
+#	     outcome: good
+#	     errors: 0
+# 	FINAL NOTE
+#	     template program under renovation
+#        you should REMOVE the TARGET NOTES section once youve reviewed this!
+#		 (Sun 01 Nov 2020 03:11:21 PM EST): osirisgothra ignored the final note and left this behind for
+#		           the user(s) to see, how embarassed I am for the author!
+#
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#
+
+
+
+
+# Get Options from Command Line for makeitems 
+
+declare -ga opts
+declare -gi quiet_level=0
+declare -g version_text="$(tput setaf 124)makeitems$(tput sgr0) Version 1.0 (C)2020 Gabriel T. Sharp, Licensed under GNU LGPL3 at https://gpl.gnu.org/gpl3.html"
+declare -g help_text="makeitems
+upsample 8x - 60x textures into 64x using imagemagick's 2xSAI sampler
+
+SYNTAX
+
+	makeitems [OPTIONS] ARGUMENTS
+
+OPTIONS
+	--help -h	show this help text
+ --version -v   display version information and exit (also shows license info)
+   --quiet -q   increase quiet level by one (quiet level is always zero if left alone)
+
+ARGUMENTS
+
+    This program accepts no arguments.
+    TODO: might change if it becomes needed.
+
+LICENSE
+
+	GNU LGPL3 is available in full at the GNU GPL website, or through the google voice command 'show me GNU LGPL VERSION 3'
+
+"
+
+echo() {
+	if [[ $quiet_level -gt 0 ]]; then
+		return 127
+	else
+		builtin echo "$@"
+	fi
+}
+
+if opts=( `getopt -n $0 -o hvq -l help,version,quiet -- "$@"` ); then
+	eval set -- "${opts[@]}"
+	while [[ $# -ge 0 ]]; do
+		curopt=$1
+		nextopt=${2-none}
+		shift
+		# handle --options and -o ptions here
+		case $curopt in
+			--help|-h)	echo "$help_text"; exit 127;;
+			--version|-v) echo "$version_text"; exit 127;;
+			--quiet|-q) let quiet_level++;;
+			--) echo "done with options"; break;;
+			*)	echo "handling option: $curopt (next:$nextopt)";;
+		esac	
+	done
+	for arg; do
+		# verify/handle non-option arguments
+		case $arg in
+			*)	echo "handling argument: $arg";;
+		esac
+	done		
+	
+else
+	echo "error, code is $?, exiting with fail ($?+123)"
+	exit $(( 123+$? ))
+fi
+
+if [[ $# -gt 0 ]]; then
+    echo "error, too many arguments"
+    exit 124
+fi
+
+
+
+#	template output completed (code=OK(ERROR_NONE))
+#
+#
+
+echo "hint: make sure you are IN the directory you want to work with, it only works in a single directory! [proceeds in 2 seconds -- press ctrl+c to abort]"
+sleep 2
+declare -gi n=0
+declare -gi t=0
+declare -ga itemlist=( )
+declare -gi ic="$(/bin/ls -C1 *.png | wc -l)"
+echo "images in this dir: $ic"
+echo "hint: if you dont see anything getting added, you might have already upsampled this directory"
+for x in *.png; do
+    sizes=$(file -L "$x" | grep '[0-9]+ x [0-9]+' -Po)
+    w=${sizes%% x*}
+    h=${sizes##* x }
+    let t++
+    # only want single textures
+    if (( w == h )); then
+        # only work with textures that are a multiple of 8 (8,16,24,32,etc)
+        # and that are also less than 64 (where we are upsampling to)
+        if (( w % 8 == 0 )); then
+            if (( w < 64 )); then
+                itemlist+="$x"
+                let n++
+                if (( n % 1024 )); then
+                    echo -ne "[s$n/$t of $ic item(s) $((t*100/ic))% complete   [u"
+                fi
+            fi
+        fi
+    fi
+done
+echo "[uall items processed ($n to convert), 100% complete[K"
+if [[ $#itemlist -gt 0 ]]; then
+    echo -n "$#itemlist items to be converted, do it? [y/[anykey=n]]"
+    if read -q; then
+        echo "\nbeginning... processing using sampling $n of $t item(s) to 64x64 using interpolative-tile 2x magnification (super 2xSAI)..."
+        for x in $itemlist; do
+            convert -virtual-pixel tile -magnify -virtual-pixel edge -magnify -magnify -interpolative-resize 64x64 "$x" "$x"
+        done
+    else
+        echo "aborted by user"
+    fi
+else
+    echo "failed to find any items, most likely theve already been upsampled! put me in a dir with images that are not!"
+fi

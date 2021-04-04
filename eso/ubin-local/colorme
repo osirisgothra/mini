@@ -1,0 +1,122 @@
+#!/usr/bin/perl
+# vim: fdl=99
+use warnings;
+use strict;
+use v5.20;
+use Path::Tiny;
+use Getopt::Long::Descriptive;
+use File::Slurp;
+use Curses::UI;
+
+
+# example of a complete output segment
+# 
+# segments and subsegments are not really inline but only shown for 
+# example purposes
+#
+# this format of text storage is required because ansi codes and atributes use regular ascii characters
+# and therefore must be seperate from the text until the time of rendering
+# having a simple index like this: segment=(sgr,index) doesnt work either because each insertion or  mod
+# ification would break previous ones when each transformation pass was done for each type of symbol
+# example: this[0 + len(`printf "%02s" "ls"`)] 
+# could be transformed its parts that are numeric, but, once that is done, the other parts could change its
+# position, or color for that matter, how could one tell the code from the actual characters and keep ultimate
+# clarity? separating text from sgr codes while completely getting rid of offsets is the best choice here
+# this also allows for items to be split further down into subsegments which can allow for multiple languages
+# to be interpreted depending on some set of rules. This is all stil theory but it is the basis for which  the
+# colorization takes hold. 
+#
+# The best example is still a hard-coded example:
+#
+my $output = [				
+					{ 
+						text => "example",  
+						sgr => "40;0", 
+						subsegments => 
+						[ 
+							{ text => "...we", sgr => "30;1", subsegments => [] }, 														
+							{ text => "all...", sgr => "0;31", subsegments => [] }, 
+							{ text => "live...", sgr => "32", subsegments => [] },
+							{ text => "in", sgr => "33", subsegments => [ { parenthesized => 1, text => "side", sgr=>"",subsegments=>[] } ] },
+							{ text => "a...", sgr => "34", subsegments => [] }, 
+							{ text => "YELLOW...", sgr => "1;3", subsegments => [], forceyellow=>1 },
+							{ text => "submarine...!", sgr => "1", subsegments => [] }, 
+						]
+							
+					}		
+
+];
+#
+# here, the output is a list of "segment" hashes, that have .text .sgr and .subsegments
+# they are output sequentially, one after another, and the color changes when the segment changes, usually
+# unless the sgr is empty. subsegments can recurse as far in as reanalysis needs to go. This structure is 
+# mainly for the ananlysis phase, printing it out flat seems just as easy on the other end but remember the
+# text has to be intepreted and thats the reason for the structure above							
+# without it, there'd be no way to know what index or color the text could be, sgr codes themselves might get
+# colorized by accident had they been pre-proccessed into the text. simple separation would result in a behomoth
+# of a index management system, overly written for such a simple task. The structure might look complicated but
+# its actually quite simple. Other elements can be added as needed such as tags and link data (note the addition
+# of the weird elements that could be silently ignored but could hold meaning in certain situations).
+# in its simplest form:
+my $simpleoutput = [{ text=> "just some text, it could be multilined or whatnot.. even special char#s are welcome & yeah!" }];
+# since elements default to empty if they are not found, and as a rule, because these are references, we could do this:
+my $verysimple = [ "some text, thats what i am, a reference to some text" ];
+# SCALAR refs are treated as { text=>SCALAR } and get stringized before writing out to screen!
+# and, if it is just a nonref like this:
+my $fartoosimple = "text";
+# thats ok too, same as above it gets translated to "$fartoosimple = [{ text=>"text" sgr="" subsegments =>[] }]" 
+# automagically!!
+
+for (<>) {
+	chomp;
+	CORE::say($_);
+}
+
+
+
+
+
+#
+# TODO! CONVERTING THIS TO PERL, BUT NOT EVEN DONE YET
+# UNTIL THEN NO FILTERING IS DONE!
+#
+
+
+# GLOBALS
+#
+# WORDLIST = (print|printf|echo|read|write|seek|peek|poke|elseif|elif|else|set|unset|shopt|readonly|shell|command|builtin|export|function|func|repeat|rep|return|ret|iret|sub|if|then|else|class|local|global|for|end|endif|endclass|fi|while|wend|until|done|do|select|case|esac|use|unless|declare|define|include|end);
+# 
+# # ARGUMENTS
+# 
+# for x; do
+# 	case $x in
+# 		-s|--strip)	stripmode=1;;
+# 		-h|-?|--help) helpmode=1;;
+# 		*) echo "unknown argument: $x"; unknownmode=1;;
+# 	esac
+# done
+# 
+# # ACT ON ARGUMENTS IF NEEDED
+# 
+# if ((helpmode)); then
+# 	echo "syntax: colorme [option]"
+# 	echo ""
+# 	echo "options"
+# 	echo "  -s  --strip   replace escape characters with ESC markers"
+# 	echo "  -h  --help    this help message (-? also works)"
+# 	echo ""
+# 	exit 127
+# elif ((unknownmode)); then
+# 	echo "please use --help or -h to list possible parameters"
+# 	exit 128
+# fi
+# 
+# # MAIN PROGRAM
+# 
+# if ((stripmode)); then
+# 	sed -r 's//ESC/g;s/(\W[-0-9[:punct:]]\W)/[32;1m\1[0m/g;s/\b('$WORDLIST')\b/[38;5;254m\1[0m/g;s/\b[-.,]\b/[32m\0[0m/g;s/[\(]/[36;1m\0[0;36m/g;s/[\)]/[36;1m\0[0m/g'
+# else
+# 	sed -r 's/(\W[-0-9[:punct:]]\W)/[32;1m\1[0m/g;s/\b('$WORDLIST')\b/[38;5;254m\1[0m/g;s/\b[-.,]\b/[32m\0[0m/g;s/[\(]/[36;1m\0[0;36m/g;s/[\)]/[36;1m\0[0m/g'
+# 											
+# fi
+# 

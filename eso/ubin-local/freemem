@@ -1,0 +1,135 @@
+#!/bin/zsh
+#
+#    freemem
+#    returns free memory (by default) in just numeric form
+#    mini
+#    eso-ubin-local
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Fri Oct 18 12:17:25 EDT 2019
+#            osirisgothra@ initially created this header
+#            for this file (the original name, freemem)
+#			 the actual creation date is unknown in 2019.
+#			 also changed from bash to zsh script.
+#			+complete rewrite removing its free(1) dependancy
+#			 it now relies on /proc/meminfo instead.
+#
+# TARGET NOTES
+#
+# 	EXECUTIVE STATE CHANGES
+# 	    marking single existing file executable
+#			mode of ‘/home/osirisgothra/bin/banish’ changed from 0664 (rw-rw-r--) to 0775 (rwxrwxr-x)
+# 	    completed (0)
+# 	ARGUMENTUAL ANALYSIS
+#       remaining arguments:
+#			no arguments to list
+#       disposition:
+#			all were used during execution of template
+#   		none were extra and/or unexpected
+# 	TEMPLATE SUMMARY OF GENERATION
+#	     outcome: good
+#	     errors: 0
+# 	FINAL NOTE
+#	     completed without any significant problems
+#        you should REMOVE the TARGET NOTES section once youve reviewed this!
+#		 (Fri Oct 18 12:17:25 EDT 2019): osirisgothra ignored the final note and left this behind for
+#		           the user(s) to see, how embarassed I am for the author!
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#
+# EXAMPLE MEMINFO OUTPUT
+#
+# user@inter.net> cat /proc/meminfo
+#
+#		MemTotal:               3596812 kB
+#		MemFree:                2304992 kB
+#		MemAvailable:           2390128 kB
+#		Buffers:                  32204 kB
+#		Cached:                   61964 kB
+#		SwapCached:              123800 kB
+#		Active:                  518112 kB
+#		Inactive:                652780 kB
+#		Active(anon):            467048 kB
+#		Inactive(anon):          609704 kB
+#		Active(file):             51064 kB
+#		Inactive(file):           43076 kB
+#		Unevictable:                  0 kB
+#		Mlocked:                      0 kB
+#		SwapTotal:              7311356 kB
+#		SwapFree:               4996032 kB
+#		Dirty:                       16 kB
+#		Writeback:                    0 kB
+#		AnonPages:              1065548 kB
+#		Mapped:                   59516 kB
+#		Shmem:                       28 kB
+#		Slab:                     37392 kB
+#		SReclaimable:             19148 kB
+#		SUnreclaim:               18244 kB
+#		KernelStack:               2064 kB
+#		PageTables:                9932 kB
+#		NFS_Unstable:                 0 kB
+#		Bounce:                       0 kB
+#		WritebackTmp:                 0 kB
+#		CommitLimit:            9109760 kB
+#		Committed_AS:           3187928 kB
+#		VmallocTotal:       34359738367 kB
+#		VmallocUsed:             311476 kB
+#		VmallocChunk:       34358947836 kB
+#		HardwareCorrupted:            0 kB
+#		AnonHugePages:           743424 kB
+#		CmaTotal:                     0 kB
+#		CmaFree:                      0 kB
+#		HugePages_Total:              0
+#		HugePages_Free:               0
+#		HugePages_Rsvd:               0
+#		HugePages_Surp:               0
+#		Hugepagesize:              2048 kB
+#		DirectMap4k:            2838208 kB
+#		DirectMap2M:             831488 kB
+#
+# user@inter.net>_
+#
+#
+# SYNTAX
+#			freemem [kind] [scale] [format]
+#					 					\___ Format to pass to printf(1)
+#								\___________ The scale which to scale to:
+#											 bit nybble byte kilo mega giga
+#											 tera or a number to multiply against.
+#											 Suffix with ':metric' to force the unit
+#											 a kilobyte=1000 instead of 1024 bytes.
+#											 (which makes mega=1000000, and so on)
+#                      \____________________ type of stat to get, defaults to 
+
+
+
+
+
+

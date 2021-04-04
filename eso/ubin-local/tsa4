@@ -1,0 +1,106 @@
+#!/usr/bin/env perl
+#
+#    gg
+#    grepgroup
+#      selects and groups items depending on what files and patterns are passed in
+#      mini/eso
+#      small projects and stand-alone programs or documents, esoteric or dependant
+#
+#    Copyright (C) 1995-2021 Gabriel T. Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all projects can be
+#    obtained by visiting the repository at:
+#
+#    <https://github.com/osirisgothra>
+#
+#   LICENSE AGREEMENT
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sat 27 Feb 2021 03:02:14 PM EST
+#            osirisgothra@ initially created this file
+#            with the original name, gg (alt is grepgroup)
+#
+#    CERTIFICATIONS
+#   
+#        The Author has verfied that the file adheres to the '2020 Columnized Strict Commenting Scheme' which is
+#        also known as the "2020/CSCS". This scheme requires that 1) all comments are in the form of footnotes
+#        with only a refnum in the far right column. This is in an effort to join the massive need for commenting
+#        your code reformation goin on all over the world, 2) footnotes are at the END of the file, beyond any
+#        executable code or other footnotes. Are easy to read and spot. 3) Do not count for more than 20% of the file's size.
+#        3-CODE Status: PASS PASS PASS (all 100%) A score of 80% or better is required to be 2020CSCS compliant.
+#
+#  This template and header was created using the template generator by Gabriel T. Sharp
+#  You can download the latest version at: <https://www.github.com/osirisgothra/mini.git/eso/ubin-local/template>
+#  (the url is subject to changes on github's behalf, please submit a pull request to fix or request a fix on any url changes)
+#
+
+use warnings;
+use strict;
+use v5.20.2;
+no warnings 'experimental';                                                                                                                                                         #4
+use feature 'signatures';
+use POSIX;
+use Path::Tiny;
+use lib '/src/perl';
+use Term::Put;
+use Config::INI;
+
+sub showlist($name,@items) {
+    say("List\nDescription=$name Len=$#items\n" . ( "-" x 25 ));
+    my $i=1;
+    for (@items) { say("Item ${i}) \"$_\""); $i++; }
+}    
+
+my @files = ( );                                                                                                                                                                    #3 (3a 3b)
+my @patterns = ( );
+
+for (@ARGV) {
+    unshift(@files,file('/dev/stdin')) when /^-$/;                                                                                                                                               #2
+    die("options are not supported at this point, please review and try your request again") when (/^-.+/);                                                                                #1 #5
+    when (-d) { 
+        warn("using all files in $_ because it is a directory");        
+        for my $child (path($_)->children()) { unshift(@files,$child); }
+    }
+    unshift(@files,path($_)) when -r and not -d;
+    default { unshift(@patterns,$_) }    
+       
+
+}
+showlist("files",@files );
+showlist("patterns",@patterns );
+
+for my $file (@files)
+{
+    $file=path($file);
+    die("cannot read $file") unless ( -r $file );
+    my @lines = $file->lines();
+                      # search and group within file
+    # end
+}
+
+
+# comments
+# ID        # DESC
+#################################################################################################################################
+# 1         # option introducer, but we dont support any more options so they should never be here
+# 2         # single dash means /dev/stdin, not to be confused with (1) and not to ever be handled by (3a) as per POSIX standards
+# 3a        # you could optionally add getopt support just above here, as long as files and patterns are left remaining
+#           # right now options are not really needed, so they dont exist
+# 3b        # below and starting here, separate patterns from files
+# 5         # 

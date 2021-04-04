@@ -1,0 +1,9 @@
+#!/bin/zsh
+#
+# recursively shortcut for mocp
+# (C)2020 Gabriel T Sharp, (osirisgothra@hotmail.com)
+#
+
+# /usr/bin/mocp --recursively $@ -- this will be removed someday so we do it now
+mocp --append $@
+

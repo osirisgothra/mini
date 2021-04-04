@@ -1,0 +1,18 @@
+#!/bin/zsh
+target=`which ipython`
+cmd="notebook"
+if [[ $target != ${0:t} && -x $target ]]; then
+    exec ipython $cmd "$@"
+else
+    printf -v errmsg "%s" "ipython not installed, please install it first\necho with 'apt-get install ipython' or use your install manager/software manager/snap manager to do it in a gui."
+    if [[ -c `tty` ]]; then
+        print -P "$errmsg"
+    else
+        if [[ $DISPLAY ]]; then
+            zenity --error --title "Error $0" --text "$errmsg"
+        else
+            echo "$errmsg" > /tmp/qipython-error
+        fi
+    fi
+fi
+

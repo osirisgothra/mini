@@ -1,0 +1,103 @@
+#!/bin/zsh
+#
+#    'ka'
+#    'renamed to KA because its discontinued'
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository:
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 'mini'
+#            osirisgothra@ initially created this file
+#            with the original name, 'ka'
+#
+#
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#
+
+declare -ga _args=()
+declare -ga _pids=()
+declare -gi _pid=0
+declare  -g _proc=""
+declare  -g _root=`id -un 0`
+declare  -g _me=`id -u`
+declare  -ga _killcmd=( "/bin/killall" "-KILL" )
+declare  -ga _killpidcmd=( "/bin/kill" "-KILL" )
+declare  -ga _sudocmd=( "/bin/sudo" "-u" "$_root" "-H" )
+declare -gi _npids=0
+_ka() {
+	for _name; do
+		if [[ $_name =~ ^[0-9]+$ ]]; then
+			printf "pid ${_name}: "
+			_args=( $_sudocmd $_killpidcmd )
+		else
+			_args=( $_sudocmd $_killcmd )
+			printf "${_name}: "
+		fi
+		$_args $_name && printf "killed\n" || printf "failed($?)\n"
+	done
+}
+
+for _proc in $@; do
+	_oproc="$_proc"
+	if ! pgrep -x $_proc; then
+		if pgrep -x "systemd-${_proc}"; then
+			_proc="systemd-${_proc}"
+		elif pgrep -x "systemd-${_proc}d"; then
+			_proc="systemd-${_proc}d"
+		elif pgrep -x "${_proc}d"; then
+			_proc="${_proc}d"
+		else
+			continue
+		fi
+		printf "working on the converted %s => %s ... " $_oproc $_proc
+	else
+		printf "working on %s ... " $_oproc
+	fi
+
+	# silently kill service too
+	$_sudocmd systemctl stop ${_proc}.service ${_proc}.socket &> /dev/null
+	if ! pgrep -x $_proc; then
+		echo "note: $_proc was killed before we could kill it (possibly by systemctl)"
+		continue
+	fi
+	_pids=$( pidof $proc )
+	_npids=${#_pids}
+	case $#_npids in
+		0)	printf "error: %s returned %d killable ids, not killing" $_proc $#_pids;;
+		1)	_ka $_proc;;
+		*)	printf "multiple instances of %s (%d):" $_proc $_pids
+			for _pid in $_pids; do
+				if [[ -r /proc/$_pid ]]; then
+					_ka $_pid
+				else
+					printf "%s disappeared (not killing a nonexistent process)\n" $_pid
+				fi
+			done;;
+	esac
+done

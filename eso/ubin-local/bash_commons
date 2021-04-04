@@ -1,0 +1,151 @@
+#!/bin/bash
+#
+#    bashcommons
+#    some common script for various things, wtf
+#    eso
+#    mini-eso-ubin-local projdesc
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sat Nov  3 22:52:59 EDT 2018
+#            root@larnica initially created this file
+#            with the original name, bashcommons
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+#
+# TARGET NOTES
+#
+# target resides in /home/osirisgothra/bin ... no
+# target resides in /usr/local/sbin ... no
+# target resides in /usr/local/bin ... no
+# target resides in /usr/sbin ... no
+# target resides in /usr/bin ... no
+# target resides in /sbin ... no
+# target resides in /bin ... no
+# target resides in /usr/games ... no
+# target resides in /usr/local/games ... no
+# target resides in ~/bin ... no
+# target resides in /usr/local/gxdwm ... no
+#
+# NONPROJECT NOTES
+#
+# this project is not standalone
+# this project is not tested
+# this project is not due to be further developed
+# this is a code 'dumpsite' for code that may be on its way out the door
+# this project code is private and exempt from the library since it is in limbo
+# this means that nobody should use this code and if they do, they must know that
+# that its not ok with the author given the state of the project that would possibly
+# cause catastrophe if used, not to mention its illegal since you dont have permission
+# at this time (this is blocking on all levels, for your protection, until further
+# noticed -- which will be made apparent when this notice is removed from the file
+# as long as this notice is here, nothing written above may change
+#
+# acceptable use
+#
+# -  there is none, its an esoteric, nonpublic, codepit
+# -  looking at it to read this license is ok, but not for any other reason
+#
+
+_which() { which "$@" &> /dev/null; }
+_get_paths()
+{
+	local -na _op="$1"
+	eval 'for r in "'${PATH//:/\"\ \"}'"; do _op+=( "$r" );	done'
+}
+_is_in_path()
+{
+	declare -ga _paths=( )
+	declare -gna _matches="$1"
+	shift;
+	declare -i _nmatches=0
+	case $# in
+		1) 	_get_paths _paths
+			for _path in "${_paths[@]}"; do
+				local _pathfile="${_path#\/}${1}"
+				if [[ -r ${_pathfile} ]]; then
+					_matches+=( "${_pathfile}" )
+					let _nmatches++
+				fi
+			done
+	esac
+	return ${_nmatches}
+}
+_b_is_in_path()
+{
+	local -a _biim=( )
+	_is_in_path _biim "$1"
+	[[ $? -lt 1 ]] && return 1 || return 0
+}
+
+_org_exists()
+{
+	if _which clear.original; then
+		return 0;
+	else
+		return 1;
+	fi
+	if _b_is_in_path clear.original; then
+		return 0;
+	else
+		return 1;
+	fi
+
+
+}
+_original()
+{
+	case $CLEAR_ORIGINAL in
+		1)	which clear.original &> /dev/null && clear.original && return 0;;
+		*)  return 1;;
+	esac
+}
+_rst_wrapper()
+{
+	local mpairs=( [screen]="J" [line]="K" [char]="?" [page]="?" )
+	local terms=( [x]=xterm [c]=linux [fallback]=ansi )
+
+	if _original; then
+		exit 0
+	fi
+
+	local MODE=J
+	shopt -s interactive_comments
+	if [[ $# -gt 0 ]]; then
+		case $1 in
+			screen) MODE=J;;
+			line) MODE=K;;
+            char) MODE="";;
+              *) echo "warn: unknown mode: $1, using screen"
+              	  sleep 1;;
+		esac
+	fi
+}
+

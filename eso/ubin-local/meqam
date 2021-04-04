@@ -1,0 +1,8 @@
+#!/bin/bash
+[[ $# -eq 1 ]] && rate=$1
+target="$(realpath ${PWD}/..)"
+echo "rate: $rate"
+echo "target: $target"
+rate=1.75
+declare -gx nd=0
+for x in "$target"/*; do if grep EQSET "$x" -Pq --directories=skip; then echo -ne "processing $x..."; ( mapfile r < "$x"; for y in "${r[@]}"; do for z in $y; do [[ $z =~ ^[-.0-9]+$ ]] && { echo -ne "$(calc -- $z' * '"${rate}" | tr -d '\t')"; let nd++; } || echo -ne "$z"; echo -ne " "; done; echo; done ) > "$(basename "$x")"; echo "done ($nd digits converted)"; nd=0; else echo "skipped $x"; fi; done

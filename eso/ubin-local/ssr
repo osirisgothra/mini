@@ -1,0 +1,20 @@
+#!/bin/zsh
+case ${1-off}
+{
+	(off) {
+			echo "turning screensaver off"
+			xset s off
+			xset s noblank
+			xset s -dpms
+ 		  }														;;
+	(on)  {
+			echo "turning screensaver on"
+			xset s on
+			xset s blank
+			xset s +dpms
+		  }														;;
+	(*)   {
+			echo "passing unknown argument(s) to xset: $@"
+			xset "$@"
+		  }														;;
+}

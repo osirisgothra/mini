@@ -1,0 +1,18 @@
+#!/bin/zsh
+function zcom() {
+tstr=""
+# note: tcsh(1) users: # does not work on command line
+#       m4(1) users: only # supported, dynamic rechoosing of it will be ignored
+#
+	case ${1-sh} in
+		tcsh|m4|python|sh|bash|dash|ash|ksh)	cstr='#';;
+		c) cstr='\/\/';;
+		cpp) cstr='\/\*' tstr='\*\/';;
+		vim) cstr='"';;
+		masm|tasm|asm|reg|ini) cstr='\;';;
+		html) cstr='<!--' tstr='--\>';;
+		md|markdown) cstr='---';;
+		*) cstr='#'; echo -ne 'warning: assuming "#" prepended comment character\nreason: because you specified an unsupported language' > /dev/stderr;;a
+	esac
+	perl -wpe 's/^./'"$cstr"'\t$&/g;s/.$/$&\t'"$tstr"'/g'
+}

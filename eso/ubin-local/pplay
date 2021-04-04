@@ -1,0 +1,3 @@
+#!/bin/bash
+case $- in *i*) chmod a+x "$BASH_SOURCE";; esac
+killall -SIGCONT play

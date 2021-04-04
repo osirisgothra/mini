@@ -1,0 +1,244 @@
+#!/bin/zsh
+#
+#	loadavg
+#	shows load averages using kernel proc filesystem
+#	mini/eso/ubin-local
+#	small or one-file projects, esoteric in nature, executable
+#
+#	Copyright (C) 1995-2019 Gabriel Thomas Sharp
+#
+#	Written by Gabriel T. Sharp <21shariria@gmail.com>
+#	Latest versions of this and all of my projects can be
+#	obtained by visiting the repository:
+#
+#	<https://github.com/osirisgothra>
+#
+#	Because of the global availability of github at this point, hosting
+#	any additional servers for public use no longer serves a purpose. All
+#	content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#	This program is free software; you can redistribute it and/or modify
+#	it under the terms of the GNU General Public License as published by
+#	the Free Software Foundation; either version 2 of the License, or
+#	(at your option) any later version.
+#
+#	This program is distributed in the hope that it will be useful,
+#	but WITHOUT ANY WARRANTY; without even the implied warranty of
+#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#	GNU General Public License for more details.
+#
+#	You should have received a copy of the GNU General Public License along
+#   with this program; if not, write to the Free Software Foundation, Inc.,
+#	51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#	DOCUMENTATION
+#
+#	Use --help to see how to use this program.
+#
+#	PROGRAM REQUIREMENTS
+#
+#	This script requires the following features installed in your distribution
+#   and are listed as they appear from apropos(1), if they are installed
+#	they should show up using apropos(1) or whatis(1):
+#
+#	zsh5 (1)             - the Z shell
+#	proc (5)             - process information pseudo-filesystem
+#	cat (1)              - concatenate files and print on the standard output
+#	--- to be possibly required in future versions ---
+#	grep* (1)            - print lines matching a pattern
+#   sed* (1)             - stream editor for filtering and transforming text
+#	getopt (1)           - parse command options (enhanced)
+# 	zcat (1)             - compress or expand files
+#	bash* (1)            - GNU Bourne-Again SHell
+#	sh* (1)              - command interpreter (shell)
+#	ls (1)               - list directory contents
+#	stat (1)             - display file or file system status
+#	clear (1)            - clear the terminal screen
+#	setterm (1)          - set terminal attributes
+#
+#	* = only if porting to sh/bash (i am not going to do that but you will need this)
+#
+#
+#   HISTORY
+#
+#	Sat Nov  2 11:42:42 EDT 2019
+#            osirisgothra@ initially created this file
+#            with the original name, loadavg
+#
+#	PORTING NOTES FOR BASH-ONLY USERS
+#
+#		This script is not a  bash script  or  compatible, the  following
+#		is an example of what  would  have  to change to make it so. Some
+#		other features may be even harder to port such as expansion flags
+#		or internals.
+#
+#	PORTING EXAMPLE FEATURE CHANGES NEEDED
+#
+#		each line is denoted as 'feature: change needed'
+#       file: cannot be compiled as a zwc, make sure you dont compile it by accident (bash wont understand)!
+#		autoload: any autoloaded functions will need imported inline (and also converted)
+#		builtins/modules: modules are not supported, may need workarounds for that stuff (usually some binaries out there can help you, like, for example, curses)
+# 		bang: (first line of script) bash uses /bin/bash or /bin/rbash
+# 		setopt: bash uses 'shopt -s' not 'setopt' (conversely, shopt -u not unsetopt)
+# 		setopt: bash needs ${l[@]} instead of $l
+# 		setopt: porters: bash uses expand_aliases and interactive_comments
+# 		setopt: use of "setopt 'no'opt" and "unsetopt opt" are identical whereas bash's are NOT interchangable (ie, you can "shopt -s nocaseglob" but you can NOT "shopt -u caseglob" for the same effect as you can in zsh, because option "caseglob" does not exist in bash)
+#		shorthands: use of short syntax like 'for x { ... } instead of 'for x; do { ...; }' is not supported!
+#		case/select: be sure you understand what select/case is doing before you convert them. make special note of ';&' ';&&' and ';;', etc
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#
+#
+
+setopt interactivecomments
+setopt aliases
+# needed for floating-point math
+zmodload zsh/mathfunc
+# notice: do not use 'integer' types when using float math
+# because 'integer' types drop the floating point+decimal without rounding
+# plus all math is done without fpm, so here the regular variable types
+# are used only, for floating point math.
+
+maxf=5
+
+if ! o=( $(getopt -l help -o hqaf:la -n ${0}(:t) -- $@) ); then
+
+	exit $?
+fi
+function help()
+{
+# logo is crypted due to backslashing, to edit it - it must be unbackslashed with
+# a regex (use perl -wpe s/\\\\/\/g filename -ibak, or search+replace regex with fav editor)
+	helptext='
+%249_   ___  ___  ___  __  _ _ ___    .    ___
+%239\\   \\  \\ \\__\\ \\  \\ |_\\ \\ | \\  _   |\\   \\  \\
+%236 \\__ \\__\\ \\  \\ \\_/ |  \\ \\|  \\__\\    \\ . \\__\\
+%12
+%250usage%235: %12'$1'%4 OPTIONS
+%12
+ %6Manditory arguments for short options are manditory for long options as well%232.
+%12
+%4OPTION%235(%250S%235)%4
+%12   %6 --help    -h            %252show this help text%232.
+%12              -q            %249quiet mode%232,%249 no warnings%232.
+%12              -a            %246give average of field%235(%250s%235)%246 specified%232.
+%12              -f%6%232[%6n%235[%232,%250...%235]%232]   %243specify which field number%235(%250s%235)%243 to show%232.
+%12              -l            %240output on a single line only%232.
+%12
+%4ARGUMENT%235(%250S%235)%4
+%12
+%12 %6Extra non option argument%235(%250s%235)%6 will be ignored%232.
+%12 %6When specifying multiple fields%234,%6 use %12commas %6to separate numbers%234.
+%12 %6Average will only select one field by default%233.
+%12 %6Load averages will be given in mid-precision floating point decimal%232.
+%12
+%4Please see documentation for more details%232.%f'
+	# use module to compile codes in text into zsh prompt codes
+	autoload -Uz regexp-replace
+	regexp-replace helptext '(%)([0-9]+)' '%F{$match[2]}'
+	# use %% operator to compile zsh prompt codes into terminal escape sequences (depending on what $TERM is set to)
+	# 256 colors will be used if possible, then 16, then 8, then etc..
+	print ${(%%)helptext}
+	exit 127
+}
+
+# make sure to unset because we use (-n) to validate flags enabled
+unset allinline
+unset average
+unset nowarn
+unset fields
+
+eval set -- "${o[@]}"
+while [[ $# -gt 0 ]]; do
+
+	x="$1"
+	shift
+	[[ $x == "--" ]] && break
+	case $x in
+		-h|--help) help $0(:t);;
+		-l) allinline=1;;
+		-a) average=1;;
+		-q) nowarn=1;;
+		-f)	fields=( ${(s:,:)1} )
+			for f in $fields; do
+				if [[ $nowarn -ne 1 ]]; then
+				if [[ $f -gt $maxf ]]; then
+					echo "warning: field $f is too high (highest available is $maxf)"
+				fi
+				fi
+			done
+			shift;;
+		*)  [[ $nowarn -ne 1 ]] && echo "currently unsupported option: $x"
+			exit 127;;
+	esac
+done
+
+if [[ -n $allinline ]]; then
+	flags=( "-ne" )
+else
+	flags=( "-e" )
+fi
+
+l=( $( cat /proc/loadavg ) )
+c=( "1 min" "5 mins" "15 mins" "proc/kproc" "+1 = next pid to be created" )
+y=1
+
+# special cases
+# average of all
+if [[ -n $average ]]; then
+	# when using fields we will average out the fields used only
+
+	if [[ -n $fields ]]; then
+		if ((fields < 1)); then
+			echo "error: field value must be 1, 2, or 3!"
+			exit 125
+		fi
+		# ensure a is a floating point type so its values get divided properly
+		# this method also allows multiple fields just like before, in this case
+		# specifying a field more than once will give extra weight to that field
+		# this can be useful when placing emphasis on timeframes when figuring out
+		# more precise load times. USE CAREFULLY: This method can very easily end
+		# up giving you bad results just as easily as it can good results.
+		a=0.0
+		c=${#fields}.0
+		for f in $fields; do
+			if [[ $f -gt 3 ]]; then
+				echo "error: cannot average out a field > 3, these are not load averages. Only the first 3 fields contain actual load averages"
+				exit 126
+			fi
+			let a=a+$l[f]
+		done
+		let a=a/c
+		echo $flags "$a"
+	else
+		a=$(( ( l[1] + l[2] + l[3] ) / 2 ))
+		echo $flags "$a"
+	fi
+	exit 0
+fi
+
+# usual form
+
+for x in $l
+{
+	pass=1
+	if [[ -n $fields ]]; then
+		pass=0
+		for f in $fields; do
+			if [[ $f -le $maxf ]]; then
+				if [[ $y == $f ]]; then
+					pass=1
+				fi
+			fi
+		done
+	fi
+	if [[ $pass -eq 1 ]]; then
+		if [[ $# -eq 0 ]]; then
+			echo $flags "$x (${c[y]}) "
+		else
+			eval echo $flags "$* "
+		fi
+	fi
+	let y++
+
+}

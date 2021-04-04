@@ -1,0 +1,90 @@
+#!/bin/zsh
+fatal() { echo "fatal($(date) ($SECONDS)): $1"; exit ${2-127} ; }
+integer a=0 b=0 c=0
+file="${1-/dev/stdin}"
+shift
+cat "$file" | while read -A r; do
+
+if [[ $r =~ '^\s*#' ]]; then
+    echo "comment line skipped"
+else
+    echo "line: $r"
+    mainargs=( ${(s:.:)r[1]} )
+    subargs=( $r )
+    sendarg="none"
+    isverbose="yes"
+    detach="no"
+    echo "args:"
+    for sa in $subargs; do
+        case $sa in
+            sendargs.*)
+                    echo "intercepted sendargs"
+                    sendarg=${sa##sendargs.}
+                    ;;
+            quiet)  isverbose=no
+                    ;;
+            detach)  detach=yes
+                    ;;
+            *)      echo "warning: ignoring unimplemented command \"$sa\""
+                    ;;
+        esac
+    done
+    declare -gA ncmd=(  cmd "$mainargs[1]"
+                        directive "$mainargs[2]"
+                        target "$mainargs[3]"
+                        sendargs "$sendarg"
+                        verbose $isverbose
+                        detached $detach
+                        )
+    echo "processing command $r"
+    case $ncmd[cmd] in
+        autowine)
+            # autowine.[fx|abs].[targetname] [quiet|detach|sendargs.[last|first|none]]
+            case $ncmd[directive] in
+                fx) # find executable named [target.exe] in program files or program files (x86)
+                    newtarget=`find -L $HOME/.wine/dosdevices/c:/Program* -iname "$ncmd[target].exe" | head -n1`
+                    if [[ -r $newtarget ]]; then
+                        ncmd[target]="$newtarget"
+                    else
+                        fatal "cannot find $ncmd[target] anywhere in your wine programs, be sure its there"
+                    fi
+                    ;;
+                abs) # use [target] as executable as-is, no action needed
+                    if ! [[ -r $ncmd[target] ]]; then
+                        fatal "absolute path, $ncmd[target], is not a valid file, check its location and fix"
+                    fi
+                    ;;
+                *)  fatal "syntax error, $ncmd[directive]\ is not a valid directive"
+                    ;;
+            esac
+            # target translated to proper executable
+            # launcher is wine
+            launcher="/usr/bin/wine"
+            working="$(dirname $ncmd[target])"
+            target="$ncmd[target]"
+            export launcher working target
+            if [[ $ncmd[sendargs] == last ]]; then
+                export largs=""
+                twil "$@"
+            elif [[ $ncmd[sendargs] == first ]]; then
+                export largs="$@"
+                twil
+            elif [[ $ncmd[sendargs] == none ]]; then
+                export largs=""
+                twil
+            else
+                fatal "sendargs must be first, last or none"
+            fi
+            
+            
+            ;;
+       *) fatal "$ncmd[cmd] is not a supported command"
+       ;;
+    esac
+    
+fi
+
+
+
+
+done

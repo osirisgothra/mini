@@ -1,0 +1,188 @@
+#!/bin/zsh
+#
+#    singular
+#    move everything in subdirectories into this dir, opposite of catagorize program
+#    mini
+#    eso-ubin-local
+#
+#    Copyright (C) 1995-2021 Gabriel T. Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all projects can be
+#    obtained by visiting the repository at:
+#
+#    <https://github.com/osirisgothra>
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Fri 15 Jan 2021 08:24:36 AM EST
+#            osirisgothra@ initially created this file
+#            with the original name, singular
+#
+#
+#
+#  This template and header was created using the template generator by Gabriel T. Sharp
+#  You can download the latest version at: <https://www.github.com/osirisgothra/mini.git/eso/ubin-local/template>
+#  (the url is subject to changes on github's behalf, please submit a pull request to fix or request a fix on any url changes)
+#
+
+
+# Get Options from Command Line for singular
+
+declare -ga opts
+declare -gi quiet_level=0
+declare -g version_text="$(tput setaf 124)singular$(tput sgr0) Version 1.0 (C)2020 Gabriel T. Sharp, Licensed under GNU LGPL3 at https://gpl.gnu.org/gpl3.html"
+declare -g help_text="singular
+move everything in subdirectories into this dir, opposite of catagorize program
+
+SYNTAX
+
+	singular [OPTIONS] ARGUMENTS
+
+OPTIONS
+	--help -h	show this help text
+ --version -v   display version information and exit (also shows license info)
+   --quiet -q   increase quiet level by one (quiet level is always zero if left alone)
+
+ARGUMENTS
+
+	FILENAME	A filename that must exist or be writable by the current user.
+	PATHNAME	A relative or absolute path that must exist or be creatable.
+	STRING		A readable string, it must not contain any unreprintable characters.
+	NUMBER		An integer, usually between -32767 and 32767.
+	BOOLEAN		A true/false value, represented as 0 for false, and any other value for true.
+	FLOAT		A floating point single or double precision value, it is precise down to about 5 ot 6 decimal places.
+	ENG			Scientific notation, expressed in powers (3x10^4 is written as 3.4)
+	DEG			Like GRAD/RAD, but expressed in degrees (hours, minutes, seconds) so 3 5'5\" is written as \"3.5.5\"
+
+
+LICENSE
+
+	GNU LGPL3 is available in full at the GNU GPL website, or through the google voice command 'show me GNU LGPL VERSION 3'
+
+"
+lecho() { builtin echo "$@"; }
+
+echo() {
+	if [[ $quiet_level -gt 0 ]]; then
+		return 127
+	else
+		builtin echo "$@"
+	fi
+}
+fail() {
+    code=${2-127}
+    msg=${1-generic failure on the last operation performed, no further details available}
+    is silence || echo "$(date): singular: fail($code): $msg" > /dev/stderr
+    exit $code
+}
+is() {
+    lastop=$?
+    case $1 in
+      silence)  ((quiet_level > 1));;
+        quiet)  ((quiet_level > 0));;
+      verbose)  ((quiet_level < 0));;
+       normal)  ((quiet_level == 0));;
+     notquiet)  ((quiet_level <= 0));;
+           ok)    ((lastop == 0));;
+        notok)  ((lastop != 0));;
+            *)  ((quiet_level == 1));;
+    esac
+}
+isnot() { is $1; return $(( ! $? )); }
+singlize()
+{
+    # use: singlize DIRECTORY
+    # assumes: -rwx access to directory and its children, and that it exists
+    #          you must do these checks yourself before calling this function
+    curdir="$PWD"
+    target="$1"
+    if chdir "$target"; then
+        echo "about to perform operations on this tree, ok?"
+        if read -q; then
+            find -L -not -type d -exec mv '{}' . ';'
+            numleft=`find -L -mindepth 2 -not -type d | wc -l`
+            if (( numleft > 0 )); then
+                fail "failed here: there are $numleft files that couldnt be moved, stopping entire operation"
+            else
+                find -type d -and -not -name '.' -and -not -name '..' | while read r; do echo "\/****  branch $r  ****\/:"; tree $r -Ca | column;echo; done
+                echo "review the tree(s) above, these will be removed, is this ok? [y/[n]]:"
+                if read -sq; then
+                    echo "removing directories..."
+                    find -type d -and -not -name '.' -and -not -name '..' -exec rm -fr '{}' ';'
+                else
+                    echo "leaving directory tree in tact...(skipping)"
+                fi
+            fi
+        else
+            echo "the target \"$target\" was cancelled by user (skipping)"
+        fi
+        chdir "$curdir"
+    else
+        fail "could not chdir to $target"
+    fi
+}
+
+if opts=( `getopt -n $0 -o hvqV -l verbose,help,version,quiet -- "$@"` ); then
+	eval set -- "${opts[@]}"
+	while [[ $# -ge 0 ]]; do
+		curopt=$1
+		nextopt=${2-none}
+		shift
+		# handle --options and -o ptions here
+		case $curopt in
+			--help|-h)	echo "$help_text"; exit 127;;
+			--version|-v) echo "$version_text"; exit 127;;
+            --verbose|-V) let quiet_level--;;
+			--quiet|-q) let quiet_level++;;
+			--) is verbose && echo "done with options";  break;;
+			*)	is verbose && echo "handling option: $curopt (next:$nextopt)";;
+		esac
+	done
+	if (( # == 0 )); then
+	    echo -ne "you did not specify a directory, operate on the current directory ($PWD)? [y/[n]]:"
+	    if read -sq; then
+	        echo "yes"
+	        echo "injecting $PWD into the queue"
+	        set -- $PWD
+	    else
+	        echo "no"
+	        echo "leaving..."
+	    fi
+	fi
+	for arg; do
+		# verify/handle non-option arguments
+		case $arg in
+			*)	is verbose && echo "handling argument: $arg"
+                if [[ ! -d $arg ]]; then
+                    fail "$arg is not a directory"
+                elif [[ ! -r $arg ]]; then
+                    fail "cant read $arg"
+                elif [[ ! -x $arg ]]; then
+                    fail "you do not have chdir access to $arg"
+                elif [[ ! -w $arg ]]; then
+                    fail "no write access to $arg"
+                fi
+                singlize $arg
+			;;
+		esac
+	done
+
+else
+	is notquiet && echo "error, code is $?, exiting with fail"
+fi
+

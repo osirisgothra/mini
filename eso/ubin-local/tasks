@@ -1,0 +1,14 @@
+#!/bin/zsh
+setopt kshglob
+setopt extendedglob
+setopt nullglob
+
+for x in /proc/[0-9]*[0-9]; do n=${x##/proc/}
+    declare -gA p=()
+    for i in $x/*; do
+        p[$i(:t)]="$(<$i)"
+    done
+    declare -p p
+    break
+done
+# c=$(<${x}/comm); echo "proc $n - comm=$c"; done

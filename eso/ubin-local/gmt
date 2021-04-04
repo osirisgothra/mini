@@ -1,0 +1,149 @@
+#!/bin/zsh
+
+# gmt
+# get mod textures
+
+# opts
+
+setopt extendedglob
+setopt globassign
+setopt globsubst
+setopt interactivecomments
+setopt promptsubst
+setopt noxtrace
+
+# builtins
+
+disable hash
+
+
+# fn mods
+
+# zmodload zsh/zselect # TODO: test this, see if it is worth it (time testing and overhead)
+
+# fns
+
+# sleep() { zselect $(( $1 * 1000 )); }
+sleep() { /bin/sleep "${1-0}"; }
+realname() { if realpath -qm "$@"; then return; else echo "$*"; fi; }
+catch() { local -i err=${1-0}; shift; echo "caught deadly SIGNAL $err: ${2-generic}, exiting..."; exit $(( 129+${err-0} )); }
+help()	{ 	echo "use: gmt <path-to-mod> <destination>"; 
+		  	echo " or: gmt --help"
+			echo ""
+			echo "OPTIONS"
+			echo "	--help		this thing you are reading now"
+			echo ""
+			echo "ARGUMENTS"
+			echo "	<path-to-mod>	a fully qualified (not relative) path and filename for a jar or zip archive containing the mod to extract assets from"
+			echo "	<destination>	a directory to either create, or that is empty and ready to recieve the archive assets content"
+			echo "					note that directory MUST be empty if it exists. If it does not, then itself and parents to be created MUST"
+			echo "					be a child of a directory you currently have access to (ie, stuff like /dev/foobar probably wont work)."
+			echo ""
+			echo "see code source ($0) or documentation on github.io/osirisgothra/mini/eso/ubin-local/README.md"
+			exit 128
+		}
+step() 		{ printf "%20s..." "${(%%)*}"; sleep ${asleep[step]}; }
+ynm()	 	{ local l=${1-unsupported}; shift; local r="${(%%)1-WARNING_NO_YNM_GIVEN}"; shift; case $# in 0) printf "${(%%)r}\n";; *) printf "${(%%)r} ($*)\n";; esac; sleep "$asleep[$l]"; }
+yes()  		{ ynm yes "%%F{34}yes%%f" "$@"; }
+ no()		{ ynm no "%%F{88}no%%f" "$@"; }
+ok()		{ ynm ok "%%F{46}ok%%f" "$@"; }
+substep() 	{ ynm substep "%%F{45}requiring additional step%%f" "$@"; step "$@"; }
+fatal() 	{ ynm fatal "%%F{196}FATAL%%f" "$@"; sleep $asleep[exit]; exit 127; }
+stop()  	{ ynm stop "%%F{166}STOP%%f" "$@"; sleep $asleep[exit]; exit 126; }
+
+# vars
+	# simple and possible unused except debugging
+	declare -gx progname="$0"
+	declare -gxir start_sec=$SECONDS
+	declare -gxi end_sec=-1
+
+	# begin vars -- complex values
+
+	# repetitive messages that apply to many of the errors given should be declared here:
+
+	declare -gx pchk="(please check your permissions and disk free space before proceeding)"
+	declare -gx hchk="-- please use --help to see the proper syntax for this command before continuing"
+
+	# controls delays throughout the entire program, tweak to your liking, a value of 0 disables a setting
+	# and negative numbers are ignored. decimals are precise out to 3 digits (0.001 being the smallest valid number)
+	declare -gxA asleep=( step	0.5
+					yes		0.5
+					no		2.75
+					ok		0.6
+					substep	1.5
+					fatal	3.5
+					stop	2.0
+					start	0.25
+					end		0.25
+					exit	0.5
+					)
+	# end vars
+
+# main code
+
+end_sec=$SECONDS
+sleep $asleep[start]
+step "checking command line"
+if [[ $# -eq 1 ]]; then
+	substep "single argument, checking argument for type"
+	if [[ $1 == "--help" ]]; then
+		ok "showing help"
+		help
+	else
+		stop "$1 not a valid option for a single argument $hchk"
+	fi
+elif [[ $# -ne 2 ]]; then
+	fatal "incorrect number of arguments $hchk"
+else
+	yes "command line ok"
+	step "verify user not running from $2"
+	if [[ `realname "$2"` != `realname "$PWD"` ]]; then
+		yes "in $PWD not $2"
+		step "verify $2 exists"
+		if [[ -d "$2" ]] || mkdir --parents $2; then
+			yes "$2 exists and is writable/traversable"
+			step "checking $2 contents"
+			if [[ `ls -gnaC1 "$2" | wc -l` -eq 2 ]]; then
+				yes "appears empty and without subdirectories"
+				step "checking $2 access permissions"
+				if [[ -w "$2" ]] && [[ -x "$2" ]]; then
+					yes "verified and/or created"
+					step "checking $1 is an archive"
+					if [[ -r "$1" ]] && file "$1" | grep -Pq 'archive data'; then
+						yes "contains valid archive data"
+						step "extracting archive"
+						if	unzip "$1" -d "$2" &> /tmp/gmtcnt; then
+							local -i filecnt=$( grep -P 'inflat|creat' < /tmp/gmtcnt | wc -l )
+							yes "extracted $filecnt file$( (( filecnt != 1)) && printf s )"
+							step "entering directory $2"
+							pushd "$2"
+							if [[ "$PWD" == "$2" ]]; then
+								yes; step "isolating assets"
+								rm -fr ^assets || fatal "removing files failed $pchk"
+								cd assets	   || stop "traversing to assets directory failed $pchk"
+								find -maxdepth 2 -mindepth 2 -not -iname 'textures'  -and -not -iname "assets" -and -not -iname "gui" -and -not -iname "model" -and -not -iname "entity" -and -not -iname "items" -and -type d -exec rm -fr '{}' ';' || fatal "search failed /w errors"
+								yes "all operation finished successfully!!"
+							else
+								stop "$PWD is not $2, cannot access data directory $pchk"
+							fi
+						else
+							stop "failed to extract contents of $1 $pchk"
+						fi
+					else
+						fatal "$1 appears to not be a valid zip or jar archive $pchk"
+					fi
+				else
+					stop "permission to access $2 failed $pchk"
+				fi
+			else
+				stop "directory $2 is not empty or has subdirectories"
+			fi
+		else
+			fatal "could not create/verify directory $2 or one of its parents $pchk"
+		fi
+	else
+		stop "Can NOT continue, you MUST not run from the target directory!!"
+	fi
+fi
+end_sec=$SECONDS
+sleep $asleep[end]

@@ -1,0 +1,143 @@
+#!/bin/zsh
+emulate zsh
+
+setopt interactivecomments
+setopt localoptions
+setopt noerrexit			# keep going even with errors
+setopt kshglob				# allow +() @() !() etc
+setopt aliases				# used for void lookalike
+setopt noxtrace				# set to 'notrace' when not tracing
+setopt extendedglob			# allow use of ${(expr)var} expansions
+setopt promptsubst
+
+disable hash				#\  these sometimes get in the way
+disable integer				# > disabled as precaution only
+disable pushln				#/  in case other commands (sub) misbehave
+
+cleanup()
+{
+	echo "cleanup initiated..."
+	{
+		: ; # place cleanup code here
+	}
+	echo "done."
+	unset -f cleanup
+}
+trap cleanup SIGINT SIGCHLD SIGSTOP SIGTSTP
+
+# TYPESETS
+
+typeset -a jkg_v=(	1	1	3	)
+
+
+# TYPEDEFS
+
+alias global='typeset -gg'
+alias array='typeset -ga'
+alias hash='typeset -gA'
+alias integer='typeset -gi'
+alias echo='print -P'
+alias bool='typeset -gi'
+alias const='typeset -gir'
+
+# DECLARATIONS
+
+ const jkg_false=1
+ const jkg_true=0
+
+# prefix (current location of system root & binaries under it) *
+global jkg_prefix_sys='/'
+global jkg_prefix="${jkg_prefix_sys%/}/bin"
+global jkg_prefix_usr="/usr$jkg_prefix"
+
+# proc(5) (location of running processes filesystem and its command line file)**
+global jkg_proc_cmdline_filename='cmdline'
+global jkg_proc_dir="${jkg_prefix_sys%/}/proc"
+
+# pgrep (used to narrow down the list of processes to search through)***
+global jkg_pgrep_binary="$jkg_prefix_usr/pgrep"
+ array jkg_pgrep_flags=( -f -- )
+global jkg_pgrep_expr='--gameDir'
+ array jkg_pgrep_cmd=( "$jkg_pgrep_binary" $jkg_pgrep_flags $jkg_pgrep_expr )
+
+# grep (used to traverse binary 'cmdline' files in proc(5) to find most qualified target)
+global jkg_grep_binary="$jkg_prefix/grep"
+ array jkg_grep_flags=( -a -o -P )
+global jkg_grep_expr='(?<=--gameDir\0)[^\0]+'
+ array jkg_grep=( "$jkg_grep_binary" $jkg_grep_flags )
+ array jkg_grep_cmd=( $jkg_grep $jkg_grep_expr $jkg_proc_dir/`$jkg_pgrep_cmd`/$jkg_proc_cmdline_filename )
+
+# internal metrics (informative variables that describe this script)
+int	jkg_vmajor=$jkg_v[1]
+int jkg_vminor=$jkg_v[2]
+int jkg_vrev=$jkg_v[3]
+global jkg_stage=$jkg_v[4]
+
+global jkg_progname="$0"
+   int jkg_revision_autoinc=2
+  hash  jkg_version=(
+                        major $jkg_vmajor
+                        minor $jkg_vminor
+                        revision $jkg_vrev
+                    )
+  hash jkg=( name	"$(basename $jkg_progname)"		version "$jkg_version" )
+
+function increment_version()
+{
+	part=$1
+	case $part in
+		*)
+		;;
+	esac
+	
+}
+
+function main()
+{
+	integer retval=0
+	if f=( `getopt -o hva -- "$@"` ); then
+		while [[ $f[1] != '--' ]]; do
+			case $f[1] in
+				-h)	 out=( "\nsyntax: jku_gamedir [-hv]"
+					 ""
+					 " -h   this help message"
+					 " -v   print version and exit"
+					 ""
+					 "by itself, returns the currently playing directory for javaku context"
+					 "it is used by jku(1) to get the currently running context for javaku(1)"
+					 "" )
+					 outp="${(j:\n:)out}"
+					 b=27 i=6 n=$b	# palette, winter candy (generated with eul-colors by osirisgothra(2019-20 (C))
+					 outpp=""
+					 for ((x=1;x<$#outp;x++)) {
+					 	# colorize each character...
+					 	let n+=$i
+					 	[[ $n -gt 255 ]] && n=$b
+					 	if [[ $outp[$x,$x+1] == '\n' ]] || [[ $outp[$x-1,$x] == '\n' ]]; then
+					 		# ..but not if we are 'inside' of the vertical whitespace (aka \n)
+					 		outpp+="$outp[$x]"
+					 	else
+					 		outpp+="%F{$n}$outp[$x]"
+					 	fi
+					 }
+					 echo "$outpp"
+					exit 126
+					;;
+				-v)	echo "%U$jkg[name]%u %Bv${jkg[version]// /.}%b (c)2020 Gabriel Sharp (osirisgothra@hotmail.com) %Uhttp://github.com/osirisgothra%u"
+					exit 125
+					;;
+				*)	echo "%B%F{124}$jkg[name]: unhandled option surpassed filtering (corrupted state), please check file permissions and perform a disk check%f"
+					exit 128
+					;;
+			esac
+		done
+		${jkg_grep_cmd[@]}
+		retval=$?
+	else
+		echo "$jku_progname -- fatal, option list is erroneous."
+		retval=127
+	fi
+	return $retval
+}
+
+main "$@"

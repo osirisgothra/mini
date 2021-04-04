@@ -1,0 +1,58 @@
+#!/bin/perl
+use warnings; use strict; use v5.20.2; use POSIX
+# the lines here and above, for editor's highlighting and linting purposes only
+# you could also add 'use lib 'thisfilename' to force it loaded at that point but its not advised 
+### DO NOT COPY OR PASTE ABOVE THIS LINE
+
+# internal testing <> place these lines below on the line that has 'internal_test' in it (youll see)
+my $internal_testing = disable_internal_test_area();	# comment out when not testing
+
+
+# internal test and simulations (itas)
+sub disable_internal_test_area() { return; }
+sub internal_test_area()
+{
+	
+	sub itas($errza,$zsignal,@list) 
+	{
+		@list=( "<empty list>" ) unless @list > 0;
+		$errza="<not defined>" unless defined($errza) and length($errza) > 0;
+		$zsignal="<no signal name given>" unless defined($zsignal) and length($zsignal) > 0;
+		print("\n\nCaught $zsignal signal: list=" . @list . " err=$errza\n\n");
+
+	}
+	%SIG = (
+				TSTP => sub { itas($?,"TSTP",@_); },
+				CHLD => sub { itas($?,"CHLD",@_); },
+				INT => sub { itas($?,"INT",@_); },
+				CONT => sub { itas(@_,$?,"CONT"); },
+				STOP => sub { itas(@_,$?,"STOP"); },
+				KILL => sub { itas(@_,$?,"KILL"); },
+			);
+
+
+	my $response = "HELP";
+	use Term::ANSIColor 4.06 qw(RESET :constants256 :pushpop :constants coloralias colorvalid colorstrip uncolor);
+
+
+	while(1)
+	{
+		
+		
+		print("\nWarning: you are running internal test and simulate mode (or 'itas' for short), the main program will not operate but conditions of testmode will be available, a readline loop has been invoked, the only static command is QUIT (uppercase) which will exit the program.\n") if uc(  $response // "" ) =~ /HELP|INFO\?/;
+		$response = undef;
+		print(RED,"itas",BLACK,BOLD,">",RESET);
+		ReadMode("normal");
+		$response = readline();		
+		last if defined($response) and $response =~ /QUIT/;
+		echo "";
+		echo("ctrl+d/eof also disabled\n") unless defined($response);
+		echo("sorry, $response means nothing to me\n") if defined($response);
+		
+
+	}
+	echo BLUE,"\nquiting the only way you were allowed, via QUIT...\n",RESET;
+	exit;
+}
+
+# end of inline tests <> cut here <> end <> !!!

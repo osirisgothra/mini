@@ -1,0 +1,113 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+use v5.20;
+use Time::HiRes qw( sleep );
+
+no warnings 'experimental';
+no warnings 'experimental::signatures';
+
+### VARIABLE PROTO ###
+
+use vars qw( $fpid $pfid $plfid $term_stdout $term_stderr $term_stdin $quiet_target );
+
+### CONSTANTS ####
+
+use constant {
+				_COMPAT_MODE	=>	"linux",					# planned ports: linux windows osx 
+				_OK			=> 	"No Errors",
+				_ERR		=>	"Error (Generic/Undefined)",
+#				_STDIN		=>	0,		# commentted out because not used at this time
+				_STDOUT	=>	1,
+				_STDERR	=>  2,
+			};
+
+
+### SPECIAL INIT VARS
+
+$plfid=$0;
+$0 =~ s/^.*\///g;
+$pfid=$0;
+
+### VARIABLES ###
+
+my %delay = (
+				prerun			=>	0.5,					# both threads, before any runtime code executes
+				preforkrun		=>	0.125,			# fork thread, before fork code executes
+				postfork		=>	0.5,				# fork thread, after fork code is finished
+				postforkpreexit	=>	1.725 		# main thread, after fork is called, just before main thread exits
+			);
+
+
+
+### MAIN PROGRAM ###
+
+sleep(0);
+say "opening proc: /proc/$$/fd";
+unless (_COMPAT_MODE eq 'windows') {
+	die("cannot read fd for pid $$, aborting!") unless opendir my $fddir, "/proc/$$/fd";
+	die("seek failed in proc/$$") unless seekdir($fddir,2);	# used to skip dots (. and ..) directory entries
+	die("cannot determine main output handle for /proc/$$") unless my @outs=(readdir($fddir))[0,2];
+	#$term_stdin=$outs[_STDIN];	# uncomment if needed (currently not needed)
+	$term_stdout=$outs[_STDOUT];
+	$term_stderr=$outs[_STDERR];
+	$quiet_target=$ENV{"QFORK_QUIET_REDIRECT"} // "/dev/null";
+} elsif (_COMPAT_MODE eq 'linux') {
+	
+	# check for windows kernel to be present (not perfect but a usual good way to verify it)
+	die("windows directory not present, aborting!") unless -d 'c:\windows\system32\kernel32.dll';
+	# untested starting point for windows port (set _COMPAT_MODE to windows)
+	#$term_stdin=$outs[_STDIN];	# uncomment if needed (currently not needed)
+	$term_stdout="CON";
+	$term_stderr="AUX";
+	$quiet_target=$ENV{"QFORK_QUIET_REDIRECT"} // "NUL";		#	windows compatibility
+} else {
+	die("error: " . _COMPAT_MODE . " is not yet supported (valid are 'windows' or 'linux')\n");
+}
+
+my $fpid=fork();
+
+if ($fpid == 0) { 
+	given($pfid) {
+		when (/qfork/) {
+			# redirect to quiet output
+			print("qforking @ARGV");
+			open STDERR,">",$quiet_target;
+			open STDOUT,">",$quiet_target;
+			# execute normally
+			system(@ARGV);
+			# restore redirections (affects here to eof)
+			open STDERR,">",$term_stderr;
+			open STDOUT,">",$term_stdout;
+		}
+		when (/mfork/) {
+			system($_) for @ARGV;
+		}
+		when (/pfork/) {
+			my @cmdlines=( );
+			my $curlist=[ ];
+			my $curlist_needs_pushed=0;
+			for (@ARGV) {
+				unless (m/\A\s*-\s*\z/g) {
+					push (@$curlist, $_);
+					$curlist_needs_pushed=1;
+				} else {
+					push(@cmdlines,$curlist);
+					$curlist=[ ];	# re-assign a new segment of memory
+					$curlist_needs_pushed=0;
+				}
+			}
+			push(@cmdlines,$curlist) if $curlist_needs_pushed;
+			my $n=0;
+			for my $curcmdline (@cmdlines)	{
+				system( @$curcmdline );
+			}				
+		}
+		default {
+			system @ARGV; 
+		}
+	}
+} else {
+	say("error state: " . ( $? == 0 ? _OK : _ERR )) if $pfid eq "dfork";
+}

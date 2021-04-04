@@ -1,0 +1,55 @@
+#!/bin/zsh
+
+declare -x debugging=1
+declare -agx PAGES=( )
+declare -agx TOPICS=( )
+#set -x
+IFS=$'\n'
+for w; do
+	eval "declare -ga TOPIC_${w}=( )"
+	for y in $(command man "$w" | grep --color=never '^([A-Z]+( |$))+$' -Po); do
+		eval "TOPIC_${w}+=( '$y' )"
+	done
+	((debugging)) && eval declare -p TOPIC_${w}
+	TOPICS+=( "$w" )
+done
+
+#set +x
+function menu()
+{
+	declare -ag TAGS=(  )
+	MENUTEXT="$1"
+	shift
+	# args: MENUTEXT item(s)
+	for i; do
+		((debugging)) && echo "adding $i x2"
+		TAGS+=( "$i" )
+		TAGS+=( "$i" )
+	done
+	sleep 1
+	declare -gx RESPONSE=`dialog --no-tags --ok-label Select --cancel-label Exit --output-fd 1 --backtitle "Topics Available" --menu "$MENUTEXT" 0 0 $# "${TAGS[@]}"`
+
+}
+get_between(
+{
+	TOPICS
+}
+case $# in
+	0)  echo "syntax: topics [manpage] [...]"
+		# RESPONSE = (unimportant, no manual given by user)
+		exit 127
+		;;
+	1)	# single manual cmdline
+		RESPONSE=$1
+		;;
+	*)	# multiple manuals, select one
+		menu "Select Manual" "${TOPICS[@]}"
+		# RESPONSE = (set by menu)
+		;;
+esac
+
+eval menu \"Select Topic\" "\${TOPIC_${RESPONSE}[@]}"
+eval get_between $RESPONSE "\${TOPIC_${RESPONSE}[@]}"
+
+
+set +x

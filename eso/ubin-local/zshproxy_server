@@ -1,0 +1,91 @@
+#!/bin/zsh
+#
+#    zshproxy_server
+#    a simple zsh command interpreting server for (long or short) ranged shell testing
+#    eso/ubin/local
+#    esoteric projects and files
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sun Jun 30 08:10:20 EDT 2019
+#            osirisgothra@larnica initially created this file
+#            with the original name, zshproxy_server
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+#
+# TARGET NOTES
+#
+#	none at this time
+#
+# ANNOTATIONS
+#
+# annotations are written as "\[[context summary]:\] <newline>explanation paragraph"
+# the explanations should be indented at least one space out from summary.
+#
+# [while -r zshproxy, line 1 of innerloop]:
+#  evaluate in order to preserve quote-containing single arguments
+#  much like the shell does (prevents word splitting inside quotations)
+#  the shell handles these directly in this case
+
+# prevent zsh from expanding commands that are piped in and evaluated as such
+# keep in mind this also disables them everywhere (if needed turn them on, then off)
+setopt noglob noextendedglob
+setopt nointeractivecomments nointeractive
+setopt nobeep
+
+
+
+if [[ -r /tmp/zshproxy ]]; then
+	echo "fatal: /tmp/zshproxy exists, please remove it (didnt exit cleanly)"
+else
+	mkfifo /tmp/zshproxy
+	echo "created proxy communication object"
+fi
+echo "about to wait for commands (3 seconds will clear the screen)"
+sleep 3
+clear
+while [[ -r /tmp/zshproxy ]]; do
+	eval "typeset -a proxycmd=( $(cat /tmp/zshproxy) )"
+	typeset ec=${#proxycmd[@]}
+	if [[ $ec -ge 1 ]]; then
+		echo "got command, $ec element(s) long"
+		echo "command is: \"$proxycmd\""
+		echo "elements are:"
+		typeset -i elem=0
+		for x in "${proxycmd[@]}"; do
+			echo "$[ elem++ ] = \"$x\""
+		done
+	else
+		echo "got empty command ($proxycmd), ignoring"
+	fi
+
+
+done

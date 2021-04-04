@@ -1,0 +1,48 @@
+#!/bin/bash
+#
+# getoptstest 
+# test program
+# public domain
+# Fri Aug 24 13:11:29 EDT 2018
+# osirisgothra@larnica
+#
+cm() { colorme; }
+if ! which colorme; then
+	# simple shim function to replace eso-text project's colorme(1) command
+	colorme() { cat /dev/stdin; }
+fi
+while true; do
+	echo "enter flags ({:}<char[:]>  ie; :frln:c: = -f -r -l -n <arg> -c <arg> w/no msgs!) " | cm
+	read FLAGZ
+ 	while true; do
+		echo "flags string is: $FLAGZ" | cm
+		unset ARGZ
+		echo "enter test arguments (ENTER = change flags, CTRL+C = exit)" | cm
+		read -a ARGZ
+		R=$?
+		if [[ -v ARGZ ]]; then
+			if [[ $ARGZ == "" ]]; then
+				break;	# to enter flags loop (outer loop)
+			else
+				echo "** you set arguments: $(declare -p ARGZ) **"
+			fi
+		else
+			case $R in
+				0)	# only the [Enter] key was pressed at the prompt
+					break # to enter flags loop
+					;;
+				1)  # EOF encountered (usually, CTRL+D (EOF) was pressed
+					# also when in stream mode, the end of a file is reached and this
+					# chr code is sent (chr@26)
+					break 69 # all the way out
+					;;
+				130) # CTRL+C was pressed
+					echo -ne "immidiate exit, cleanup (minimal)..."
+					echo "done"
+					;;
+			esac
+		fi
+	done # inner loop "options-set"
+done # outer loop "flags loop"
+# do cleanup if needed
+unset -f cm

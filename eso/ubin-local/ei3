@@ -1,0 +1,5 @@
+#!/usr/bin/python3
+
+module ei3:
+	print("hello")
+

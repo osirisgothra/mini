@@ -1,0 +1,131 @@
+#!/bin/bash
+#
+# t
+# drop in replacement for /gxbase/bin/t
+# and its original ms-dos 'goo.exe'
+# searches (the web) or other things depending on it's
+# configuration which is below
+#
+# the (script, or $0) program name determines it's function
+# much like dash in a startup shell installer. You should however
+# not make copies of this script, but softlink it whenever possible
+# except on non-softlinkable filesystems such as FAT partitions which
+# may be pre-formatted on many USB and flash drives still even now.
+# It is recommended that you format these to ext2 or ext4 when you get them.
+#
+# Script name defaults:
+# 
+# first letter - primary function (also known as the 'translator')
+# second letter - search modifier (simply known as the 'modifier')
+#
+# extra letters will not be considered, so only add them for visual aid purposes
+# (ie, you have loc instead of lo for locate, perhaps because you already have hi and dont want to mislead users)
+#
+# NOTE: i wouldn't bother hardlinking, because it makes it too difficult to
+#       let users know which is the original and could lead to all the files
+#       becoming invalid if the wrong original were to be accidently deleted!
+#       (even though 't' is the default, it could just as easily be 'g')
+
+Z="$(basename /$0)"
+
+# CONFIGURATION SETTINGS -- add custom browsers/programs/searchtext here
+
+declare -gA translators=( [t]='links2'  [T]='links2 -g' [g]='firefox' [G]='chromium-browser' [l]='locate' [i]='find' [o]='xombrero' [U]='surf' )
+#NOTE: make sure shell-special chars are DOUBLE ESCAPED (esp ;<>()[]!*?&!!)
+#      DOUBLE ESCAPED (else the evaluator will resolve it before it gets to cmdline!)
+declare -gA modifiers=( [g]='http://www.google.com/search\?q=%s\\&btnI=l' [d]='http://www.duckduckgo.com/?q=%s+!' [h]='http://www.github.com/%s' )
+declare -g default_translator=t
+declare -g default_modifier=g
+
+# PROGRAM - dont modify this stuff
+
+tmp=/tmp/toolie.logo
+if [[ $1 == -rmtmp ]]; then
+        echo "removing temp logofile"
+        rm $tmp && echo "ok!"
+        echo "see you soon..."
+        exit 2
+fi
+if [[ ! -s $tmp ]]; then
+         touch $tmp
+        msg="toolie v3.0 search program assistant\n(C)1995-2016 Gabriel Thomas Sharp <osirisgothra@hotmail.com>\nPlease read the supplied LICENSE file for details on the GNU GPL v3.0"
+        for ((x=0;x<${#msg};x++)); do
+        char=${msg:x:1}
+        tput setaf 16$[ ( ${RANDOM:1:1} * 1) + 4] >> $tmp
+        case ${msg:x:2} in
+                '\n')   printf '\n' >> $tmp; let x++; continue;;
+        esac
+        printf '%c' "$char" >> $tmp
+        done
+fi
+cat $tmp
+tput sgr0
+
+        
+
+if [[ $1 == -stats ]]; then
+        shopt -s xpg_echo
+        echo ""
+        echo "\e[30;1minternal configuration status\e[0m"
+        echo
+        tput setaf 150
+        echo "translators (first letter = translator)"
+        tput setaf 140
+        echo "letter   value"
+        tput setaf 235
+        echo "-------+------------------------------------"
+        for w in "${!translators[@]}"; do        
+                tput sgr0
+                tput setaf 15${RANDOM:0:1}
+              printf "%c        [2m%s\n" "$w" "${translators[$w]}"
+        done
+        echo
+        tput sgr0
+        tput setaf 150
+        echo "modifiers (second letter)"
+        tput setaf 140
+        echo "letter   value"
+        tput setaf 235
+        echo "-------+------------------------------------"
+        for w in "${!modifiers[@]}"; do
+                tput sgr0
+                tput setaf 15${RANDOM:0:1}
+
+               printf "%c        %s\n" "$w" "${modifiers[$w]}"
+        done
+        echo
+        tput sgr0
+        exit 1
+fi
+        
+
+
+declare -g translator_idx=$( [[ ${#Z} -ge 1 ]] && echo ${Z: 0:1} || echo $default_translator )
+declare -g modifier_idx=$( [[ ${#Z} -gt 1 ]] && echo ${Z: 1:1} || echo $default_modifier )
+declare -g translator=${translators[$translator_idx]}
+declare -g modifier=${modifiers[$modifier_idx]}
+declare -g searchstring=$( n=0; for x; do [[ $n -gt 0 ]] && echo -ne '+'; let n++; echo -ne "$x"; done )
+declare -ga cmdline=( "$translator" "$(printf "$modifier" "$searchstring")" )
+
+echo "using translator: $translator"
+echo "        modifier: $modifier"
+echo "            ?idx: translator=$translator_idx modifier=$modifier_idx"
+echo "     search text: $searchstring"
+echo ""
+echo "  result cmdline: [${cmdline[@]}]"
+echo "  result command: (${#cmdline[@]} element(s))"
+for x in "${cmdline[@]}"; do
+echo "                  $x"
+done
+T_NO_KEYWAIT=TRUE
+if [[ $T_NO_KEYWAIT != TRUE ]]; then
+        echo "press a key - disable this by setting T_NO_KEYWAIT to TRUE"
+        read -sn1
+fi
+# eval this way because 1) shift only works on positional parameters
+# and 2) because cmdline[0] could have more than one argument in itself
+# NB: $cmdline without the array will default to cmdline[0] for us 
+# without the work, as does cmdline[1]:1 when referencing the inverse of 
+# the latter.
+${cmdline} "${cmdline[@]:1}"
+

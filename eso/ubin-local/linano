@@ -1,0 +1,207 @@
+#!/bin/zsh
+emulate zsh
+#
+#    linano
+#    Locate nano(1) and files to be edited, then run it with those files
+#    mini/eso/ubin-local
+#    single esoteric programs/projects
+#
+#    Copyright (C) 1995-2019 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+# LICENSE (GNU GPLV2)
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# HISTORY
+#
+#	 Sun Nov  3 12:02:38 EST 2019
+#            osirisgothra@ initially created this file
+#            with the original name, linano
+#
+# ABSTRACT
+#
+# 	It is a nano(1) "lsof" and "instance" checking frontend (aka 'linano')
+# 	(not to be confused with my 'nano "file location" and "editor scoring" frontend'!)
+#
+# IMPORTANT
+#
+# 	Intended to be a symlinked to 'nano' in user's script dir (ie, ~/bin)
+#
+# NOTES/CHANGES
+#
+# 	- change: whole-file: converted from bash to zsh
+#	- note: isopen():
+# 		*lsof requires self-exclusion(-c)/parent exclusion(-p)
+#		**pgrep does not need self exclusion however must have parent exclusion it
+#         cannot do this on its own however, so grep is used to flip the match
+#
+# SUMMARY
+#
+# 	The main objective of this script is:
+#
+#		- Determine prefix (usually just /)
+# 		- Locate the target (usually nano) in the usual place ([prefix]/bin) or ([prefix]/usr/bin)
+# 		- Locate files to be edited, resolving pathnames from PATH and current directory.
+# 		- Ensure that files are not open already somewhere else, even if not yet saved.*
+# 		- Make sure file(s) get marked executable if they are executable (done upon exit).
+#
+# TODO
+#
+#		- Find binary via system locate + cache it in user's home/config/linano_index.txt.
+#
+#
+#
+
+
+# aliases
+
+alias str='declare'
+alias arr='declare -a'
+alias tup='declare -A'
+alias rov='readonly'
+alias rstr='rov str'
+alias rint='rov integer'
+alias rdbl='rov float'
+alias rarr='rov arr'
+alias rtup='rov tup'
+
+
+# variables
+
+str target="/bin/nano"
+arr orgargs=( $@ )
+arr args=( )
+
+
+# shell options
+
+setopt  nobeep
+setopt  extendedglob
+setopt  promptsubst
+setopt	nointeractive
+setopt	aliases
+setopt	interactivecomments
+setopt  nozle
+setopt  nohistexpand
+setopt  promptsubst
+
+# arguments translation (no effect on getopt, should be done before getopt(1))
+
+for y; do
+	for n in ${(s#:#)PATH}; do
+		# make sure we dont edit ourself without --self
+		if [[ $y =~ "/nano$" ]]; then
+			echo "error: you cannot edit nano directly with this script"
+			echo "       unless you suppply the --self (alone) on the"
+			echo "		 command line."
+			exit 126
+		fi
+		if [[ -r "$n/$y" ]]; then
+			echo "changing $y to $n/$y"
+			y="$n/$y"
+			break
+		fi
+	done
+	args+=( "$y" )
+done
+
+isopen() {
+	# error group
+	[[ -d "$1" ]] && 			{ echo "isopen: $1 is a directory..."; 			return 1; }
+	[[ $# -eq 0 ]] &&			{ echo "isopen: not enough arguments (none)"; 	return 1; }
+	[[ $# -gt 1 ]] && 			{ echo "isopen: too many arguments: $@"; 		return 1; }
+	[[ ${1: 0:1} == "-" ]] && 	{ echo "isopen: skipping flag element $1";  	return 1; }
+	# files mustexist group*
+	if [[ -r "$1" ]]			lsof -p "^$$" -c "^lsof" "$1" 			&& return 0
+	if [[ -r ".${1}.swp" ]] 	lsof -p "^$$" -c "^lsof" ".${1}.swp" 	&& return 0
+	# files mayexist group**
+	if [[ ${1} =~ ^[^-] ]]		pgrep -fa "(nano) .*${1}" | grep -v "^$$ " 	&& return 0
+	return 1
+}
+
+## EXECUTION AREA ##
+
+############### BEFORE PROCESS STARTS
+	if [[ $@ =~ -?-d(irect)? ]]; then
+		echo "bypassing getopt, in favor of --direct/-d"
+	else
+		if ourargs=( `getopt -o fsdh -l force,self,direct,help -- $args` ); then
+			echo "parsing commands ok"
+		fi
+	fi
+
+	while [[ $1 =~ ^-- ]] {
+		case $1 in
+		-s|--self)
+			shift
+			echo "editing script $0 source (--self has been specified on the command line ${1+ignoring $# other commandline items})"
+			$target `which nano`
+			exit 0
+			;;
+		-d|--direct)
+			echo "passing directly to target: $target"
+			shift
+			exec $target $@
+			e=$? ps=$pipestatus
+			echo "error starting $target (127+(original error=$e) ${pipestatus-singular}$pipestatus${pipestatus+ = pipeline return codes})"
+			exit $((127+$e))
+			;;
+		-f|--force)
+			echo "warning: you used the --force option, luke. no files will be checked for open or use (blindfolded mode!)"
+			forcemode=1
+			;;
+		*) 	echo "fatal: option $1 is not implemented (but is planned)"
+			exit 126
+			;;
+		esac
+		shift
+	}
+	fi
+	set -- $args
+
+	foreach x ( "$@" ) {
+		isopen "$x" && let itemsopen++
+	}
+	if [[ $itemsopen -gt 0 ]] && [[ $forcemode != 1 ]]; then
+		echo "$itemsopen of $# items were found to be in use elsewhere, please close those programs first"
+	else
+		$target $@
+	fi
+	foreach x ( "$@" ) {
+		if [[ -r "$x" ]] {
+			if { file "$x" | grep "executable" } {
+				if [[ -x "$x" ]] {
+					echo "$x already executable"
+				} else {
+					echo "making $x executable..."
+					sudo chmod a+x "$x" -v
+				}
+			} else {
+				echo "$x filetype: isnt marked executable according to magic/mime (left alone)"
+			}
+		}
+	}
+
+############### AFTER PROCESS EXITS

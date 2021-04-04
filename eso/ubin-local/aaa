@@ -1,0 +1,51 @@
+#!/usr/bin/perl
+
+=pod
+
+=head1
+
+<single character> program (a)
+
+=head2
+
+Connect to Host and Execute Program
+
+=head3
+
+Using the single character as an ssh hostname, with -X for x server usage, connect to a program
+
+
+=cut
+
+# remember to keep 1 space between =pod tags, so ancient pod lexers will accept the data as valid
+
+
+#use warnings;
+#use diagnostics;
+use 5.010;
+use POSIX;
+
+if ($#ARGV < 0)
+{
+	say "Not enough arguments, you need to supply a program name";	
+}
+else
+{
+
+				
+	my $host = "azura";
+
+	
+	say "hostname set to $host";
+	my @args = ( "/usr/bin/ssh", "-X", $host, @ARGV );
+	say "running @args...";
+	my $result = system(@args) >> 8;  # result is same as posix's wait() call, which is 16 wide, upper 8 bits is the 8-bit exit code
+
+	say "@args returned: exit code was \"$result\"";
+	
+	exit $result;
+
+
+}
+
+

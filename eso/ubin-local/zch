@@ -1,0 +1,53 @@
+#!/bin/zsh
+# For cheatsheets and stuff, please dont edit this file
+# instead, add or remove items from zx_doc if you need to
+# make other/customize existing documentation. (Internal
+# zsh-x utilities may rely on the specific behavior of this
+# file). This program-let is for viewing items/texts
+# that can be viewed in color easily.
+# see LICENSE in zx_sys or read zx_sys/zshrc for main license
+# and information pertaining to this project.
+! [[ -d $zx_doc ]] && zx_doc=$zx_sys/doc
+if [[ -d $zx_doc ]]; then
+	case $0 in
+	# only core system stuff should be hotwired, rest need to use canidate testing
+	*zch*)	less -raw $zx_doc/zshcheat.md;;
+	*)		echo "unrecognized linkname, $0, guessing name..."
+			setopt globassign
+			setopt extendedglob
+			setopt kshglob
+			tname=${0}(:t)
+			tgt=( $zx_doc/${tname}* )
+			if [[ $#tgt -eq 1 ]]; then
+				echo "found candidate...$tgt"
+				if [[ -x $PAGER ]] && ! [[ $PAGER =~ less ]]; then
+					# use users pager if requested
+					$PAGER $tgt
+				else
+					if [[ -n $LESS ]]; then
+						# user has a custom command line for less
+						$LESS $tgt
+					else
+						less -raw $tgt
+					fi
+				fi
+			elif [[ $#tgt -eq 0 ]]; then
+				echo "found no canidates"
+				exit 2
+			else
+				echo "cannot guess filename, supply more of the name to narrow down the request to a single file (got $#tgt entries, needs 1, $tname is too ambiguous)"
+				exit 1
+			fi
+			;;
+	esac
+else
+	if [[ -d $zx_sys ]]; then
+		echo "Documentation Not Installed"
+	else
+		echo "zsh-x not installed properly or is not running"
+	fi
+fi
+	
+
+				
+				

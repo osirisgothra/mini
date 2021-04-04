@@ -1,0 +1,2 @@
+#!/bin/bash
+cat ~/bash-redir.txt  | grep '.*\([0-9]+\).*' -Pv | grep '^\s{5}\* \S.+$' -Pv | grep '\[[A-Z]+\]' -Pv | grep -P --ignore-case '\bad(vertise(ment)?)?(s)?(sense|words|ware|frame)?\b' -Pv | grep '^\s*$' -Pv | grep -P '.*(Categor|Article|Navigat|Site|Web|Link|Contact|Reach Me|Subscribe|Vote|Download|Archive|SiteMap|Click|Sponsor|Redirect|URL|Page|Visit|Reader|Browse|Personal|Credit|Buy|Purchase|Shop|Deal|Email|Subscribe|News|Weather|TV|Popular|submit|retry|[_-]{2,}){1,}.*$' -Pv --ignore-case

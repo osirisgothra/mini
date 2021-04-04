@@ -1,0 +1,10 @@
+#!/bin/bash
+# transparent sudo passthru 
+#   user:
+#		 user level
+#	command:
+#        service
+echo "passing to admin-level service: $@"
+exec sudo service "$@"
+
+

@@ -1,0 +1,358 @@
+#!/bin/bash
+#
+# rg (from template autox_saftb)
+#
+# start ftb launcher and modpack automatically
+# template variant: MODPACK=Regrowth
+#
+# author: gabriel sharp <osirisgothra@hotmail.com>
+# date: Mon Oct  9 11:45:59 EDT 2017
+# vers: 1
+# rev: no
+#
+# You can find the latest version of this and
+# all my other projects at http://github.io/osirisgothra
+#
+# Subject to the license agreement written in the
+# included LICENSE file in the same directory.
+# (LICENSE for this file is set to: GNU GPL3) 
+#
+
+# VARIABLES
+
+# you MUST set these yourself
+# or it will NOT work!!
+#
+#  note that MODPACK_DIR must point to the <modpackdir>/minecraft/ 
+#  directory, not the <modpack>/ directory
+#   also, symbolic links _ARE_ allowed! :)
+#
+# BEGIN EXAMPLE VALUES:
+# variable name=example value   description
+#
+# EXAMPLE: MODPACK=Regrowth              Name of Modpack as it appears in the ftb configuration file (usually ~/.ftblauncher/ftblaunch.cfg)
+#          MODPACK_DIR=$HOME/rg          Where its located, (make sure to include the /minecraft subdirectory for ftb modpacks!)
+#          MODE=1440x960                 Resolution to use with ftb
+# ITOR=DVI_I_0               Xorg display to make changes to
+# END EXAMPLE
+
+#      MASTER VARIABLES
+MODPACK=FTBHorizonsIII
+MODPACK_DIR=$HOME/ho
+
+#      REFERENCES (NO TOUCHING!)
+declare -n p=PIPESTATUS
+declare -n src=BASH_SOURCE
+declare -n fn=FUNCNAME
+declare -n xd=PATH
+
+#      VARIABLES (USER SET) AND FIRST INIT PHASE
+# conditionals (lines starting with [[)) are items
+# that can be set in other scripts or on command line
+
+# test function remove in final or release versions, developer only use
+# test function begin
+cond_set()
+{
+if [[ -v $1 ]]; then
+	echo "notice: $1 set elsewhere, using its value of ${!1}"
+fi
+}
+# end test function
+
+[[ -v FTB_QUIT_IF_JAVA_RUNNING ]] ||  FTB_QUIT_IF_JAVA_RUNNING=YES
+[[ -v FTB_CFG ]] ||                   FTB_CFG=~/.ftblauncher/ftblaunch.cfg
+
+FTB_CFT=${FTB_CFG}.t
+FTB_CFG_TEMP=$(mktemp)
+FTB_FALLBACK_MEM=-1
+
+if [[ -v FTB_MEM ]]; then
+	echo "init: FTB_MEM defined, no fallback used"
+else
+	if [[ $FTB_FALLBACK_MEM -ge 1024 ]]; then
+		echo "init: using fallback memory config for $FTB_FALLBACK_MEM kbytes..."
+		FTB_MEM=$FTB_FALLBACK_MEM
+	else
+		echo "init: fallback memory config disabled, reconfiguration will not happen at all"
+	fi
+fi
+if [[ $FTB_QUIT_IF_JAVA_RUNNING == YES ]]; then
+	echo "init: checking for java already running...."
+	if pgrep java > /dev/null; then
+		echo "init: java running -- aborting"
+		echo "to disable this behavior, set FTB_QUIT_IF_JAVA_RUNNING to NO in $BASH_SOURCE"
+		exit 127
+	else
+		echo "init: no java running, continuing with startup successfully..."
+	fi
+else
+	echo "init: not checking for java running, user has specifically disabled this check"
+fi
+echo "init: tip-for best performance, copy scripts to a memory device!"
+if [[ -v FTB_MEM ]] && [[ $FTB_MEM -ge 1024 ]]; then
+	echo "init: user-configured memory limit defined (FTB_MEM=$FTB_MEM), attempting to honor..."
+	if [[ -r $FTB_CFG ]] && [[ -r $FTB_CFT ]]; then
+		echo "init: found launcher config ($FTN_CFG) and it's template ($FTB_CFT), attempting to patch..."
+		if cp $FTB_CFG $FTB_CFG_TEMP -f; then
+			echo -e "init: original $FTB_CFG saved as $FTB_CFG_TEMP\ninit: patching..."
+			eC=0
+			cat "$FTB_CFT" | sed 's/MAXI_MEMY/$FTB_MEM/g' > "$FTB_CFG"
+			for c in ${p[@]}; do ((c?eC++:0)); done
+			if ((! eC)); then
+				echo "init: patch completed and allocating $FTB_MEM kbytes for ftb..."
+			else
+				echo "init: FATAL: patch failed ($eC items failed during patch!)"
+				exit 127
+			fi
+		else
+			echo "init: WARN: copy backup failed, not attempting to patch"
+		fi
+	else
+		echo "init: no config/template located, no patching will be done"
+	fi
+else
+	if [[ $FTB_MEM -gt 0 ]] && [[ $FTB_MEM -lt 1024 ]]; then
+		echo "init: WARN: FTB_MEM defined, but it is less than 1024, valid values must be between 1024-16384 !!"
+	else
+		echo "init: user-configured memory limit not available and will not be used"
+	fi
+fi
+
+
+# some modes may be invalid
+# uncomment what looks good
+# 640x480 is failsafe for VGA, 1280x1024 failsave for 17" tube displays
+# 1600x1200 is failsafe for non-television flatscreen monitors 19" and up
+# all other flat screen "HD" screens should use either 1920x1080 or 1360x768
+# (hires/lores respectively, both are non-interlaced (1080p/768p not i)
+# suggested modes are best guess
+# uncomment only ONE mode, the last one uncommented will be the one
+# that gets used so pay attention and comment out the unused ones!
+# failsafe for low end graphics cards:
+declare -a mode_list=( "640x480" "800x600" "1280x1024" "1600x1200" "1920x1080" "1440x900" "1360x768" "1024x768" )
+declare -a mode_desc=( "failsafe" "failsafe_hi" "tube_hi" "tft_hi" "hdmi_hi" "hdmi_med" "hdmi_lo" "failsafe_any" )
+
+#  PC VGA/SVGA/AGP/PCIE/NON-FP Modes:
+#   failsafe for low-res graphics cards on VGA/SVGA monitor (also, for 15" and lower)
+# MODE=640x480
+#   med-quality, low-end PC for 15" and lower
+# MODE=800x600
+#   hi-quality for 17" Tube Monitors:
+# MODE=1280x1024
+#   hi-quality for 19" Flat-Panel or Better (NON-HDTV/NON HDMI!!) PC Monitors
+# MODE=1600x1200
+#  HDMI/HDTV Modes
+#   hi-quality HDTV:
+# MODE=1920x1080
+#   med-quality HDTV:
+# MODE=1440x900
+#   lo-quality HDTV:
+# MODE=1360x768
+#  recommended action:
+#   we recommend copy-pasting wanted mode here so original list stays clean:
+# MODE=MYMODE PASTE ME BELOW HERE
+MODE=1920x1080
+# MODE=MYMODE PASTE ME ABOVE HERE
+DPI=96
+
+
+
+for ((i=0;i<${#mode_desc[*]};i++)); do
+	imode=${mode_list[i]}
+	idesc=${mode_desc[i]}
+	if [[ $MODE == $imode ]]; then
+		echo "mode specified is a suggested mode..."
+		echo "suggested mode id is [1m$idesc [0mat [1m$imode [0m..."
+		sleep 0.25
+		nope=0
+		break
+	else
+		nope=1
+	fi
+done
+if [[ $nope -eq 1 ]]; then
+	echo "[33;1mmode specified is NOT a suggested mode, no troubleshooting will be offered...[0m"
+	sleep 1
+fi
+MONITOR=DVI-I-0
+
+#      SECOND INIT PHASE
+# do not set these yourself unless you know what you are doing!
+RGTEMP=$(mktemp)
+readonly PID=$$
+RDEBUG=N
+RTTY=$(tty)
+
+
+# do not use debug unless instructed to do so!
+# debug: uncomment next 2 lines to see exec messages
+# RGTEMP=$RTTY
+# RDEBUG=Y
+printf "init: checking for X..."
+if xprop -root &> /dev/null; then
+    echo "passed"
+else
+    echo "failed ($?)"
+    echo "error: (fatal): this script requires X to be running and reachable by this shell"
+    echo "                (DISPLAY=$DISPLAY - PID=$$)"
+    exit 127
+fi
+
+printf "init: setting tempfile..."
+if touch "$RGTEMP"; then
+    echo "passed"
+else
+    echo "failed"
+    echo "error: tempfile not writable, please check permissions"
+    exit 127
+fi
+
+printf "init: setting video mode..."
+if command /usr/bin/xrandr --output $MONITOR --mode $MODE; then
+	if command /usr/bin/xrandr --output $MONITOR --dpi $DPI; then
+    	echo "ok"
+   	else
+   		echo "failed ($?) (at DPI setting only - recoverable error)"
+   		local actn1="t"
+   		local actn2="w"
+   		local actn=t
+   		echo "act${actn} logging recoverable event..."
+   		echo "recovering from last error..."
+   			# NB: removed this line
+   			# exit 127
+   	fi
+else
+    echo "failed ($?)"
+    echo "error: you must EDIT the script before using it, please do so now"
+    exit 127
+fi
+
+echo "init: script starts on PID $PID (locked)"
+echo "init: script's modpack dir is $MODPACK_DIR"
+echo "init: last (failed) command will be dumped to $RGTEMP"
+echo "init: effective user set to $USER@$HOSTNAME"
+echo "init: starting up at $(date)"
+echo "init: freeing memory from filesystem cache..."
+{ sync; drop 3; } &> /dev/null
+
+echo "init: note ftb/mc/fml logs are discluded"
+# check for writable (we dont care if we cant read it)
+if ! [[ -w "$RGTEMP" ]]; then
+    echo "failed: cannot write to $RGTEMP, no permission to write (disk full, error, bad tempdir?)"
+    exit 127
+fi
+printf "init: checking modpack's directory"
+if [[ -d "$MODPACK_DIR" ]]; then
+    #NOTE: export can be removed if perl use is removed
+    export MODPACK_DIR
+    #PERL    bash could do this but perl does it in paralell (faster/easier to read)
+    if perl -w <<<'
+	    exit 1 unless ( -d -r -w $ENV{"MODPACK_DIR"} . "/logs" );
+        exit 1 unless ( -r -s $ENV{"MODPACK_DIR"} . "/options.txt" );
+        exit 0;
+		'; then
+		# TODO: make a better perl-wrapping method
+		# TODO: possibly add smartmatching
+    #ENDPERL
+        echo " -- ok"
+    else
+        echo -e "\n[31;1merror: modpack directory either bad or first run, first runs MUST be done manually![0m"
+        exit 127
+    fi
+fi
+echo "init: check code"
+if ! bash -n $BASH_SOURCE > "$RGTEMP"; then
+    echo "[31;1mfail: code check failed, see $RGTEMP for error dump[0m"
+    exit 127
+fi
+echo "init: checks passed, modpack is set to $MODPACK in $MODPACK_DIR"
+echo "init: init done, entering execution phase"
+echo
+# this is done only because init would not be seen
+# ensures no errors are hidden even minor ones
+sleep 1.5
+
+#      EXECUTION PHASE
+if [[ "$RDEBUG" == "Y" ]]; then
+    echo "[31;1mwarning: debugging enabled (RDEBUG is set to Y)"
+    echo "         please remove RDEBUG=Y from this file to disable it![0m"
+else
+# NON-DEBUG VERSIONS GET SPECIALIZED TEXT PROCESSING!
+    printf '[s'
+    echo()
+    {
+        printf '[u[K[38;5;1'"${RANDOM: 0:2}"'m'
+        printf "%s" "$@"
+        printf '[0m'
+    }
+    printf '\n'
+fi
+
+# # x xxx guard
+# # x xxx printf "[s\n\n[u"
+
+
+echo "0%    performing self code check"
+if ! bash -n $BASH_SOURCE; then
+    echo "error: failed self test"
+    exit 127
+fi
+
+echo "5%    loading last saved nvidia user configuration"
+nvidia-settings -l
+echo "10%  starting ftb client"
+java -jar ~/.ftblauncher/ftb.jar -a $MODPACK &> "$RGTEMP" &
+echo "20%  ftb minecraft client starting up"
+# REMOVED (TWEAK): probably not needed
+# add back in if java process creates after
+# these next statement(s):
+# until pgrep java &> /dev/null; do sleep 1; done
+# ADDED
+# sleep 5 seconds to allow other process to start
+#sleep 5
+#watch -xgtp pgrep java &> "$RGTEMP"
+#echo "40%  getting ftb launcher pid"
+# changed from: JPID=`pgrep java | sort -h | head -n1`
+#JPID=$(jobs -p)
+#echo "50%  unloading ftb launcher"
+#kill -KILL $JPID
+echo "60%  sync cache to disk before dropping"
+sync
+echo "70%  dropping pagecache/inodes/dentries already on disk from memory"
+drop 3 &> "$RGTEMP"
+#echo "80%  sync align items not to be unloaded"
+#sync
+echo "90%  FML to reach close to final load state is being skipped"
+#SECONDS=1
+#while ! tail $MODPACK_DIR/logs/fml-client-latest.log | grep CHAT -q; do sleep 1; echo "90% still waiting for FML to reach close to final stage ($SECONDS)"; done
+
+printf "[A[K[A[K\n"
+#SKIP=N
+if false; then
+for ((i=5;i>0;i--)); do
+    printf "[K[s[0;32m100%% ... done (press [33;1m[x][0;32m in [0;1;5m${i}[0;32m second(s) to skip log view) ... [u"
+    TMOUT=1
+    read -sn1
+    TMOUT=0
+    if [[ $REPLY == x ]]; then
+        SKIP=Y
+        break
+    fi
+done
+fi
+#
+SKIP=Y
+if [[ "$SKIP" == "Y" ]]; then
+    printf "[K[s[0;32m100%% ... done ([33;1mskipping log view[0;32m) ... [u"
+else
+    printf "[K[s[0;32m100%% ... done ([34;1mopening log view[0;32m) ... [u"
+fi
+#sleep 2
+if [[ $SKIP != Y ]]; then
+    dialog --tailbox "$MODPACK_DIR/logs/fml-client-latest.log" 120 120
+fi
+
+echo "100%  completed script, returning to caller ($?)"
+unset -f echo
+printf '\n\n'

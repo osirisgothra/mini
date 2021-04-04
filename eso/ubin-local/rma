@@ -1,0 +1,86 @@
+#!/usr/bin/env perl
+# most of this code should be self-explanitory, if its not then see the doc below
+
+use warnings;
+use strict;
+use v5.20.2;
+use Path::Tiny qw( path );
+use Getopt::Long::Descriptive;
+use Term::ANSIColor 4.00 qw( :constants );
+
+my ($opt, $usage) = describe_options(
+    path($0)->basename . ' %o ',
+    [],
+	[ 'noremount|n', "do not remount the volume" ],
+    [ 'verbose|v',  "print extra stuff (off by default, including errors)"            ],
+	[ 'errors|e' ,  "print errors only" ],
+    [ 'help',       "print usage message and exit" ],
+);
+
+print(BLUE, $usage->text), exit if $opt->help;
+print(BLUE, "$0 - android mounter v0.1 pre-alpha private") if $opt->verbose;
+my $mountpoint=path("/mnt/android");
+my $mountprog="jmtpfs";
+unless ( $opt->verbose ) {
+	close STDERR unless $opt->errors; 
+	close STDOUT;
+}
+
+system("killall jmtpfs") and warn (RED, "killing jmtpfs-" . $! . $?);
+system("umount $mountpoint") and warn (RED, "umounting mountpoints-" . $! . $?);
+system("$mountprog $mountpoint") and warn (RED, "running jmtpfs-" . $! . $?) unless $opt->noremount;
+
+__END__;	# perl compiler reads no more code at this point, documentation follows #
+
+=head1 NAME
+
+rma - Perl program that remounts a simple JMTPFS
+
+=head1 SYNOPSIS
+
+	rma					just run
+	rma -v|--verbose	run, show everything
+	rma -e|--errors		run, show only errors
+	rma -h|--help		show the quick help text
+	rma -n|--noremount	run, but dont remount the volume
+
+=head1 DESCRIPTION
+
+ The program kills the jmtpfs if its running, unmounts its file system (usually android or simmilar phone or tablet device). and then restarts the jmtpfs mounting its filesystem anew. If any of these steps cannot be performed, they will be skipped.
+
+ The volume will not be re-mounted if the -n (--noremount) option was included in the command line anywhere.
+
+=head1 OUTPUT
+
+None by default.
+
+Use -v to see output text for both error and standard output streams.
+Use -e to see output text for just the error stream. This is not guarenteed to be very helpful should errors occur. Errors streams are shown in RED.
+
+=head1 SEE ALSO (FOR USERS)
+
+jmtpfs(1), mount(8), umount(8), killall(1) 
+
+=head1 SEE ALSO (FOR DEVELOPERS)
+
+perl(1), perlpod(1), pod2html(1)
+
+=head1 AUTHOR
+
+Gabriel Thomas Sharp, E<lt>osirisgothra@hotmail.comE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (C) 2020 by Gabriel Thomas Sharp
+
+This program is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.20.2 or,
+at your option, any later version of Perl 5 you may have available.
+
+The package this program was distributed with may be subject to different 
+license terms which are separate from this program. This program's license
+can NOT be applied to any other project item or package. For the license 
+information that came with those packages, please read either the LICENSE
+text distributed with THAT package, or, visit the package's website.
+
+=cut

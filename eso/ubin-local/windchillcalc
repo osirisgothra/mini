@@ -1,0 +1,15 @@
+#!/bin/bash
+# based on degF=35.74+0.6215*T-35.75*(V^0.16)+0.4275*T*(V^0.16)
+# where the above formula is from nws.noaa.gov (windchillchart3.pdf)
+#
+# tested on several of the chart's temperature readings for accuracy
+# readings on the chart do not give decimal numbers but this script
+# will show those decimal numbers as precise as your verison of
+# calc will show. the calc(1) program is typically already installed
+# on most linux and OSX systems.
+#
+#
+read -p "Enter temperature (degrees fahrenheit):" T
+read -p "Enter windspeed (MPH):" V
+echo -ne "Result Temperature (degrees fahrenheit):"
+calc -- "T=$T;V=$V;35.74+0.6215*T-35.75*(V^0.16)+0.4275*T*(V^0.16)"

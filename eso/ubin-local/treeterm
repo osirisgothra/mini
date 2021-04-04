@@ -1,0 +1,5 @@
+#!/bin/bash
+	echo "generating tree -- please wait..."
+    ( tree `infocmp -D` -f -L 2 --nolinks --noreport -C -i --dirsfirst | grep --color=auto -Pv -- '-\>.*' | grep --color=auto -P '^(/([^/]+)){5}$' ) | ( while read; do
+        basename $REPLY;
+    done ) | column

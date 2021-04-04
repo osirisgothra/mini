@@ -1,0 +1,3 @@
+#!/bin/bash
+[[ -r "$1" ]] && exec "/usr/bin/play" "-q" "$@"
+[[ -r "$1" ]] || echo "files must exist!"

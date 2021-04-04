@@ -1,0 +1,74 @@
+#!/bin/bash
+
+function hrule() 
+{
+	declare -gi COLHALF=$(( (COLUMNS / 2) - 2 ))
+	echo -en "\e[3${1}m"
+	# NB 2: saftey bit for screen edge for setups/terms who incorrectly calculate the size at the 1-bound instead of the 0-bound
+	#		add to this number (currently '2') to increase the saftey bit or set to zero (0) to disable it
+	eval printf -- "-%0.0s" {2..$COLHALF}
+	#printf "\t"
+	eval printf -- "-%0.0s" {2..$COLHALF}
+	echo -en "\e[0m\n"
+}
+
+eval `resize`
+
+while true; do
+	read -p unicode: -a UNI
+	case ${#UNI[@]} in
+		1)
+			if [[ $UNI =~ ^\s*[[:xdigit:]]+\-[[:xdigit:]]+\s*$ ]]; then
+				PRE=${UNI%%-*}
+				POST=${UNI##*-}
+				eval "UNI=( {$((0x$PRE))..$((0x$POST))} )"
+			elif [[ $UNI =~ ^\s*[0-9]+\.\.[0-9]+\s*$ ]]; then
+				eval UNI=( {$UNI} )
+			elif [[ $UNI =~ ^\s*[0-9a-fA-F]+\.\.[0-9a-fA-F]+\s*$ ]]; then
+				PRE=${UNI%%..*}
+				POST=${UNI##*..}
+				eval "UNI=( {$((0x$PRE))..$((0x$POST))} )"
+			fi
+			;;
+		*)
+			;;
+	esac
+	case $UNI in
+		exit|quit)
+			echo "done."
+			exit 0;;
+		help)
+			echo "type a number (undecorated) to get its value back"
+			echo "you can specify more than one by using space between them"
+			echo "or type 'quit' or 'exit' to end the program."
+			continue;;
+		*)
+			hrule '0;1'
+			for ((n=0;n<2;n++)); do	echo -ne "\e[32mUnicode/Wide\t\tAscii/8-bit Raw\t\t"; done
+			echo ""
+			for ((n=0;n<2;n++)); do echo -e "\e[1mDec\tHex\tChr\tDec\tHex\tChr\t\t"; done
+			echo ""
+			hrule '0;1'
+			declare -i ff=0
+			for u in "${UNI[@]}"; do
+				declare -i v=$u
+				# NB: skip converted ok values, zero converts usually are error since most people enter '0' not '0x0' or '000'
+				if [[ $v != $u ]] && [[ $v -eq 0 ]]; then
+					echo "warn: $u truncated to $v (only whole decimal, octal, or hexidecimals without decorations are accepted)"
+				fi
+				shopt -s xpg_echo
+				o1=$(( $v ));printf "%d\t%04x\t\u$(printf '%04x' $o1)\t\t" $o1 $o1
+				o2=$(( $v & 0x00FF ));printf "%d\t%04x\t\u$(printf '%04x' $o2)\t\t" $o2 $o2
+				if [[ $ff == 1 ]]; then
+					ff=0
+					echo -ne "\n"
+				else
+					let ff++
+				fi
+			done
+			echo ""
+			;;
+	esac
+done
+
+

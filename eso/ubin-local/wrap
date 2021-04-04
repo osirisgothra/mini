@@ -1,0 +1,63 @@
+#!/usr/bin/perl
+#
+#    wrap
+#    turn linewrap on or off
+#    part of the mini project (aka eso-bin)
+#    a collection of scripts and executables made for esoteric, non-nafarious purposes
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sat Sep 15 20:37:14 EDT 2018
+#            osirisgothra@larnica initially created this file
+#            with the original name, wrap
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+#
+
+use v5.20;
+use strict;
+use warnings;	no warnings 'experimental';
+use Getopt::Long::Descriptive;
+
+my ($opt, $usage) = describe_options(
+ $0 . ' %o <arguments>',
+ [ 'verbose|v',  "print extra stuff"],
+ [ 'help', "print usage message and exit" ],
+);
+
+print($usage->text), exit if $opt->help;
+die("$usage->text\n\nERROR: exactly 1 argument needed!\n\n") if $#ARGV != 0;
+die("must be on, off, or toggle, and not ambiguous") unless ($ARGV[0] =~ m/(on|off|tog(gle)?)/s);
+
+given($ARGV[0]) {
+	when(/toggle/) { print "toggling"; }
+	when(/on/)   { print "enable", `tput smam`; }
+	when(/off/)  { print "disable", `tput rmam` ; }
+}

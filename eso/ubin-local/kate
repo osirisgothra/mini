@@ -1,0 +1,7 @@
+#!/bin/zsh
+# requires xdg-launch to run properly
+# target: kate
+
+targetdir="/b/way/usr/bin/kate"
+echo "$targetdir $@"
+exec xdg-launch "$targetdir" "$@"

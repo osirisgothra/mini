@@ -1,0 +1,47 @@
+#!/bin/zsh
+declare -gA s_msg=(	nolaststop "no last stop file, make one using args for stop first (see --help for details)"
+					helptext "syntax: stop [service] [service] [...]\nor: stop --help    or: stop <no args, uses last args used, if any>\nor: stop --revert\n\nif they were not --help (prior to last reboot), reuse does not replace."
+					revert "atempting to revert..."
+					reinstate_ok "reinstated item ok"
+					reinstate_fail "failed to reinstate items"
+					stopping		"requesting systemd to stop service:"
+				  )
+msg() { echo -ne $s_msg[$1]; if [[ $# -eq 2 ]]; then eval "exit err_$2"; fi; }
+err_help=125
+err_ok=126
+err_error=127
+err_fatal=128
+err_critical=129
+
+case $# in
+	0)	if [[ -r /tmp/laststop ]]; then
+		cat /tmp/laststop | while read r; do
+			sudo systemctl stop "$x"
+		done
+		else
+			msg nolaststop fatal
+		fi
+		;;
+	*)	[[ $* =~ --help ]] && {
+			msg helptext help
+		}
+		[[ $* =~ --revert ]] && {
+			msg revert
+			if [[ -r /tmp/laststop ]]; then
+				{ while read item; do
+					echo -ne $item
+					start $item && msg reinstate_ok || msg reinstate_fail
+				done } < /tmp/laststop
+			else
+				msg nolaststop fatal
+			fi
+		} || {
+		[[ -r /tmp/laststop ]] && rm /tmp/laststop -f
+		for x; do
+			msg stopping
+			echo " $x"
+			sudo systemctl stop "$x"
+			echo "$x" >> /tmp/laststop
+		done }
+		;;
+esac

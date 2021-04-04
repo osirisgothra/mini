@@ -1,0 +1,18 @@
+#!/bin/bash
+# rejar "[name of jar to make inplace].jar"
+
+for n; do
+	if [[ $n =~ .*jar$ ]]; then
+		x="$n"
+	else
+		x="${n}.jar"
+	fi
+	echo "press a key to process as: $x"
+	echo "or control-break to stop"	
+	read -sn1
+	zip "$x" -r * .[^.]*
+	echo "finished on $x, press any key to continue"
+	echo "for CTRL+C to be done."
+	read -sn1
+	
+done

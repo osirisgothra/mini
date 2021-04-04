@@ -1,0 +1,37 @@
+#!/usr/bin/env perl
+# vim: cc=120:ft=perl:fdl=9
+#===============================================================================
+#
+#         FILE: bgrun
+#        USAGE: ./bgrun  
+#
+#  DESCRIPTION: Run Process in Background (Non Daemon Version) 
+#
+#      OPTIONS: perl v5.20 or greater (optional but recommended)
+# REQUIREMENTS: perl v5.14 or newer is required (see perldoc(1) for VFL)
+#         BUGS: takes no advantage nor works around them, at the time
+#        NOTES: use --help on command line for details on how to use
+#       AUTHOR: Gabriel T. Sharp (osirisgothra), internalinsomnia@gmail.com
+# ORGANIZATION: internal insomnia cooperative (IIC)
+#      VERSION: 1.0
+#      CREATED: 05/17/2019 12:22:33 PM
+#     REVISION: first draft -- alpha stage
+#===============================================================================
+use v5.20;
+use warnings;
+use strict;
+
+# TODO: replace crude evaluation of command line with just checking for X related libraries within the executable
+#       and a call to create a window and not using any CLI libraries like ncurses, since that would indicate a hybrid
+#       program which would still need its own terminal...
+# TODO: check desktop files in /usr/share for any registered deskop files for the program, if it has one, honor the
+#       settings (like 'has own terminal' or 'run as another user')
+if ($ARGV[0] =~ /(term|^[xX]|gnome|kde|firefox|chrome|safari|dillo|konq|konsole)/) {
+	# run in background, no terminal
+	exec @ARGV unless fork();
+} else {
+	# run in background, with a terminal
+ 	exec("xterm","-e",@ARGV) unless fork();
+
+}
+

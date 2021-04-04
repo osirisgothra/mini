@@ -1,0 +1,2 @@
+#!/bin/bash
+( ( sudo /usr/bin/ionice -c realtime -n 1 sudo -Hu osirisgothra /usr/bin/java -jar ~/lm.jar ) & disown ) &> /dev/null

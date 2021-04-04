@@ -1,0 +1,102 @@
+#!/bin/zsh
+# notes
+# 1) The zsh/parameter is used not just for debugging but for accuracy when dealing with errors or the program details.
+# 2) Using this_file (simmilar to BASH_SOURCE or $0) is used to guarentee an accurate source file name for the user.
+# 3) Setting this_file in an anonymous function so that zsh/parameter can give us back the trace data.
+# 4) Preliminaries need to not modify the environment or messs with the system in any way
+#    and cannot use __jterr because it invokes exit() which would exit the user's interactive shell.
+# 5) interactive exit (return) gives back 127 if no further problems persist, 254 if even the echo caused a fault.
+#    only useful for debugging on the caller side (end users will find this useless to handle at all)
+
+# preliminary
+__jterr() { unset -f __jterr; rm -f "$tempfile" &> /dev/null; local e=$1; shift; exit $(echo $e; echo $* > /dev/stderr); }
+case $- { (*i*) echo "cannot run interactive, please dont source!" && return 127 || return 254;  }
+
+# modules
+zmodload zsh/parameter
+
+# af variables
+()	{
+		this_file="${${funcfiletrace%%:*}##*/}"
+	}
+
+# normal variables
+tempfile=$(mktemp)
+required=( json_pp perl )
+backups="${PWD%%*/}/.jsontabify-backup"
+
+# shell options
+setopt aliases
+setopt interactivecomments
+
+# aliases
+alias unless='if !'
+alias die='__jterr $LINENO'
+
+# required programs check
+for program_name ( $required ) {
+	[[ -x `whence $program_name` ]] || die "$program_name is not available as expected (single executable file) and is required to run $this_file properly";
+}
+
+# command line check
+if ! OPTS=( `getopt -n $(basename $0) -o h -l help -- $@` ) {
+	__jterr $? "error on command line"
+} else {
+	set -- $OPTS
+	until [[ $1 == "--" ]] {
+		case $1 {
+					(--help|-h)
+						echo "syntax: $0 -h or $0 --help"
+						exit 124;;
+					(*)
+						__jterr 123 "bad command line item: $opt";;
+		}
+		shift
+	}
+	shift
+}
+case $# {
+	(0)
+		echo "nothing to do! (no targets given)"
+		;;
+	(*)
+		# note on die(): it will 1) remove the tempfile (if needed), 2) it will automatically choose an appropriate error code for exiting 3) will pass the message onto stderr 
+		# make or touch backups folder (lets us know last time we made one!)
+		mkdir -f $backups || touch $backups
+		for uoteditem {
+			target="${(Q)uoteditem}"
+			echo "checking $PWD/${target}..."
+			if [[ -r "$target" ]]; then
+				if tempfile=$(mktemp); then
+					echo "making backup of $target in $backups"
+					echo "and then reformatting using json_pp"
+					if cp "$target" "$backups"; then
+						if cat "$target" | json_pp > "$tempfile"; then
+							if [[ -s $tempfile ]]; then
+								if rm "$target"; then
+									if mv "$tempfile" "$target"; then
+										echo "all operations succeeded!"
+									else
+										die "failed to move $tempfile to $target"
+									fi
+								else
+									die "failed to remove old $target"
+								fi
+							else
+								die "failed to write any significant data to $tempfile (is your disk full?)"
+							fi
+						else
+							die "failed while formatting json document (either not json, program error, or incomplete json file)"
+						fi
+					else
+						die "cannot create backup copy (aborting for safety)"
+					fi
+				else
+					die "can't make tempfile, we need this ($tempfile) to create the new document!"
+				fi
+			else
+				echo "skipping $target, it is not readable"
+			fi
+		}
+		;;
+}

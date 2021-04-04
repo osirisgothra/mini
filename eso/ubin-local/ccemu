@@ -1,0 +1,132 @@
+#!/bin/bash
+#
+#    ccemu
+#    start computercraft emulator program anywhere on disk
+#    eso-bin
+#    esoteric script and binaries collection - v0.18
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository:
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sun Aug 26 13:48:51 EDT 2018
+#            osirisgothra@larnica initially created this file
+#            with the original name, ccemu
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+#	NOTES
+#
+#	1) WORKING_DIR is set in this order:
+#  	  _____ _____ __________________________________________________
+#  	/|odds |     |
+# 	 |  %  |order| description
+# 	 |_____|_____|__________________________________________________
+# 	 | ~4  |  1  | uses CCEMU_DIR if exported by the user
+# 	 |	90 |  2  | uses HOME if exported by the script parent (bash,
+# 	 |	   |     | wm, X, etc). This is not checked for security!
+# 	 | ~5  |  3  | uses parent's current directory / this scripts
+# 	 |	   |     | initial directory
+# 	 |<=1  |  4  | uses the root filesystem and it's lowest branch
+# 	 |	   |     | (always '/') as the working directory
+# 	 | <0  |  5  | fails in a catastrophe (no '/' means really
+# 	 |	   |     | bad system state! execution couldnt happen!
+# 	 |____ |_____|___________________________________________________
+#  	/                                                               /
+
+# SHELL
+
+shopt -s interactive_comments
+shopt -s xpg_echo
+
+# VARIABLES
+
+declare -g CCEMU_DIR_DISABLED="/usr/bin" # remove the "_DISABLED" to enable hard-coding of variable
+declare -g JARFILE="ccemuredux.jar"
+declare -a JAVA=( "java" "-jar" )
+declare -g WORKING_DIR="${CCEMU_DIR-${HOME-${PWD-/}}}"
+[[ ${WORKING_DIR: -1:1} != "/" ]] && WORKING_DIR+="/ccemu.jar" || WORKING_DIR+="ccemu.jar" # (See: NOTES #1)
+
+# FUNCTIONS
+
+# MAIN SCRIPT
+
+# data gathering
+echo "beginning data gathering stage of $0..."
+
+
+echo "looking for ccemu..."
+echo -n "in working directory ($WORKING_DIR) ..."
+if [[ -r "${WORKING_DIR}" ]]; then
+	echo "..yes"
+	JAVA+=( "${WORKING_DIR}" )
+else
+	echo "..no"
+	echo -n "in mlocate database..."
+	RESULT=`locate "$JARFILE" -n1`	# (-n1) first match only
+	if [[ -r "$RESULT" ]]; then
+		echo "..yes"
+		JAVA+=( "$RESULT" )
+	else # (-print -quit) first match only
+		echo "..no"
+		echo -n "all mounted filesystems (may take a minute or two)..."
+		RESULT="$(find / -iname "$JARFILE" -print -quit)"
+		if [[ -r "$RESULT" ]]; then
+			echo "..yes"
+			JAVA+=( "$RESULT" )
+		else
+			echo "..no... and no!"
+			echo "cannot find $JARFILE anywhere!"
+			echo "set CCEMU_DIR=/path/jarfile.jar to specify it on your own"
+			echo "in error? contact author! (check source script for license/details)"
+			unset JAVA
+		fi # -r RESULT via find
+	fi # -r RESULT via locate
+fi # -r RESULT via WORKING_DIR
+
+# action on data
+echo "beginning execution phase of $0..."
+
+if [[ -v JAVA ]]; then
+#   # (see: NOTES #2)
+	echo "   starting: ${JARFILE}"; sleep 0.25
+	echo " using this: ${JAVA[@]}"; sleep 0.25
+	if "${JAVA[@]}" 2>/dev/null & disown; then
+		echo "all ok status returned: ($?)"
+	else
+		echo "nonzero return code: $?"
+	fi
+else
+	echo "error: JAVA data not found, check to see if you have ccemu and java first!"
+fi
+
+
+# after math
+
+unset JAVA RESULT JARFILE WORKING_DIR CCEMU_DIR
+sync
+

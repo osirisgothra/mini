@@ -1,0 +1,128 @@
+#!/usr/bin/perl
+#
+# FILE
+#    mocp-seek
+#    autoseek based on how often / when repeated
+#
+# PROJECT
+#    mini
+#	 eso
+#
+# AUTHOR / COPYRIGHT
+#
+#    Copyright (C) 2020, ubin-local
+#
+#    Written by ubin-local osirisgothra@larnica.(none)
+#    Latest versions of this and all of ubin-local's projects can be
+#    obtained from:
+#
+#     <<projbranch>>
+#
+#    Documentation Available At:
+#
+#     <http://www.github.com/osirisgothra/mini.git>
+#
+# LICENSE
+#
+#    mini/mocp-seek  is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  NOTES
+#
+#     * TODO: move 'use' statements to top if you want to keep them**
+#    ** this feature will be added to the next version of perltemplate (hopefully)
+#   *** warnings are disabled for experimental and once because they are pretty
+#       annoying here, you might want to re-enable them for your own program
+#       to do this during testing and development.
+#
+#   #1  keep this AFTER help check, since --help is valid without arguments
+#       (otherwise help would never get shown)
+#
+#  HISTORY
+#
+#	Sun Nov 29 23:02:02 2020
+#         osirisgothra@larnica.(none) created this file using the template generator 'perltemplate'
+#         and named it mocp-seek for the project '<projname'.
+#
+#
+# (created with perltemplate by Gabriel T. Sharp <osirisgothra@hotmail.com>)
+#
+
+use warnings;
+use v5.18;
+use strict;
+use feature "signatures";
+use Path::Tiny;
+use File::MimeInfo; 
+use Getopt::Long::Descriptive; 
+use Term::ANSIColor 4.0  qw ( colorstrip color colored uncolor coloralias :constants256 :constants colorvalid :pushpop );
+
+no warnings "experimental";
+no warnings "once";
+
+package CLI::MOCP;
+use POSIX;
+
+sub new($clsid) {
+    my $self = {  binary => "/usr/bin/mocp", pid => 0, ownpid => $$, lastcmd => "" };
+    bless $self, $clsid;
+    $self->initdata();
+    
+    
+    
+
+}
+
+
+
+package main;
+
+
+
+my ($opt, $usage) = describe_options(
+                        ANSI136 . "\nseeks in various amounts, multiple times if more arguments given\n\n " . ANSI216 . path($0)->basename . ANSI226 . " %o <amount1> <...>\n" . ANSI207,
+    [ 'smart|s=i',      ANSI137 . "seek if last ran this many seconds ago, otherwise prev/next track instead when negative/positive." . ANSI207 , { default => -1 } ],
+    [],[                ANSI138 . "smartseek checks times between runs, except when first time ran. If the amount of seek is negative previous track is jumped to and vice-versa for forward seek. The seek amount in those cases are ignored, and all other seek arguments are dropped. Difference amount is an integer, it must be positive nonzero. If it is set as an exception, to -1, it is disabled. This is the default behavior and value (-1)."  . ANSI208 ],[],
+    [ 'multiplier|m=i', ANSI139 .  "multiplier, can be negative"  . ANSI209, { default => 15 }   ],
+    [ 'invert|v',       ANSI140 . "invert final value (same as -m-1)"  . ANSI210 ],
+    [],[                ANSI141 . "multiplier and invert are applied once, and no more after the first time. The last value option given will be used.". ANSI211, ],[],
+    [ 'help',           ANSI142 . "print usage message and exit". ANSI212 ],
+    [],[                ANSI143 . "help will be shown without arguments and is the only option that does not require an argument to be present (all other do)." . ANSI213 ],[],
+    [ "" . RESET . "" ]
+);
+
+say($usage->text), exit if $opt->help;
+die("not enough arguments (use --help to see how to use $0") unless @ARGV;  #1
+
+for (@ARGV) {
+    die("$_ is not numeric") unless /\A-?[0-9]+(\.[0-9]+)?\z/;
+    my $finalseek = $_ * $opt->multiplier * ( $opt->invert ? -1 : 1 );
+    qx(/bin/mocp --seek $finalseek) if $finalseek;
+    warn("last seek resulted in nothingness (zero)") unless $finalseek;
+    print("requested $finalseek seconds seek ($_ x ". $opt->multiplier . ", reversed=" . ($opt->invert ? "true" : "false") . ")\n"); 
+}
+system("touch","/tmp/thisrun");
+my $now = (stat("/tmp/thisrun"))[8];
+if ( -r "/tmp/lastrun" ) 
+{
+    my $then = (stat("/tmp/lastrun"))[8];
+    my $diff = $now - $then;
+    my $diff2 = $then - $now;
+    say("now=$now last=$then  difference=$diff ($diff2) epoch");
+} else {
+    say "no last time data avail, run again to have it";
+}
+
+system("touch","/tmp/lastrun");
+

@@ -1,0 +1,26 @@
+#!/usr/bin/zsh
+#===============================================================================
+#
+#         file: lookatmod
+#          vim: nowrap:sw=2:ts=2:noet:nomore:prompt:ft=perl:fdm=indent:fdl=9:fdo=all:fcl=all:mouse=a:cc=80:ruler:laststatus=2:guifont=Ubuntu\ Mono\ 15:guilabel=Look-At-Mod
+#        usage: ./lookatmod  
+#
+#  description: look at a jarred or zipped forge mod archive
+#
+#      options: ---
+# requirements: ---
+#         bugs: ---
+#        notes: ---
+#       author: Gabriel T. Sharp (osirisgothra), internalinsomnia@gmail.com
+# organization: Internal Insomnia group
+#      version: 1.0
+#      created: 06/07/2019 12:47:08 pm
+#     revision: ---
+#===============================================================================
+name=${($(basename "$1")}
+work=/tmp/$name
+mkdir /tmp/"$name"
+cp "$1" /tmp/"$name"
+pushd "$work"
+unzip "$1"
+

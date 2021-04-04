@@ -1,0 +1,6 @@
+place this in your home directory for auto eb update!
+WARNING!!
+
+if you are not trapping USR1 signal (via powerbash/autox/gxbase/etc)
+this will cause the eb command to KILL your terminals as it is the
+default behavior! you have been warned.

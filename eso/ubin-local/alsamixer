@@ -1,0 +1,74 @@
+#!/bin/sh
+USE_CLI_WHEN_IN_PTMX=1
+# set to 0 to disable it
+MSG_DELAY=0.75
+
+
+# setup delay
+if [ $MSG_DELAY = 0 ]; then
+    echo "delay removed--echo will be unmodified"
+else
+    echo "inserting a $MSG_DELAY second delay into all echo commands (if a terminal)"
+    if tty 2>&1 | grep 'not a'; then
+        echo "not a tty, no delay added"
+    else
+        echo()
+        {
+            command echo "$@"
+            sleep $MSG_DELAY
+        }
+    fi
+fi
+
+# simple shim to unify alsamixer and alsamixergui
+# so they can run in a specific case or not
+# pass 'env DISPLAY="" alsamixer' or first param '-cli' to force command line mode
+if amixer -c0 1> /dev/null 2> /dev/null; then
+    echo "alsa:0: ok"
+else
+    # alsa not being accessible is a pretty bad thing imo, and alsactl init
+    # will not enter a log when polled this way, so it must be done by us
+    # so that the user/admin will see there is a problem with alsa
+    # you can also get rid of this line to avoid that if it is eating
+    # at your logs too much (shouldnt happen though, alsamixer isnt automated)
+    logger -s -p user.err "alsa:81: failed to poll alsa state, sound mixing will not be possible!"
+    exit 81
+fi
+
+# setup display (or lack of, whichever is configured)
+
+if [ 1 = $USE_CLI_WHEN_IN_PTMX ]; then
+  if tty | grep pts -q; then
+    echo "USE_CLI_WHEN_IN_PTMX is enabled, and this is a ptmx terminal, so -cli will be added to the command line"
+    set -- "-cli"
+  fi
+fi
+
+if [ "$1" = "-cli" ]; then
+    echo "-cli detected on command line, removing any DISPLAY that may be configured (for this program's environment only)"
+    unset DISPLAY
+    shift
+fi
+
+if [ "$DISPLAY" = "" ] || ! [ -x /usr/bin/alsamixergui ]; then
+    echo "display was empty or alsamixergui not found"
+    target=/usr/bin/alsamixer    
+else
+    echo "gui mode enabled"
+    target=/usr/bin/alsamixergui
+fi
+case $# in
+    0)  $target -c 0;;
+    *)  if [ "$1" = "--help" ]; then
+            echo "info: automatically translated --help to -h for alsamixergui, the equivalent"
+            shift
+            $target -h "$@"
+        else
+            $target "$@"
+        fi
+            
+esac
+            
+        
+
+

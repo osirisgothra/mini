@@ -1,0 +1,79 @@
+#!/usr/bin/perl
+# dont use this, its not written yet
+# update; this may be scrappped, it was a practice/concept run anyway
+# written by gabriel sharp
+# notes (The numbers on these lines below here are the reference numbers; you will see these numbers to the right of the affected code line(s) for which the note refers to.)
+#   0:  These lines make up the parameters for the pre-command that uses thrgrep (context is connected by #'s on the right).
+#	1:	formalizes program's path to its base name only, and pathname and store original in a path object for future use
+#		
+
+use warnings;
+use v5.20.2;
+use Getopt::Long::Descriptive;
+use Term::ANSIColor;
+use Path::Tiny;
+
+no warnings "experimental";
+
+my %launchers=( mym => path( $ENV{"HOME"} )->child(".mineyourmind")->child("launcher.jar") );
+my $javacmd="java -jar %s";
+
+my $runpostcmds=1;
+my @postcmds=( "nvidia-tweak",	
+			   "thrgrep %s %s %s %s" 								#
+			 );														#
+my $procnice=0;														#	
+my %priority = ( low => "idle", normal => "best-effort", 			#
+				 high => "realtime", nice => "none" 		);		# 0 
+my %rank = (	lowest => "7",	lower => "6",      					#
+				low => "5", 	average => "4",						#
+				default => "3",	high => "2", 						#
+  			   	higher => "1",  highest => "0"				);		#
+my $procname="";					
+my $procclass=$priority{normal};	
+my $pclass_rank=$rank{highest};		
+
+my $runprecmds=1;
+my @precmds=( "sync", "drop 321s" );
+my %msgs=(		runprecmd	=>	"Executing %d pre-commands (%s)...\n" ,
+				runpostcmd 	=>	"Running %d post-commands (%s) after successful exection...\n",
+				runmain		=>  "executing launcher...",
+				ok			=>	"success!\n",
+				fail		=>	"failed! (please check the log or console dumps to find out why)\n",
+				startup		=>	"jku2 (pjku) v2.0b\n", 
+				prehelp		=>	"\nInvokes the launcher of java-based programs, jku\n",
+				posthelp	=>	"This help text is incomplete for now, but is pretty self explanitory. Just edit the code to see what this program really does (for now just open or click on url: file://$0 to see the code)\n\n",
+		);
+my $program_path=path($0);		#1
+$0 =~ s:^.*/::g;
+my $internal_default_launcher="mym";
+
+my ($opt, $usage) = describe_options(
+	"$msgs{prehelp}\n$0 %o <some-arg>",
+	[],
+	[ 'launcher|l=s', "select launcher (defaults to $internal_default_launcher)", { default => $internal_default_launcher, } ],
+	[ 'version|v',  "show version info" ], 
+	[ 'help|h|?',       "print usage message and exit", { shortcircuit => 1 } ],
+	[],
+	["$msgs{posthelp}"],
+);
+
+sub setup {
+	print($usage->text), exit if $opt->help;
+	printf $msgs{runprecmd},scalar(@precmds),sprintf("%s",join(",",@precmds));
+	system($_) for @precmds;
+	printf $msgs{runmain};
+}
+sub runlauncher {
+	
+	unshift(@_,$opt->launcher) unless @_;
+	system(sprintf($javacmd,$launchers{shift}));
+#	my $runstr = sprintf($javacmd,$launchers{shift});
+#	my $target = $opt->dryrun ? \&system : \&say;
+ #system
+	
+}
+
+printf("jku (no banner or version yet!)\nwarning: still under development!\n");
+setup;
+system(sprintf($javacmd,$launchers{mym}));

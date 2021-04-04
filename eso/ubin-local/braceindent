@@ -1,0 +1,15 @@
+#!/bin/zsh
+bc=0
+cat programs | while read r
+ do if [[ $r =~ "\{" ]]
+ then bc=$[bc+1]
+ elif [[ $r =~ "\}" ]]
+ then bc=$[bc-1]
+ fi
+ for ((n=0
+n<bc
+n++))
+ do printf "\t"
+ done
+ echo "$r"
+ done

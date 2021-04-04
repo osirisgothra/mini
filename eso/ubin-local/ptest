@@ -1,0 +1,22 @@
+#!/bin/bash
+# simple test program that displays what was sent to it
+declare -i i=0
+for ((i=1;i<${RANDOM: 0:1};i++)); do
+	echo "$SECONDS $i $RANDOM (s/i/r) simple output for stdout" > /dev/stdout
+	echo "$SECONDS $i $RANDOM (s/i/r) simple output for stderr" > /dev/stderr
+done
+echo "arguments:  $# args given - $- is the state, $_ last given"
+echo "            $? current error code, $PIPESTATUS = pipestatus"
+echo "listing out arguments..."
+echo "0 = [$0]"
+i=1
+for x; do
+	echo "$i [$x]"
+	let i++
+done
+# generate random exit code ---- adjust to your needs
+MINEXIT=16
+MAXEXIT=112
+RANDOMEXITCODE=$(( ((RANDOM*(MAXEXIT-MINEXIT)/32767)+MINEXIT) ))
+echo "about to return exit code $RANDOMEXITCODE for diagnostics purposes..."
+return $RANDOMEXITCODE

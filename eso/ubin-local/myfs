@@ -1,0 +1,15 @@
+#!/bin/bash
+
+echo "myfs called with: $@"
+echo "myfs pid: $$"
+echo "ppid: $PPID"
+echo "exit: $?"
+
+while read r; do
+	echo "caught stream item: $r"
+	[[ $r == "" ]] && break
+done
+
+echo "exiting loop"
+sleep 1.2
+echo "slept 1.2 second(s)"

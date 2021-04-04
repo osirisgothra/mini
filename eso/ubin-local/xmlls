@@ -1,0 +1,71 @@
+#!/bin/bash
+#
+#    xmlls
+#    Simple Shim for xmlstarlet(1) subcommands
+#    mini/eso/ubin-local
+#    Esoteric Project Files and Etc
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Fri Nov 15 12:44:06 EST 2019
+#            osirisgothra@ initially created this file
+#            with the original name, xmlls
+#
+# TARGET NOTES
+#
+# 	EXECUTIVE STATE CHANGES
+#		marking single existing file executable
+#			- mode of 'xmlls' changed to u+rwx/og+rx.. []
+#		completed (0)
+# 	ARGUMENTUAL ANALYSIS
+#       remaining arguments:
+#			no arguments to list
+#       disposition:
+#			4 were used during execution of template
+#   		0 were extra and/or unexpected
+# 	TEMPLATE SUMMARY OF GENERATION
+#	     outcome: good
+#	     errors: 0
+# 	FINAL NOTE
+#	     template program under renovation
+#        you should REMOVE the TARGET NOTES section once youve reviewed this!
+#		 (Fri Nov 15 12:44:06 EST 2019): osirisgothra ignored the final note and left this behind for
+#		           the user(s) to see, how embarassed I am for the author!
+#
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#
+#	template output completed (code=OK(ERROR_NONE))
+#
+#
+if [[ $# -eq 0 ]] || [[ $1 == --help ]]; then
+	xmlstarlet ls --help | sed -r 's/xmlstarlet ls/xmlls/g'
+else
+	xmlstarlet ls "$@"
+fi

@@ -1,0 +1,8 @@
+#!/bin/bash
+_choice() { if [[ $(read -n1) =~ [yY] ]]; then return 0; else return $(( 1+$? )); fi; }
+choice() { while true; do _choice; rv=$?; case $rv in 0|1) return $rv;; *) echo "bad choice, try again";; esac; done; echo "fatal error $rv $? $PIPESTATUS 127"; exit 127; }
+if [[ $# -gt 0 ]]; then
+	sudo ln -s /bin/true "$1"
+else
+	echo "syntax: dis [file or directory]"
+fi

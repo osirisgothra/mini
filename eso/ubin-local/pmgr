@@ -1,0 +1,378 @@
+#!/bin/zsh
+#
+#    pmgr
+#    simple process manager
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository:
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 CLI
+#            osirisgothra@ initially created this file
+#            with the original name, 'pmgr'
+#
+#
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#
+
+# disable some same name builtins
+
+disable kill
+# pause time in seconds can be fractional; such math must
+# have at least 1 floating point digit to work, so default
+#
+# A value that is "1 1/2" is written as:
+#
+# declare -gF warntimeout='1 + ( 1/2. )'
+#
+# The space is optional in ^quotes, ^period here is NOT optional
+# One operand must have a floating point to get a floating point
+# result for that operation, regardless of being added with another
+# floating point number.
+#
+declare -gF warntimeout='1 + ( 1/3. )'
+
+
+# dont kill pcspkr if user has it on
+if lsmod | grep -q pcspkr; then
+    declare -g no_modprobe=1
+    echo "pc speaker is already enabled, ${0:t} will not touch the configuration"
+else
+    echo "warning: pc speaker module not enabled, it will be temporarily enabled, if possible, when used (upon each use so other programs do not get annoying during ${0:t}'s run!"
+    sleep $warntimeout
+    declare -g no_modprobe=0
+fi
+
+
+# Get Options from Command Line for 'pmgr'
+
+declare -gi beep_works=1
+declare -ga opts
+declare -gi quiet_level=0
+declare -g version_text="$(tput setaf 124)pmgr$(tput sgr0) Version 1.0 (C)2020 Gabriel T. Sharp, Licensed under GNU GPL at https://www.gnu.org/gpl"
+declare -g help_text="pmgr - simple process manager
+
+
+SYNTAX
+
+	pmgr [OPTIONS] ARGUMENTS
+
+OPTIONS
+	--help -h	show this help text
+ --version -v   display version information and exit (also shows license info)
+   --quiet -q   increase quiet level by one (quiet level is always zero if left alone)
+
+NON-OPTION ARGUMENTS
+
+	This version of pmgr uses no arguments at this time.
+
+SUMMARY OF TERMS THAT MAY BE USED IN THE PROGRAM
+
+	ARGUMENTS	Refers to the extra information typed AFTER the command (ie, \"pmgr stuff\", stuff is an A)
+	USER		Refers to a (usually yours) user name (but not the UID)
+	LIC			Shorthand for \"license\" or \"license agreement\".
+	UID			Refers to your user identifier, a NUMBER, greater than 999 for regular U, less than for special U.
+    ROOT        Refers to the root user (0).
+    PMGR		Refers to itself, the (simple) process manager (case insensitive).
+    PID         Process Identifier, always a NUMBER greater than 100 (those are special system P).
+	pmgr		The typical FILENAME used for this program.
+	<root>		Usually refers to the PATHNAME in which pmgr or its configuration resides.
+	TEMP		Refers to either /tmp or /var/tmp.
+	FILENAME	A filename that must exist or be writable by the current user.
+	PATHNAME	A relative or absolute path that must exist or be creatable.
+	STRING		A readable string, it must not contain any unreprintable characters.
+	NUMBER		An integer, usually between -32767 and 32767.
+	BOOLEAN		A true/false value, represented as 0 for false, and any other value for true.
+	FLOAT		A floating point single or double precision value, it is precise down to about 5 ot 6 decimal places.
+	ENG			Scientific notation, expressed in powers (3x10^4 is written as 3.4)
+	DEG			Like GRAD/RAD, but expressed in degrees (hours, minutes, seconds) so 3 5'5\" is written as \"3.5.5\"
+
+If there isnt enough room for a repeated term, it may be designated with its first letter
+during explanation (example: the first line where A is used instead of ARGUMENT).
+
+
+LICENSE
+
+	GNU GPL is available in full at the GNU GPL website, or through the google voice command 'show me GNU GPL (latest version)'
+	or at the website: http://www.gnu.org/licenses/gpl
+
+
+"
+echo() {
+	if [[ $quiet_level -gt 0 ]]; then
+		return 127
+	else
+		builtin print -P "$@"
+	fi
+}
+help()
+{
+    case ${1-internal} in
+        external)   echo "$help_text";;
+                    # external help
+        internal)
+                    # internal help
+                    echo "$help_text_int";;
+                    *) echo "fatal: help called with bad arguments"; return 127;;
+
+    esac
+}
+fatal()
+{
+	print -P "fatal(${2-127}): $1"
+	exit $2
+}
+bleep()
+{
+    # the beep used for regular signals
+    # bleep(INFO|ERROR|FATAL)
+    #
+    declare -gA bleeps=( INFO   "-l 60 -f 440 -n -l 60 -f 900"
+                         ERROR  "-l 1000 -f 80 -n -l 1000 -f 40"
+                         FATAL  "-l 1750 -f 21"
+                         GOOD   "-l 250 -f 950 -n -l 250 -f 1220 -n -l 250 -f 1490"
+                       )
+    if [[ $1 =~ '^(INFO|GOOD|FATAL|ERROR)$' ]]; then
+        eval _beep $bleeps[$1]
+    else
+        _beep
+        echo "fail: _beep called with bad arguments: $@"
+        case $# in
+            1) return 1;;
+            *) echo "   AND _beep called with not the right number of arguments ($#, expected 1)";;
+        esac
+    fi
+
+
+}
+
+
+
+if opts=( `getopt -n $0 -o hvq -l help,version,quiet -- "$@"` ); then
+	eval set -- "${opts[@]}"
+	while [[ $# -ge 0 ]]; do
+		curopt=$1
+		nextopt=${2-none}
+		shift
+		# handle --options and -o ptions here
+		case $curopt in
+			--help|-h)	print -P "$help_text"; exit 127;;
+			--version|-v) print -P "$version_text"; exit 127;;
+			--quiet|-q) let quiet_level++;;
+			--) break;;
+			*)	print -P "Error: Unknown option $curopt (just before $nextopt), exiting(127)..."
+				exit 127
+				;;
+		esac
+	done
+	for arg; do
+		# verify/handle non-option arguments
+		case $arg in
+			*)	print -P "Error: This program does not accept this argument: $arg"
+				exit 127;;
+		esac
+	done
+
+else
+	exit $?
+fi
+
+########### pmgr commands
+
+# items allowed to be called directly, so we dont have to clutter up the case structure
+
+pmgr_allowed_cmds=( END _beep kill )
+# uncomment next line for DEBUGGING ONLY!!! (add any new function to test before using, if any)
+#pmgr_allowed_cmds=( END _beep ptry fatal echo )
+
+# so we dont have to type it over and over
+ptry()
+{
+    # ptry(message,COMMAND,ARG(s),...)
+
+   print -Pn "%F{3}${1}%f%F{8}%B...%b%f"
+   shift
+   $@ && { print -P "%F{2}ok%f"; bleep GOOD; } || print -P "%F{1}%Bfail%b%f"
+}
+END()
+{
+    # END(item-service-mount-process-name(s),...)
+    for x; do
+        print -P "%F{4}%Bending the apparently worthless life of %f%F{15}'$x'%b...%f"
+        for y in $x $x.socket systemd-${x} systemd-${x}.socket ${x}.mount; do
+            systemd is-active $y && ptry "service-wise ($y)" sudo systemctl stop $y
+            pgrep "$y" &> /dev/null && ptry "process-wise ($y)" sudo killall -KILL "$y"
+        done
+    done
+}
+
+__kill()
+{
+    for x; do
+        ptry "%F{3}attempting to kill: $x...%f" killall -KILL $x
+    done
+
+}
+_beep()
+{
+    if ((beep_works)); then
+    # 2,3
+    if ((no_modprobe)); then :
+    else
+            sudo modprobe pcspkr
+            #1
+            sync
+    fi
+        if /bin/beep "$@"; then :
+        else
+            beep_works=0;
+        fi
+    fi
+    sync
+    ((no_modprobe)) || sudo modprobe -r pcspkr
+}
+
+__list()
+{
+    y=0
+    for pi in /proc/[0-9]*; do
+        _p=${pi}
+        _pid=${pi:t}
+        _name=$(<$pi/comm)
+        printf "%5d %32s %s\n" $_pid $_name $_p
+        let y++
+    done
+    print ""
+    print "$y total processes"
+    print "load: $(</proc/loadavg)"
+    print ""
+
+}
+haspcmd()
+{
+    for x in $pmgr_allowed_cmds; do
+        if [[ $x == $1 ]]; then
+            return 0;
+        fi
+    done
+    return 1
+
+}
+########### pmgr loop
+
+echo "Welcome to pmgr 1.0"
+echo "Written by Gabriel Sharp, T. <osirisgothra@hotmail.com>"
+echo "(C)2021 paradisim NCCS, GNU GPL >= 3 <gnu.org/licenses/gpl>"
+bleep INFO
+help_text_int="$(for a in $pmgr_allowed_cmds; do grep '^'$a'\s*\(\)' "$0"; done)"
+
+if [[ -x ~/bin/qpk ]]; then
+    if [[ $(groups | grep -ow sudo) == sudo ]]; then
+        echo "qpk detected, which is superior to pmgr, it will run instead..."
+        /bin/sudo -H ~/bin/qpk
+        echo "qpk finished, sending exit message to pmgr..."
+        fallthru=1
+    else
+        echo "warning: qpk is present, but user $USER is not a member of the sudo group, it requires that."
+        echo "         (qpk not launched)"
+        fallthru=0
+    fi
+        
+else
+    fallthru=0
+fi    
+    
+
+prompt="%p %u@%h %l pmgr> "
+while true; do
+    print -Pn $prompt
+    # cause fallthru to automatically call 'exit' once qpk is done
+    [[ $fallthru -eq 0 ]] && read -A pcmds || pcmds=( exit )
+    pcmd=$pcmds[1]
+    shift pcmds
+    case $pcmd in
+        # special commands
+        \?) man $pcmds;;
+        ls) /bin/ls -C --color --classify $pcmds;;
+        cd) chdir $pcmds;;
+        clear)  tput clear;;
+        testbeep)
+                for g in ERROR FATAL INFO GOOD; do
+                    echo "$g"
+                    bleep "$g"
+                done;;
+        list)   __list $pcmds;;
+        kill)   __kill $pcmds;;
+        edsrc)  state="$(shasum $0)"
+                nano "$0"
+                newstate="$(shasum $0)"
+                if [[ $state != $newstate ]]; then
+                    echo "file has physically changed, restarting pmgr"
+                    # forever leave this script
+                    # and transfer to new copy
+                    # or if we dont want that (admins, turn this on!)
+                    [[ $PMGR_NO_RESTARTS == 1 ]] || exec "$0"
+                    # or fail
+                    echo "exec failed on $0, you must restart manually!"
+                    echo "(no_restart is: $PMGR_NO_RESTARTS)"
+                    echo "check your permissions and try again"
+                fi
+                ;;
+        quit|exit)  [[ $PMGR_NO_EXIT == 1 ]] && {
+                        echo "sorry, this session is locked, exit forbidden"
+                    } || {
+                        clear;
+                        print -P "%F{3}exited pmgr, thank for using!%f"; bleep INFO; exit 0
+                    }
+                    ;;
+        # generic commands
+        *)
+                if haspcmd $pcmd; then
+                    $pcmd $pcmds
+                elif [[ $pcmd =~ '^\s*$' ]]; then
+                    print -P "%f"
+                else
+                    print -P "%F{1}Unknown pmgr command: $pcmd($#pcmds)%f"
+                fi;;
+    esac
+done
+########### pmgr end
+
+
+# notes
+
+# 3 FIX: modprobe on pcspkr should not happen if user has it enabled
+#        normally it would get shut back off/on, no_modprobe prevents
+#        this from happening
+#   FIX: beep sends errors to stdout (even though they should go to stderr)
+#        leaving stderr alone with beep in case of other weird errors, id like
+#        to see them first before deciding to mute them.
+# 1 usually sufficient to let udev find it, but a pause can be added if needed
+# 2 be sure all writes to I/O devices are out, this is usually not a problem (just a precaution)
+# older systems: you can uncomment the next line if you dont hear a beep
+# sleep 0.25
+   

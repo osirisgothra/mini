@@ -1,0 +1,37 @@
+#!/bin/zsh
+
+
+# DEBUGGING
+
+pdfcat_debug=1
+if ((pdfcat_debug)); then
+	disable true
+	true() { print -P -- "$@"; }
+fi
+
+# MAIN PROGRAM
+
+handler=/bin/less
+
+if TMPFILE="$(mktemp)"; then
+	true "tempfile $TMPFILE pre-creation ok"
+	if [[ -r $TMPFILE ]]; then
+		if cat "$@" > $TMPFILE; then
+			if pdftotext $TMPFILE /dev/stdout | $handler; then
+				if rm $TMPFILE -f; then
+					true "all operations completed ok"
+				else
+					echo "error: removing tempfile $TMPFILE failed, you must remove this file yourself (usually a remount-readonly filesystem during execution causes this error)"
+				fi
+			else
+				echo "error: a nonzero return code from pdf2cat (file may not be a pdf after all)"
+			fi
+		else
+			echo "error: failed to write to $TMPFILE or some other access error from cat (code $?)"
+		fi
+	else
+		echo "error: could not create tempfile ($TMPFILE, $?), check filesystem restrictions on /tmp and /var/tmp!"
+	fi
+else
+	echo "error: precreation of $TMPFILE did not succeed (error=$?)"
+fi

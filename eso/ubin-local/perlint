@@ -1,0 +1,30 @@
+#!/usr/bin/env perl
+
+# perl linter (sorta)
+
+# Turns This:
+#  $* is no longer supported. Its use will be fatal in Perl 5.30 at javapause line 61.	<-- this-----. a		type 1
+#  syntax error at javapause line 49, near "0:"                                         <--- or this | b             2
+#  BEGIN not safe after errors--compilation aborted at javapause line 79.               <---- or this| c             3
+# Into This:                                                                                         |
+#  javapause:61:1: $* is no longer supported. Its use will be fatal in Perl 5.30        <------------` a
+#  javapause:49:1: syntax error near "0:"
+#  javapause:79:1: BEGIN not safe after errors--compilation aborted
+#
+#  C errors look like this:
+#    badprog.cpp:9:5: error: structured binding declaration cannot have type ‘int’
+#    badprog.cpp:9:5: note: type must be cv-qualified ‘auto’ or reference to cv-qualified ‘auto’
+#    badprog.cpp:9:5: error: empty structured binding declaration
+#    badprog.cpp:9:9: error: expected initializer before ‘badarray’
+
+
+sub reform
+{
+	$_=shift // "";
+	s/^(.*) at (\S+) (line) (\d+)(.*)/\2:\4:1: \1 \5/g;
+	s/ (?=[\.,;:])//g;	# remove whitespace from leading punctuation, if any
+	s/\h+$//g;	# remove horizontal whitespace from end of line, if any
+	s/([^\.])(\n)$/$1.$2/g; # add a period to ending sentence, if not present
+	return $_;
+}
+print(reform($_)) for `perl -c @ARGV 2>&1`;

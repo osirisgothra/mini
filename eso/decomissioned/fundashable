@@ -1,0 +1,135 @@
+#!/no/shell/assigned
+#
+#	 fundashable#    
+#    .shrc
+#    startup file for sh, this should stay MINIMAL as possible!
+#    update: discontinued and placed in inactive status
+#            file has been corrupted :( by noise/hddfail
+#    mini/ubin-local
+#    esoteric stuff
+#
+#    Copyright (C) 2020-2025 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sat 25 Jul 2020 01:30:11 PM EDT
+#            osirisgothra@ initially created this file
+#            with the original name, .shrc
+#
+#	  INSTALL INSTRUCTIONS:
+#
+#
+#		To install, link it to a nonexisting '.shrc' in your home like this:
+#			ln -s /usr/src/fundashable ~/.shrc
+#		To use, include it as your startup in your .profile, it should also
+#		work with bash, ash, dash, zsh, and the like however it is INTENDED for sh:
+#			nano ~/.profile
+#			--------------------------------
+#			# .profile file
+#			# addded these lines for fundashable, you might want to check which shell is running though if you have
+#			# shells that also read .profile
+#			# admins/home users: do NOT use /etc/profile! that would be a major security risk!!
+#			#					 do not use SUID or the like, for the same reasons above
+#			#					 do not use ENV as it has been reportedly unstable and insecure!
+#			if [ -r ~/.shrc ]; then
+#				. ~/.shrc
+#			fi
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+
+
+if [ -n $DISPLAY ]; then
+	TERM=xterm-256color
+else
+	TERM=linux
+fi
+
+export TERM
+eval `resize`
+
+# clear the screen (direct preferred)
+stty clear || setterm --reset || clear
+
+# must unalias items here because it will get really confused (dash) if it is not and already aliased!
+# to do this without error, you must ALIAS the items which will also empty their memory usage, hopefully.
+alias ls="" && unalias ls
+alias systemctl="" && unalias systemctl
+alias mount="" && unalias mount
+alias umount="" && unalias umount
+
+
+ls() {	/bin/ls -lgn --color --time-style="+" --sort=size --reverse -h --group-directories-first "$@" | column; }
+systemctl() { sudo systemctl "$@"; }
+mount() { sudo mount "$@"; }
+umount() { sudo umount "$@"; }
+
+# some aliases to help my zsh/bashiness
+
+alias grep='grep --color -P'
+alias ll="ls -C --color"
+alias la='ls -aC --color'
+alias apt-get='sudo apt-get'
+alias apt-cache='sudo apt-cache'
+alias apt='sudo apt'
+alias %=fg
+# never had more than 6 jobs at a time
+alias %1='fg %1'
+alias %2='fg %2'
+alias %3='fg %3'
+alias %4='fg %4'
+alias %5='fg %5'
+alias %6='fg %6'
+alias %7='echo "you seriously need to kill some jobs first!!"'
+
+# prompt stuff
+
+UID=`id -u`
+GID=`id -g`
+if [ "$UID" == "0" ]; then
+	USERSIG="#"
+else
+	USERSIG="%"
+fi 
+
+PROMPT_FADE_SRC="[38;5;17m[1m[48;5;17m█▓▒░[38;5;255m[48;5;17m[1m${USERNAME}@${HOSTNAME}[2m[38;5;17m[40m█▓▒░[38;5;255m[40m[1m $(date)[38;5;17m[40m[1m${PWD} [2m[40m[0m "
+PROMPT_E2_SRC="$_e2_extras[1m[30m└[2m[36m┌[1m[36m([2m[36m${USERSIG}[1m[30m:[2m[36m${PWD}[1m[36m)[2m[36m┌[1m[30m-[2m[0m"
+
+# converted for PS1, using e2 for now
+
+PROMPT_E2_CONVERT='[1m[30m└[2m[36m┌[1m[36m([2m[36m${USERSIG}[1m[30m:[2m[36m${PWD}[1m[36m)[2m[36m┌[1m[30m-[2m[0m'
+PS1="$PROMPT_E2_CONVERT"
+
+
+
+
+
+
+
+
+
+
+

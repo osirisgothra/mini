@@ -1,0 +1,277 @@
+#!/usr/bin/perl
+#
+# FILE
+#    psh2
+#    A complete rewrite of the old perlsh
+#
+# PROJECT
+#    Perl Shell II
+#    perlsh2
+#
+# AUTHOR / COPYRIGHT
+#
+#    Copyright (C) 2021, Gabriel Sharp
+#
+#    Written by  osirisgothra@larnica.(none)
+#    Latest versions of this and all of 's projects can be
+#    obtained from:
+#
+#     perlsh2
+#
+#    Documentation Available At:
+#
+#     <http://www.github.com/osirisgothra/perlsh2.git>
+#
+# LICENSE
+#
+#    A complete rewrite of the old perlsh/psh2  is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  NOTES
+#
+#     * TODO: move 'use' statements to top if you want to keep them**
+#    ** this feature will be added to the next version of perltemplate (hopefully)
+#   *** warnings are disabled for experimental and once because they are pretty
+#       annoying here, you might want to re-enable them for your own program
+#       to do this during testing and development.
+#
+#  HISTORY
+#
+#	Mon Feb  1 08:09:44 2021
+#         osirisgothra@larnica.(none) created this file using the template generator 'perltemplate'
+#         and named it psh2 for the project 'perlsh2'.
+#
+#
+# (created with perltemplate by Gabriel T. Sharp <osirisgothra@hotmail.com>)
+#
+
+use warnings;
+use v5.18;
+use strict;
+
+no warnings "experimental";			# 	allow given/when/default and smartmatching without their warnings***
+#no warnings "once";					# 	allow variables to be used just once without warning*** dont enable unless needed!
+use feature 'signatures';
+
+
+use Curses::UI;
+use Getopt::Long::Descriptive;
+
+my $cui;   # Main Program Object, it must be global so accessor/menu/etc subs can see it
+           # even though subs are defined inside of the same routine, subs wont be able to
+           # read any function-local data, this is a closure that keeps loops from compromise.
+           # an illustration of the closure:
+
+#  GLOBAL STACK     FUNC STACK
+#  +---------------+---------+ -> creates function B() but its access is still limited to global and above unless a ref was passed too
+#  |     FUNC A    +    A    |
+#  |     FUNC A    +    | var|
+#  +---------------+---------+
+#  +---------------+---------+
+#  |     FUNC B    +    B    |-> tries to access cui, but if its in A how would it?
+#  +---------------+---------+
+#  GLOBAL STACK     FUNC STACK
+#    +---------------+
+# |->|     var       |
+# |  +---------------+
+# |    ^
+# |    |
+# |    | accessible!
+# |    |
+# | +---------------+---------+ -> creates function 'FUNC B'
+# | |     FUNC A    +    A____|
+# | |               +    |////| <- readable by A only
+# | +---------------+---------+
+# | +---------------+---------+
+# -|     FUNC B    +    B     |-> tries to access var, and can because its global
+#  +---------------+----------+
+
+my $file = undef;
+my $statusbar_showing = 0;
+my $statusbar_text = "I am some status text";
+sub exit_dialog()
+{
+    my $return = $cui->dialog	(	-message   => "Do you really want to quit?",
+	    							-title     => "Are you sure?",
+		    						-buttons   => ['yes', 'no'], );
+    exit(0) if $return;
+}
+
+sub _main()
+{
+    say("curses: entering setting");
+
+    my $debug = 0;  #1=yes 0=no
+    $cui = Curses::UI->new( -color_support => 1, -clear_on_exit => 1, -debug => $debug, ); # this is where we gloss over setting up all the widgets and data structures + start the event loop
+
+    # vMENUv ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    sub help_contents_act
+    {
+        $cui->dialog("Contents: Nothing!");
+    }
+    sub about_dialog
+    {
+        while(1) {
+        my $yes = $cui->dialog( 	-message => "Template Program v1.0", -buttons => [
+            {   -label    => '< About The Author >',
+                -value    => 191,
+                -onpress  => undef,
+                -shortcut => 'o', }
+        ,
+        "ok"], -values  => [1,0], -title   => "About", );
+        given($yes) {
+            when (191)
+            {
+                $cui->dialog( 	-message => "The Author of this program seems like a nice enough person!", -buttons => ["ok"], -values  => [1,0], -title   => "About Author", )
+            }
+            default
+            {
+                return;
+            }
+        }
+        }
+    }
+    sub open_dialog
+    {
+        $file = $cui->filebrowser(	-path => "/tmp", -show_hidden => 1, );
+
+        # Filebrowser will return undef if no file was selected.
+        
+        if (defined $file) 
+        {   
+            unless (open F, "<$file") 
+            {	
+                # do something with file
+                close F; 
+            } 
+            else 
+            { 
+                $cui->error(qq(Error opening "$file":\n$!)); 
+            }
+        }
+    }
+    sub undo_act
+    {
+        # todo: undo something
+    }
+    sub redo_act
+    {
+        # todo: redo something
+    }
+    sub next_act
+    {    
+        # todo: next something
+    }
+    sub prev_act
+    {    
+        # todo: previous something
+    }
+    sub statusbar_act
+    {
+        $statusbar_showing ^= 1;   # toggle it
+        $cui->status($statusbar_text) if $statusbar_showing;
+        $cui->nostatus unless $statusbar_showing;
+    }
+    sub toolbar_act
+    {
+        $cui->error("It's toolbar has yet to be completed!");
+
+    }
+    sub progress_act
+    {
+        $cui->progress( -max => 10, -message => "Counting 2 seconds...", );
+        for my $second (0..2) 
+        {	
+            $cui->setprogress($second); 
+            sleep 1; 
+        }
+        $cui->noprogress;
+    }
+
+    my @menu = (
+
+                { -label => 'Shell',
+                  -submenu => [{        -label => 'New'     ,         -value => \&open_dialog  },
+                               {        -label => 'Open...   ^O'     ,-value => \&open_dialog  },
+                               {        -label => 'Save...   ^S',     -value => \&open_dialog  },
+                               {        -label => 'Revert    F4',     -value => \&open_dialog  },
+                               {        -label => 'Previous   PGUP',  -value => \&prev_act  },
+                               {        -label => 'Next       PGDN',  -value => \&next_act  },
+                               {        -label => 'Exit      ^Q',     -value => \&exit_dialog  },                               
+                               ],
+                },
+                { -label => 'Edit',
+                  -submenu => [{        -label => 'Undo      ^U',     -value => \&undo_act  },
+                               {        -label => 'Redo'        ,     -value => \&redo_act  },
+                               {        -label => 'Find      F3',     -value => \&find_dialog  },
+                               {        -label => 'Replace   F4',     -value => \&replace_dialog  }],
+                },
+                { -label => 'View',
+                  -submenu => [{        -label => 'Status ^S',        -value => \&statusbar_act  },
+                               {        -label => 'Toolbar   ^T',     -value => \&toolbar_act }],
+                },
+                { -label => 'Shell',
+                  
+                },
+                { -label => 'Help',
+                  -submenu => [{        -label => 'Contents   F1',     -value => \&help_contents_act  },
+                               {        -label => 'About'        ,     -value => \&about_dialog  }],
+                },
+
+                );
+    $cui->add( 'menu','Menubar', -menu => \@menu, -fg => "blue",);
+    # ^MENU^ ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# take this out when doing devel on windows
+    $cui->mainloop;
+    
+    # vWINDOWSv ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    
+    my $w_shell = $cui->add('shellwindow','Window', -x => 2, -y => 2,
+                                    -width => 10, -height => 10 );
+    my $w_out = $cui->add('outputwindow','Window', -x => 2, -y => 11, 
+                                    -width => 10, -height => 10,);
+
+    my $e_shell = $w_shell->add(    'shell_editor', 'TextEditor',
+                                    -vscrollbar => 1, -wrapping => 1,
+                                    
+                               );
+    my $e_out =     $w_out->add(    'shell_output', 'TextEditor',
+                                    -vscrollbar => 1, -wrapping => 1,
+                               );
+    $e_shell->focus();
+    
+    my $shell_text = $e_shell->get();                               
+    my $out_text = $e_out->get();                            
+    
+    # ^WINDOWS^ ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+    $cui->mainloop;
+}    
+
+use Getopt::Long::Descriptive;
+
+my ($opt, $usage) = describe_options(
+    '$0 %o <some-arg> file',
+    [ 'no-dialog', "dont use dialog to show log",  ],
+    [ 'no-follow',   "do not follow the log, just show it",   { default  => 79 } ],
+    [],
+    [ 'verbose|v',  "print extra stuff"            ],
+    [ 'help',       "print usage message and exit" ],
+);
+say($usage->text), exit if $opt->help;
+_main();

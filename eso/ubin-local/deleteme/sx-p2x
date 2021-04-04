@@ -1,0 +1,6 @@
+#!/bin/bash
+if [[ $1 == --help ]]; then
+	xmlstarlet p2x --help | sed -r 's/xmlstarlet p2x/sx-p2x/g'
+else
+	xmlstarlet p2x "$@"
+fi

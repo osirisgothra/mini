@@ -1,0 +1,2 @@
+#!/bin/zsh
+cat /proc/${$(</proc/$PPID/stat)[4]}/comm

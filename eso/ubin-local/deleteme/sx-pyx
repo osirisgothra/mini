@@ -1,0 +1,6 @@
+#!/bin/bash
+if [[ $1 == --help ]]; then
+	xmlstarlet pyx --help | sed -r 's/xmlstarlet pyx/sx-pyx/g'
+else
+	xmlstarlet pyx "$@"
+fi

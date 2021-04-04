@@ -1,0 +1,43 @@
+#!/bin/zsh
+
+items=( 
+
+pause
+unpause
+toggle_pause
+stop
+next
+previous
+
+seek
+jump
+volume
+
+recursively
+append
+enqueue
+clear
+play
+playit
+
+toggle
+on
+off
+
+info
+
+
+
+formatted
+
+)
+
+for x in $items; do echo "#!/bin/zsh
+#
+# $x shortcut for mocp
+# (C)2020 Gabriel T Sharp, (osirisgothra@hotmail.com)
+#
+
+/usr/bin/mocp --${x} \$@
+" > "$x"; done
+

@@ -1,0 +1,86 @@
+#!/bin/bash
+MYNAME=`basename $0`
+echo "$MYNAME - off/on mod toggler v1.0 - (C) 2017 Gabriel Sharp, All Rights Reserved - Public Domain (this script only!)"
+sleep 0.${RANDOM:1:1}
+unset MODE
+case $MYNAME in
+	*on|on*)	MODE=on;;
+	*off|off*)	MODE=off;;
+esac
+
+case $- in
+	i)	"$BASH_SOURCE" "$@"
+		return $?
+		set number 3	# triggers unreachable below (also unreachable)
+		;;
+esac
+	
+case $# in
+	1)
+		if [[ -r "${1}" ]]; then
+			mv "$1" "${1}.disabled"
+		else
+			echo "$1 not found"
+		fi
+		;;
+
+	0)	echo "usage: offmod (on) [file(s) [...]]"
+		echo ""
+		echo "disabled mods in this dir:"
+		echo ""
+		ls -C *.jar.disabled
+		echo ""		
+		;;
+
+	*)	if [[ -v MODE ]]; then
+			echo -n "automatically detected operation from filename:"
+		else
+			MODE=off
+			echo -n "no mode defined or detected, setting to default:"
+		fi
+		echo " MODE = $MODE"
+		for x; do			
+			case $x in
+				on)	MODE=on; echo "Mode changed to ON";;
+				off)	MODE=off; echo "Mode changed to OFF";;
+				*)	
+				echo -ne "\e[1mProcessing $x ($MODE)...\e[0m"
+				case $MODE in
+					on)	TARGET="${x%%.disabled}"
+						SOURCE="$x"
+						;;
+					off)	TARGET="${x}.disabled"
+						SOURCE="$x"
+						;;
+					*)
+						echo "FATAL: mode is not set properly (script error!)"
+						echo "STOP"
+						read -sn1
+						exit 127
+				esac
+				if [[ -r "$SOURCE" ]]; then
+					if ! [[ -r "$TARGET" ]]; then
+						if mv "$SOURCE" "$TARGET" --verbose; then
+							echo "$SOURCE MOVED OK TO $TARGET"
+						else
+							echo "FAILED: SEE ABOVE ($?)"
+							echo "[ENTER=continue CTRL+C=abort]"
+							read -sn1
+						fi
+					else
+						echo "skipping target $TARGET because it EXISTS!"
+					fi
+				else
+					echo "skipping source $SOURCE because it does NOT exist!"
+				fi
+			;;							
+			esac
+		done
+		;;
+
+	3)	echo "warning: unreachable script reached, terminating operation (possibly corrupt or compromised filesystem?)"
+		((exit 127))
+		;;
+esac
+				
+		

@@ -1,0 +1,54 @@
+#!/bin/sh
+# notes
+# #2/#3 set pri cur_pid->R1->-14 parent_pid->B4->0
+# #1 la10 = load average over last minute x 10 (1.52 => 152, 0.04 => 4, 20.71 => 2071, 10.0 => 1000, 1.0 => 100, 0.1 => 10, 0.01 => 1, etc)
+# #4 minla10 is at 255, or 2.5 or more causes a priority adj (see #2/3)
+# #5 only works on processes that you have permissions to read, this is done very low level to conserve resources
+# #6 no tools are used to do calculations or anything else, only direct actions like kill or diff are needed
+#	 kill should be obvious, diff is needed to check differences between what we are looking for, makes it quite acurate actually
+#    renice and ionice are used to do just that, duh
+#    external tools needed: renice, ionice, kill, diff <- and are all core in most modern debian releases
+# #7 dependencies, if you want to run on macos or freebsd/netbsd, you might need to set target and procdir
+# #8 syntax: sh is widely accepted as a core language, there should be no need for installing a new one
+# #9 porting: do NOT use a different interpreter, unless you want to port it to something slower!
+
+# adjust these as needed
+target="/usr/bin/java"
+procdir="/proc"
+minla10=255
+
+
+
+
+### MAIN PROGRAM
+### dont change these variables!
+
+read lavg < $procdir/loadavg
+la10=$(( ${lavg%%.*} * 100 ))
+la10_minor=${lavg%% *}
+la10_minor=${la10_minor##*.}
+la10=$(( $la10 + $la10_minor ))
+
+if [ $minla10 -le $la10 ]; then
+	echo "hi load situation, adjusting priorities"
+	[ 0$$ -gt 1 ] && sudo ionice -p $$ -c1 -n1 &&		sudo renice -n -19 -p $$
+	[ 0$PPID -gt 1 ] && sudo ionice -p $PPID -c2 -n4 &&	sudo renice -n 0 -p $PPID 
+else
+	echo "load score was $la10 (threshold is $minla10), no priority adjustments made"
+fi
+# store old wd
+echo "searching for processes..."
+oldpwd="$PWD"
+# into procdir, so we can root from an actual pid when killing
+cd $procdir
+for x in *; do
+	if [ -L $x/exe ] && [ -r $x/exe ]; then
+		diff $x/exe $target 2> /dev/null 1> /dev/null
+		if [ $? -eq 0 ]; then			
+			echo "killing $x because it matches $target physically"				
+			kill -KILL $x
+		fi
+	fi
+done
+# restore old wd
+cd $oldpwd

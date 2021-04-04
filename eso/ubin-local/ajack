@@ -1,0 +1,59 @@
+#!/bin/zsh
+
+# options
+
+setopt monitor
+setopt localoptions
+setopt extendedglob
+setopt kshglob
+setopt globassign
+setopt interactivecomments
+setopt aliases
+
+# alias
+
+alias _kill='() { killall -KILL "$@" &> $logfile; }'
+alias _remove='() { rm -f "$@" &> $logfile; }'
+
+# variables
+
+integer -g wait_for_kill_time=0.5
+declare -g logbase="ajackXXXXXX.log"
+declare -g logmask="${${logbase/X/*}//X/}"
+declare -g logfile="$(mktemp -t $logbase)"
+declare -g logrmask="$(dirname $logfile)/$logmask"
+integer -g errbase=10
+
+# function
+
+_exitif()  {	eval "if [[ $1 $2 $3 ]]; then echo $4; exit $5; fi"; }
+_exitifn() {	eval "if $1; then echo $2; exit $3; fi"; }
+_isrunning() { sleep $wait_for_kill_time; if pgrep jackd &> /dev/null; then exit 0; else echo 1; fi; }
+
+# program
+
+echo "running ajack $@..."
+_exitif $# '-ne'	'1'				"must have exactly one command argument" 	$((errbase+LINENO))
+_exitif $1 '=~'		'^[^ud][^op]'	"command must be up or down" 				$((errbase+LINENO))
+echo "options ok, testing the creation of the logfile..."
+touch $logfile
+echo "killing any old jack instances..."
+_kill jackd
+echo "removing any old logs..."
+_remove $logrmask
+echo "processing command: $1"
+case $1 in
+	up)	echo "up command recieved, deploying jackd for alsa"
+		( jackd -d alsa &> /tmp/ajack-log.log & disown ) &> /dev/null
+		if _isrunning; then
+			echo "jackd is running now, see $logfile for updates"
+			echo "latest logline: $(tail $logfile -n1)"
+		else
+			echo "jackd not running, check log for errors ($logfile)"
+		fi
+		;;
+	down)
+		echo "down command recieved, confirming all jackd instances stopped"
+		_exitifn _isrunning "jackd running still, check $logfile for details on why stop failed" $((errbase+LINENO))
+		;;
+esac

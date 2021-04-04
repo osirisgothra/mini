@@ -1,0 +1,23 @@
+#!/bin/zsh
+# xdg-launch
+# setups for xdg a standalone target
+
+# dont test for kde first, test ice and xfce
+if pgrep icewm || pgrep xfwm; then
+    detected=xfce
+# then kde    
+elif pgrep kdeinit; then
+    detected=kde
+# then unity
+elif pgrep unity; then
+    detected=gnome
+elif pgrep my_window_manager; then
+    detected=my_wm_basename
+# then fallback to xfce (qt) for any other window manager
+# you can add your own above here, be sure it is registered
+# with XDG or it probably wont be useful!
+else
+    detected=xfce
+fi
+
+exec env XDG_CURRENT_DESKTOP=$detected "$@"

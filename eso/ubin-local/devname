@@ -1,0 +1,2 @@
+#!/bin/zsh
+printf "/dev/"; lsblk -o KNAME,MOUNTPOINT | grep -w $(stat $1 -f -c %n) | grep '^\S+' -Po

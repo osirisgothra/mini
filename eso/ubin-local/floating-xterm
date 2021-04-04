@@ -1,0 +1,7 @@
+#!/usr/bin/zsh
+if pgrep i3; then
+	eval xterm "$@" &
+	sleep 1.5
+	i3 floating enable
+	i3 border pixel 2
+fi

@@ -1,0 +1,54 @@
+#!/bin/bash
+# vim:ft=sh:ts=4:tw=120:sw=4:showmode:wrap:nospell
+
+[[ $UID -eq 0 ]] && sudo() { "$@"; }
+[[ $# -lt 1 ]] && set -- change
+case $* in
+	change)
+		echo "please change the disc"
+		$BASH_SOURCE out &> /dev/null
+		echo "thank you..."
+		$BASH_SOURCE in
+		;;
+	in)
+		if sudo mount | grep cdrom; then
+			echo "already mounted (use 'out' to unmount, change to change disc)"
+		else
+			echo "closing tray..."
+			sudo eject -t /dev/cdrom
+			echo "mounting..."
+			sudo mount /dev/cdrom /mnt/cdrom
+			if sudo mount | grep cdrom; then
+				echo "succeeded"
+			else
+				echo "failed, check messages in syslog"
+			fi
+		fi
+		;;
+	out)
+		if sudo mount | grep cdrom; then
+			echo "unmounting..."
+			if sudo umount /dev/cdrom; then
+				echo "ejecting..."
+				if sudo eject /dev/cdrom; then
+					echo "please remove disc - then press enter"
+					read
+					echo "closing tray..."
+					sudo eject -t /dev/cdrom
+				else
+					echo "eject failed, you should manually remove the disc"
+				fi
+			else
+				echo "unmount failed"
+			fi
+		else
+			echo "not mounted"
+			sudo eject /dev/cdrom
+			echo "remove disc and press enter"
+			read
+			sudo eject -t /dev/cdrom
+		fi
+		;;
+esac
+echo "done"
+

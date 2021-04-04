@@ -1,0 +1,41 @@
+#!/bin/zsh
+
+pistate()
+{
+	# putting in variables to shorten next command
+	local -i _tpid=`pidof -s ${1-0}`
+	# the = after state removes the header because we are redefining it to an empty string | tr used to remove any unfavorable whitespace (depends on ps behavior) | head used to assure a single line
+	local _response="$(ps -p $_tpid -o state= | tr -d '\n\t ' | head -n1)"
+	print -n "${_response: 0:1}"
+	unset _tpid
+	unset _response
+}
+
+declare -gi found=0
+
+for target in mocp play mp3-decoder sox vlc audacity rhythmbox winamp fairplay; do
+	if pgrep $target; then
+		found=1
+		break
+	fi
+done
+
+if ((found)); then
+	case $target in
+		mocp)	echo "using toggle-pause (special case) for mocp"
+				mocp --toggle-pause
+   				;;
+		*)		echo "non-mocp process, using signal to control pausing/playing...\nscanning process for state..."
+				state=$(pistate $target)
+				if [[ $state == "T" ]]; then
+					echo "$target paused, unpausing..."
+					killall -SIGCONT $target
+				else
+					print "$target running, pausing.."
+					killall -SIGSTOP $target
+				fi
+				;;
+	esac
+else
+		print "no target found running, cannot continue"
+fi

@@ -1,0 +1,54 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+use v5.20.2;
+use Term::ANSIColor qw( color colored colorstrip colorvalid coloralias ON_BLUE );
+
+# color examples
+# print color \'bold blue\';
+# print \"This text is bold blue.\\n\";
+# print color \'reset\';
+# print \"This text is normal.\\n\";
+# print colored(\"Yellow on magenta.\", \'yellow on_magenta\'), \"\\n\";
+# print \"This text is normal.\\n\";
+# print colored [\'yellow on_magenta\'], \'Yellow on magenta.\', \"\\n\";
+# print colored [\'red on_bright_yellow\'], \'Red on bright yellow.\', \"\\n\";
+# print colored [\'bright_red on_black\'], \'Bright red on black.\', \"\\n\";
+# print \"\\n\";
+# # Strip all color escape sequences.
+# print colorstrip \'\\e[1mThis is bold\\e[0m\', \"\\n\";
+# # Determine whether a color is valid.
+# my \$valid = colorvalid(\'blue bold\', \'on_magenta\');
+# print \"Color string is \", \$valid ? \"valid\\n\" : \"invalid\\n\";
+# # Create new aliases for colors.
+# coloralias(\'alert\', \'red\');
+# print \"Alert is \", coloralias(\'alert\'), \"\\n\";
+# print colored(\"This is in red.\", \'alert\'), \"\\n\";
+# print BOLD, BLUE, \"This text is in bold blue.\\n\", RESET;
+# # localized
+# {
+# 	local \$Term::ANSIColor::AUTORESET = 1;
+# 	print BOLD BLUE \"This text is in bold blue.\\n\";
+# 	print \"This text is normal.\\n\";
+# }
+# print PUSHCOLOR RED ON_GREEN \"This text is red on green.\\n\";
+# print PUSHCOLOR BRIGHT_BLUE \"This text is bright blue on green.\\n\";
+# print RESET BRIGHT_BLUE \"This text is just bright blue.\\n\";
+# print POPCOLOR \"Back to red on green.\\n\";
+# print LOCALCOLOR GREEN ON_BLUE \"This text is green on blue.\\n\";
+# # localized 
+# print \"This text is red on green.\\n\";
+# {
+# 	local \$Term::ANSIColor::AUTOLOCAL = 1;
+# 	print ON_BLUE \"This text is red on blue.\\n\";
+# 	print \"This text is red on green.\\n\";
+# }
+# print POPCOLOR \"Back to whatever we started as.\\n\";
+# ## END ANSI ## 
+
+print ON_BLUE <<EOF
+	Generic Help
+
+EOF
+

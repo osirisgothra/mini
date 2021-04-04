@@ -1,0 +1,26 @@
+#!/bin/sh
+debugecho() {
+	# comment out to turn off debug
+	echo "$@"
+}
+
+for prefix in /bin /usr/bin /usr/local/bin /usr/local/sbin /sbin /usr/sbin /opt/fbterm* /opt/Fbterm* /usr/share/fbterm/bin /usr/share/fbterm /usr/games ~/.local/share/bin  ~/.local/bin ~/.local/sbin ~/.local/share/sbin /fbterm /fbterm/bin
+do
+	failed=0
+	target=$prefix/fbterm
+	debugecho "targeting $target"
+	test -x $target && break
+	debugecho "and failed\n"
+	failed=1
+done
+if [ $failed != 0 ]
+then
+	case $(tty) in
+		/dev*) echo "failed to run fbterm, command not found"
+			exit 1
+				;;
+	esac
+	exit 126
+else
+	exec /usr/bin/env TERM=fbterm $target "$@"
+fi

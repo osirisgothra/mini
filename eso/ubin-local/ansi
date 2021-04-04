@@ -1,0 +1,14 @@
+#!/usr/bin/perl
+use warnings;
+use strict;
+use v5.20.2;
+use vars qw( $state $mode $command @arguments %modemap %cmdmap %argmap );
+use constant {  TRUE=>1, FALSE=>0 };
+
+package ANSI::Derender {
+
+
+
+}
+
+1;

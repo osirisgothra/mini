@@ -1,0 +1,137 @@
+#!/usr/bin/perl
+#
+#    proccnf
+#    process config files of varying formats
+#    esobin
+#    esoteric projects and binaries and such
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 ???
+#			 conceptually ported from bash proccnf.sh
+#
+#	 Sun Sep 23 15:02:54 EDT 2018
+#            osirisgothra@larnica initially created this file
+#            with the original name, proccnf
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+#
+
+use warnings;
+use v5.18;
+use strict;
+use File::Slurp;
+use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
+no warnings 'experimental';
+
+
+my ($opt, $usage) = describe_options(
+        "$0 %o <some-arg> file",
+        [ 'no-dialog|D', "disable any dialogs (if applicable)", ],
+        [ 'quiet|q',   "no output at all; not even errors",   { default  => 1 } ],
+        [],
+        [ 'global_name|g=s', "name of global section, default is different depending on format (ini uses 'root')", { default => undef } ],
+        [ 'format|f=s', "format of config file (ini, rc, xml, json, csl (aka csv))", { default => 'ini' } ] , 
+        [ 'verbose|v',  "print even more stuff"            ],
+        [ 'pfx|p=s', "prefix variables with this string of chars (defaults to 'pfx')", { default => 'pfx' } ],
+        [ 'help',       "print usage message and exit" ],
+      );
+print($usage->text), exit if $opt->help;
+
+die("invalid format!") 
+	unless scalar($opt->format =~ /(ini|rc|xml|json|csl|csv)/);
+die("no file argument given!")
+	unless $#ARGV >= 0;
+die("file argument: not readable or missing")
+	unless -r $ARGV[0];
+my $file = $ARGV[0];
+chomp $file;
+given($opt->format)
+{
+	when(/ini/) { proc_ini(); }
+	when(/rc/) { proc_rc(); }
+	when(/xml/) { proc_xml(); }
+	when(/json/) { proc_json(); }
+	when(scalar(/(csv|csl)/)) { proc_csv(); }
+	default { proc_invalid(); }
+}
+
+sub proc_file {
+	
+	# data preperation
+	
+	my $filename = shift;
+	my $sectioned = shift // 0;
+	my $global_section_name = shift // $opt->global_sec;
+	my $kvpair_separator = shift // "=";
+	my $sectiondesignator = shift // "[[^]]+]";
+	my $comment_char = shift // "#";
+	my $strip_spaces = shift // 0;
+	my $multiline_values = shift // 0;
+	my $multiline_value_start = '{';
+	my $multiline_value_end = '}';
+	
+	# start
+	
+	my $secname = $global_section_name;
+	my $pfx = $opt->pfx // "pfx";
+	my $commentstripper = qr/(?!=\\)#.*\$/;
+	my $spacestrip = qr/ +/;
+	my %conf = read_file( $filename ) =~ /^\s*(\w+)\s*=\s*(.*)$/mg;
+	for (keys(%conf)) 
+	{
+		print("declare -gxa " . $pfx . "__" . $secname . "__" . $_ . "=( " . $conf{$_} . " )\n");
+	}
+	return 0;
+	
+	my @file = read_text($filename) or
+		die("cant read file!");
+	
+	foreach my $line (@file) {
+		print("got $line...");
+		# apply line stripping
+	}	
+	
+
+}
+#sub proc_ini { CORE::say($opt->format . " is not yet supported!"); }
+sub proc_ini {	proc_file($file,1,$opt->global_name // "root", "=", "[[^]]+]", ); }
+sub proc_rc { CORE::say($opt->format . " is not yet supported!"); }
+sub proc_xml { CORE::say($opt->format . " is not yet supported!"); }
+sub proc_json { CORE::say($opt->format . " is not yet supported!"); }
+sub proc_csv { CORE::say($opt->format . " is not yet supported!"); }
+sub proc_invalid { CORE::say($opt->format . " caught as format, but is not allowed, exiting..."); }
+
+
+
+	
+
+
+

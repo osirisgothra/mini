@@ -1,0 +1,139 @@
+#!/bin/zsh
+
+setopt extendedglob
+setopt globassign
+setopt globdots
+setopt histfcntllock
+setopt histlexwords
+setopt histverify
+setopt kshglob
+setopt promptsubst
+
+[[ $* =~ help ]] && {
+	echo '
+syntax: ' $0(:t) ' [ QUERY | OPTION ]
+
+query:
+
+	<none>				show all of below
+	title				short, friendly name of the game
+	name				name of the game, as it appears in the directory tree under instances
+	author				modpack author name(s)
+	version				modpack version number
+	updatePending		is true or false depending on whether an update is to be installed
+	installed			set to true or false (true means that it is fully installed)
+	lastAccessed		date of last run by user or install date if never ran
+	icon				icon data (usually null) or filepath to icon file (relative)
+	dir					directory root where instance (modpack) can be found
+	is_running			returns 0 and prints "yes" when minecraft is running
+                        or returns 1 and prints "no" when it is not. results are
+                        placed in /dev/stdout, return code is formal. NOTE: when
+                        you do not use is_running, your return code for not running
+                        will be 127 instead. This is done to deter from using the
+                        program improperly to test if game is running because
+                        when it is the program does further processing thats not
+                        needed for such a simple test (and may give false negatives!)
+
+
+options:
+
+	--help				you are reading it (ignores all other arguments)
+
+(C)2020 Gabriel Sharp <osirisgothra@hotmail.com>, see GNU GPL 3.0 for LICENSE details at http://gpl.gnu.org/gpl3
+'
+exit
+
+}
+
+
+#case $# in
+#	0)	target='[j][a][v][a]';;
+#	will turn a target like "java" into [j][a][v][a]
+#	1)	target=$( for ((x=0;x<$#1;x++)); do printf "[${1: $x:1}]"; done );;
+#	*)	if ! [[ $* =~ help ]]; then
+#			echo "too many arguments (no help requested)"
+#		fi
+#		echo "syntax: mgamedir (target executable(default is java))"
+#		return 127;;
+#esac
+#	h		number of hits found
+# eecho		echo to stderr
+# lecho		echo to log (each user gets one per script location/name, this prevents bloating or need for cleanup, it IS volitile (removed at restart)
+# prc			process info (we get it ourselves)
+# prc_cmdline	array version of prc[cmdline] split into an array for checking
+#
+
+h=0
+if [[ $MGD_DEBUG == 1 ]]; then
+	eecho() { echo "$@" > /dev/stderr; }
+else
+	eecho() { lecho "$@"; }
+fi
+lecho() { echo "$@" > /tmp/${0}_$(whoami).log; }
+targetname="java"
+targetident="--gameDir"
+target=""
+for char in ${(s//)targetname}; do
+	target="${target}[$char]"
+done
+eecho "targets (full, regexed): $targetname, $target"
+
+# NB: keep external binaries/scripts out of this section (speed issues)
+for x in /proc/*/comm; do
+	declare -gA prc
+	prc[id]=$x(:h)
+	prc[cmd]=$(<$prc[id]/comm)
+	declare -ga prc_cmdline=( "${(0)$(<$prc[id]/cmdline)}" )
+	prc[cmdline]="${(j: :)prc_cmdline}"
+
+	[[ -n $prc[cmdline] ]] || prc[cmdline]="N/A"
+
+	#let cwidth=COLUMNS/5
+	#let cmwidth_extrapadding=0
+	#let cmwidth_trimoff=0
+	#let cmwidth=cwidth+cmwidth_extrapadding-cmwidth_trimoff
+	# analyze
+	if [[ $prc[cmd] == $targetname ]]; then
+		eecho "found a $targetname, checking identity..."
+		for clitem in $prc_cmdline; do
+			if [[ $clitem == $targetident ]]; then
+				let h++
+				eecho "hit, found a $targetident in $targetname ($h hit(s))"
+			fi
+		done
+	fi
+
+	#printf "id=[%-${cwidth}s] cmd=[%-${cwidth}s] cmdline=[%-${cwidth}s]\n" ${prc[id]: 0:${cmwidth}} ${prc[cmd]: 0:${cmwidth}} ${prc[cmdline]: 0:${cmwidth}}
+done
+# check hits, handle the 'is_running' query
+
+if ((h)); then
+	eecho "target is found, continuing"
+	if [[ $1 == is_running ]]; then
+		echo "yes"
+		exit 0
+	fi
+else
+	if [[ $1 == is_running ]]; then
+		echo "no"
+		exit 1
+	fi
+	echo "no target, cancelled (run your target before running $0)"
+	exit 127
+fi
+# NB: end no binaries section
+
+game=`grep -Pa '[j][a][v][a]' /proc/*/cmdline | grep -Poa '(?<=gameDir\0)[^\0]+'`
+if [[ -n $1 ]]; then
+	if [[ $1 == dir ]]; then
+		echo "$game"
+	elif [[ $1 == rootdir ]]; then
+		dirname $game
+	else
+		eval `cat $game/../instance.json | tr -d '{}' | tr ':,' '=\n' | while read r; do echo ${r//\"} | sed -r 's/([^=]+)=(.*)/\1="\2"/g'; done`
+		eval echo \$$1
+	fi
+else
+	cat $game/../instance.json | tr -d '{}' | tr ':,' '=\n' | while read r; do echo ${r//\"} | sed -r 's/([^=]+)=(.*)/\1="\2"/g'; done
+	echo "dir=$game"
+fi

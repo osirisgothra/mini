@@ -1,0 +1,12 @@
+#!/bin/zsh
+#todo: dynamic display support (:0.1 , :1, etc)
+export DISPLAY=":0"
+sudo xhost +localhost
+echo "suspending..."
+[[ "$(ps -p `pidof java` -o state=)" == "S" ]] && javapause
+{
+	exec /usr/bin/sudo /usr/sbin/pm-suspend
+}
+echo "...returned from suspend command"
+[[ "$(ps -p `pidof java` -o state=)" != "S" ]] && javapause
+echo "hopefully: java unpaused and in ready state"

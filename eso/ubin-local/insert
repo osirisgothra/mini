@@ -1,0 +1,113 @@
+#!/usr/bin/perl -i
+#
+# FILE
+#    insert
+#    insert text at specified line number
+#
+# PROJECT
+#    mini
+#	 eso-ubin-local
+#
+# AUTHOR / COPYRIGHT
+#
+#    Copyright (C) 2021, 
+#
+#    Written by  osirisgothra@larnica.(none)
+#    Latest versions of this and all of 's projects can be
+#    obtained from:
+#
+#     eso/ubin-local in the project listed below
+#
+#    Documentation Available At:
+#
+#     <http://www.github.com/osirisgothra/mini.git>
+#
+# LICENSE
+#
+#    mini/insert  is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  NOTES
+#
+#     * TODO: move 'use' statements to top if you want to keep them**
+#    ** this feature will be added to the next version of perltemplate (hopefully)
+#   *** warnings are disabled for experimental and once because they are pretty
+#       annoying here, you might want to re-enable them for your own program
+#       to do this during testing and development.
+#
+#  HISTORY
+#
+#	Thu Mar  4 11:58:30 2021
+#         osirisgothra@larnica.(none) created this file using the template generator 'perltemplate'
+#         and named it insert for the project '<projname'.
+#
+#
+# (created with perltemplate by Gabriel T. Sharp <osirisgothra@hotmail.com>)
+#
+
+use v5.20.2;
+use warnings;
+use strict;
+use feature 'signatures';
+no warnings 'experimental';
+use Path::Tiny;
+use File::MimeInfo;
+
+my $aftermode=0;
+my $tryagain = "item is invalid or empty, recheck your input and try again. (if you believe it to be a bug, please report it to the program author).";
+my @files;
+
+
+if (@ARGV and $ARGV[0] eq "-a") {                                                                                                                                       #1
+    $aftermode=1;
+    shift(@ARGV);   
+}
+
+while (@ARGV) {    
+    my $line = shift(@ARGV) // die("argument line:file: $tryagain");
+    my $text = shift(@ARGV) // die("argument for text: $tryagain");
+    die("LINE argument has to be LINENO:FILENAME -- $tryagain") unless $line =~ /^(.+):([0-9]+)$/;
+    my ($filename, $lineno) = ($1,$2);
+    print("
+           filename == '$filename'
+             line#  == '$lineno' extracted from '$line'
+             text   == '$text'
+         after-mode == '$aftermode'
+        
+    ");
+    die("file '$filename' is not readable, the FILENAME $tryagain") unless ( -r -w $filename );
+    die("file '$filename' is NOT a plain file, this $tryagain") if not -f $filename || -d $filename;                       
+    push(@files, { file => $filename, line => $lineno, text => $text });
+}    
+for my $f (@files)
+{
+    push(@ARGV,$$f{file});
+    while(<>) {
+        print if $aftermode;
+        if ($. == $$f{line}) {        
+            print("$$f{text}\n");            
+        }
+        print unless $aftermode;        
+    }
+}
+print "\n";
+close;
+
+    
+# CSCS2020 Compliant Comments
+#
+#1  may use Getopt later on, but not needed at this time (much later)
+#2  <nothing yet>
+#
+# available: #3 #4 #5 #6 #7

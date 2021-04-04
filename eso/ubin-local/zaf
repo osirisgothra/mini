@@ -1,0 +1,51 @@
+#!/usr/bin/env perl
+#
+# zaf
+#   zippier apt finder
+#   relies on a cache file (may be big)
+
+
+use warnings;
+use strict;
+use v5.20.2;    # may be compatible with earlier versions, too
+use feature "signatures";   # sub mine($val) instead of sub mine($), warning: disables implicit prototypes!
+no warnings "experimental"; # so given can be used without warnings
+use Path::Tiny;
+use Carp;
+use Cwd;
+use lib "/src/perl";
+use Term::Put;
+
+my $home = path($ENV{HOME});
+my $conf = $home->child(".config/zaf");
+my $cache = $home->child(".cache/zaf_apt.dat");
+
+mkdir $conf unless -d -r -w -x $conf;
+
+use Getopt::Long::Descriptive;
+
+  my ($opt, $usage) = describe_options(
+    'my-program %o <some-arg>',
+    [ 'regenerate-cache|r', "the server to connect to" ],
+    [],
+    [ 'verbose|v',  "print extra stuff"            ],
+    [ 'help',       "print usage message and exit", { shortcircuit => 1 } ],
+  );
+
+  print($usage->text), exit if $opt->help;
+
+my $term = new Term::Put();
+
+unless ($conf->exists() && length($conf->slurp()) > 0 )
+{
+    say("$conf is missing, it will be generated (less than 1 minute)...")
+}
+else
+{
+    say("$cache is missing, it will be generated (typically 5 minutes or so, depending on system)...") unless $cache->exists();
+}
+
+
+  
+
+

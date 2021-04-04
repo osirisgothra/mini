@@ -1,0 +1,115 @@
+#!/bin/zsh
+setopt aliases interactivecomments
+alias global='typeset -g' def='declare' loc='local' array='declare -ga' hash='declare -gA' int='declare -gi' unfunc='unset -f' unglobal='unset' undef='unset' fori='for i in' endfori='done' eachparam='for e do' endeach='done'
+eval `resize`
+declare -a errors=(  "file not readable/writable" )
+errors[127]="unknown error"
+declare -g debug=0
+[[ $debug -ne 0 ]] && alias
+
+function err()
+{
+	[[ $# -eq 0 ]] && set 127
+	echo "error #$1: ${errors[$1]}"
+	exit $1
+}
+setup()
+{
+	[[ $debug -eq 1 ]] && set -x
+	global tempfile="$(mktemp)"
+	[[ -w $tempfile ]] || err 1
+}
+cleanup()
+{
+	rm $tempfile || err 1
+}
+pad() { for ((i=0;(i)<${1-1};i++)); do echo; done; }
+deco_def="%F{232}---%F{122}*"
+headfmt="%F{232}[%F{39} %%s %F{232}]%f"
+gheadfmt="%F{232}[%F{48} %%s %F{232}]%f"
+eheadfmt="%F{232}[%F{88} %%s %F{232}]%f"
+
+ansilen()
+{
+	for n do ns=`sed -r 's/\[[0-9;]+m//g' <<< "$n"`; echo "$#ns"
+	done
+}
+    heading() {	printf "${(%%)headfmt}\n" "$*"; }
+ errheading() {	printf "${(%%)eheadfmt}\n" "$*"; }
+goodheading() {	printf "${(%%)gheadfmt}\n" "$*"; }
+
+hrule()
+{
+	[[ $# -gt 1 ]] && return 127
+	case ${1-nil} in
+		nil) prs=${deco_def-_};;
+		*)	 prs=${preset[$1]};;
+	esac
+	__hrule "${(%%)prs}"
+}
+__hrule()
+{
+	local v="${1-_}"
+	local -i l=`ansilen "$v"`
+	[[ $COLUMNS -lt $l ]] && return	
+	for ((x=1;(x+l)<COLUMNS;x+=l)); do
+		printf "%s" "$v"
+	done
+	printf "\n"
+}
+setup
+heading "Window Message I3"
+# next line:
+# converts i3-msg's json output dump to (z/k)sh-compatible variable source
+if eval `/usr/bin/i3-msg "$@" 2>/dev/null | tee "$tempfile" | json_pp | tr -d '{}[]' | sed -r 's/(") : (")?/\1=\2/g' | tr ',' ' ' | grep '^[        ]*$' -v | tr -d '"' | sed -r 's/=(.*)$/="\1"/g'`
+then
+# chomp values
+	errorposition=${errorposition%% }
+	success=${success%% }
+	window=${window%% }
+	parse_error=${parse_error%% }
+	position=${position%% }
+	input=${input%% }
+	index=${index%% }
+# descipher values to any new representation
+	errorindex="$#errorposition"
+	[[ $#window -gt 0 ]] && ndo="window:" || ndo=" (not related to a gui window)     "
+#
+	pad 2
+	hrule
+	pad 1
+	heading "Message Return Value(s):"
+	pad 1
+# detailed report
+	printf "  result: %-15s  $ndo: %-15s\n" "$success" "$window"
+	printf "  status: %-15s   input: %-15s\n" "$parse_error" "$input"
+	v="$*"
+	printf "linedata: %-80s\n" "$v"
+	printf " rawline: %-80s\n" "$*"
+	printf "lineicnt: %-15s\n" "$# item(s)"
+	if [[ $errorindex < 2 ]]; then
+		printf "in string: %-80s\n" "$v"
+	else
+		printf "position: %-15s   index: %-15s\n" "$errorposition" "$errorindex (points to: [31m${v: 0:((errorindex))}[32m${v: errorindex}[0m)"
+	fi
+
+	if [[ $success == false ]]; then
+		pad 2
+		errheading "expected (one or more of, after):"
+		pad 1
+		grep "(?<=\"Expected one of these tokens:)[^\"]*(?=\")" -Po "$tempfile" | tr ',' '\n' | tr -d "'\" " | column
+		pad 1
+	else
+		pad 1
+		goodheading "message accepted by i3 messenger subsystem"
+	fi
+	hrule
+	pad 2
+
+else
+	echo "error (i3-msg bad response!): $?"
+
+fi
+
+
+cleanup

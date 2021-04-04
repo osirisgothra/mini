@@ -1,0 +1,29 @@
+#!/bin/bash
+
+[[ -r ~/.dingrunrc ]] && { FM=sys; DRC=~/.dingrunrc; } || { FM=usr; DRC=/etc/dingrunrc; }
+
+[[ -r $SOUNDFILETOPLAY ]] || { [[ -r $DRC ]] && SOUNDFILETOPLAY="$(cat $DRC)"; }
+
+# add more of these lines to specify extra 'defaults' when other items in this list are not available
+[[ -r $SOUNDFILETOPLAY ]] || SOUNDFILETOPLAY=/etc/dingrun-default.wav
+[[ -r $SOUNDFILETOPLAY ]] || SOUNDFILETOPLAY=/usr/share/sounds/pop.wav
+
+tty -s && echo "dingrun - foreground msg: using sound $SOUNDFILETOPLAY" 
+# effected quiet play "$SOUNDFILETOPLAY" pitch -q 3900 chorus 1 0.15 44 0.4 0.2 0.5 -t &> /dev/null &
+# change: * now can include effect right inside SFTP variable! (ie SOUNDFILETOPLAY=/my/waves/ding.wav pitch -q 40)
+#         * added 'norm' filter to end, to ensure all is normalized in the end
+#         * added '-qV1' option to prevent ia mode from overrunning log messages, and to silence (useless) complaints about sample clipping
+#         * SOUNDFILETOPLAY set in environment now takes priority over the /etc/dingrunrc and ~/.dingrunrc
+#         * added local user ~/.dingrunrc which can override /etc/dingrunrc (per standard POSIX compliance for configuration files)
+# potential bugs:
+#         * /etc/dingrunrc will not be used even if it is "more valid" than ~/.dingrunrc
+#           removing an invalid ~/.dingrunrc is desirable but oversteps the bound of the program's 'right to data' specification
+coproc play -qV1 $SOUNDFILETOPLAY norm 
+disown
+"$@" &> /tmp/dingrun.log & disown
+ICON=`locate -n1 "*/icons/*$(basename $1)*"`
+echo "Icon: $ICON"
+msgbody="<font size=24><b>$(date +%X)</b> <img src='$ICON' size=24px align=middle text-align=middle/>&nbsp;$(basename $1) ${*: 2}<br/>"
+cp /tmp/dingrun.message /tmp/dingrun.last
+touch /tmp/dingrun.last
+( echo "$msgbody"; cat /tmp/dingrun.last ) | head > /tmp/dingrun.message

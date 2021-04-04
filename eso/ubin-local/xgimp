@@ -1,0 +1,40 @@
+#!/bin/zsh
+# comment out for debugging
+exec 1> /dev/null
+exec 2> /dev/null
+#1
+declare -ga filters=(   --file-filter       "Images|*.jpeg *.jpg *.png *.jfif *.gif *.tiff *.bmp *.xmp *.xcf *.xpm *.xbm *.JPG *.JPEG *.JPE *.GIF *.PCX *.pcx"
+                        --file-filter       "All Files|*"
+                        --file-filter       "All Files Having an Extension|*.*"
+                    )
+# main program
+if [[ $# -eq 0 ]]; then
+    # borrowed from xnano
+    while true; do
+        files=( ${(s:|:)$(zenity --title "XGimp -- Open File(s)" --file-selection $filters --multiple)} )
+        ret=$?
+        if [[ $ret -eq 0 ]] && [[ $#files -gt 0 ]]; then
+            #debug##echo "return: $?=ret $#files=filecount"
+            /usr/bin/gimp $files
+            if zenity --question --text "Edit more files?" --title "XGimp -- Question"; then
+                true debug echo preparing to edit more files
+            else
+                break
+            fi
+         else
+            echo "cancelled" > /dev/stderr
+            break
+         fi
+     done
+else
+    exec /usr/bin/gimp "$@"
+fi
+
+
+# comments
+#  #1             #removed for testing |Pixelworks|*.pcx|JPEG Image|*.jpeg *.jpg|Graphics Interchange Format|*.gif *.GIF|Bitmap|*.xbm *.bmp *.xpm|Gimp Image|*.xcf|TIFF|*.tiff|All Extensioned Files|*.*|All Extension and Extension-less Files|*" --title "XGimp -- Open Document" --multiple)} )
+#               may add back in but probably use mime instead
+#           filters: array needed because zenity requires --file-filter for every defined filter, which is bloated on the CL, so we put it here
+# #2 exec if args passed because user has selected their files already
+# #3  cancel if file count is zero, or, if an error return value is from zenity (usually with cancel, [x], or escape key)
+#

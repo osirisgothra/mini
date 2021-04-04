@@ -1,0 +1,4 @@
+#!/bin/zsh
+
+echo  "NOTE: this program is obsolete: use i3-runcmd in the future (this program calls i3-runcmd straight away now"
+exec i3-runcmd "$@"

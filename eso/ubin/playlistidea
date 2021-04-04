@@ -1,0 +1,23 @@
+#!/usr/bin/env python3
+
+# NAME
+#
+# playlistidea
+#
+#
+# DESCRIPTION
+#
+# contrib more ideas to a playlist item in user's Music/playlists/ideas
+#
+#
+# SYNOPSIS
+#
+#
+# playlistidea [idea]
+#
+
+if [[ $1 ]]; then
+	echo "$*" >> ~/Music/playlists/idea/$RANDOM.idea.txt
+else
+	echo "need some input!"
+fi

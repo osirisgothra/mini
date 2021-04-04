@@ -1,0 +1,79 @@
+#!/usr/bin/env perl
+#
+#    sdbrowser
+#    situation detecting web browser*
+#    eso-ubin-local
+#    esoteric projects for /usr/local/bin or ~/bin (see README.md for more on this)
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sat 06 Jun 2020 10:53:50 AM EDT
+#            osirisgothra@ initially created this file
+#            with the original name, sdbrowser
+#
+# TARGET NOTES
+#
+# 	EXECUTIVE STATE CHANGES
+#		marking single existing file executable
+#			- mode of 'sdbrowser' changed to u+rwx/og+rx.. []
+#		completed (0)
+# 	ARGUMENTUAL ANALYSIS
+#       remaining arguments:
+#			no arguments to list
+#       disposition:
+#			5 were used during execution of template
+#   		0 were extra and/or unexpected
+# 	TEMPLATE SUMMARY OF GENERATION
+#	     outcome: good
+#	     errors: 0
+# 	FINAL NOTE
+#	     template program under renovation
+#        you should REMOVE the TARGET NOTES section once youve reviewed this!
+#		 (Sat 06 Jun 2020 10:53:50 AM EDT): osirisgothra ignored the final note and left this behind for
+#		           the user(s) to see, how embarassed I am for the author!
+#
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#
+#	template output completed (code=OK(ERROR_NONE))
+#
+#
+
+use v5.20.2;
+use warnings;
+use strict;
+no warnings "experimental";
+
+given($#ARGV)
+{
+	say("cannot run $ARGV because $0 is not implemented yet") when /0/;
+	say("$0 is not implemented yet, please try back later") when /[^0]/;
+	say("an undefined / unexpected error happened to happen") if default;
+
+}

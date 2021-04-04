@@ -1,0 +1,40 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+use v5.20.2;
+use Path::Tiny;
+use Getopt::Long::Descriptive;
+use File::MimeInfo;
+use feature 'signatures';
+
+no warnings 'experimental';
+
+use constant { TRUE => 1, FALSE => 0 };
+
+my $progname = path($0)->basename();
+my $description_footer = "
+    each file needs to be a perl module
+";
+my ($opt, $usage) = describe_options(
+ "$progname %o <file1, ...>",
+[ 'local', "Do not parse dependencies recursively"  ],
+[ 'depth|d=i',   "how many child dependencies to check recursively (default is 2)",   { default  => 2 } ],
+[],
+[ 'verbose|v',  "print extra stuff"            ],
+[ 'help',       "print usage message and exit", { shortcircuit => 1 } ],
+[],
+[ "$description_footer" ],
+);
+print($usage->text), exit if $opt->help;
+die("need at least one file!") unless @ARGV;
+# verifies each file exists, and is an actual regular file that can be read
+# (not a directory, or a special file, or a link to one of those, and is not read protected)
+
+( ( -f && -r ) || die("$_ not a readable file with a header for perl") ) for @ARGV;
+for my $cf (@ARGV)
+{
+}
+    
+    
+

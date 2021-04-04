@@ -1,0 +1,5 @@
+#!/bin/zsh
+echo "made it" > /tmp/birc.txt
+/usr/bin/xterm -bg green -fg white -e /usr/bin/irc osirisgothra xeroxirc.net -c '#BlockySurvival' &!
+/usr/bin/xterm -bg blue -fg white -e /usr/bin/irc osirisgothra irc.freenode.org -c '##BlockySurvival' &!
+echo "to here..." > /tmp/birc.txt

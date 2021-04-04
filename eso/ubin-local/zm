@@ -1,0 +1,39 @@
+#!/bin/zsh
+# syntax: zm [disambiguative name]
+zshmods=( "ZSH/ATTR" "ZSH/CAP" "ZSH/CLONE" "ZSH/COMPCTL" "ZSH/COMPLETE" "ZSH/COMPLIST" "ZSH/COMPUTIL" "ZSH/CURSES" "ZSH/DATETIME" "ZSH/DB" "ZSH/DELTOCHAR" "ZSH/EXAMPLE" "ZSH/FILES" "ZSH/LANGINFO" "ZSH/MAPFILE" "ZSH/MATHFUNC" "ZSH/NEWUSER" "ZSH/PARAMETER" "ZSH/PCRE" "ZSH/REGEX" "ZSH/SCHED" "ZSH/NET" "ZSH/STAT" "ZSH/SYSTEM" "ZSH/NET" "ZSH/TERMCAP" "ZSH/TERMINFO" "ZSH/ZFTP" "ZSH/ZLE" "ZSH/ZLEPARAMETER" "ZSH/ZPROF" "ZSH/ZPTY" "ZSH/ZSELECT" "ZSH/ZUTIL" )
+matches=( )
+for x; do
+	passmatches=( )
+	echo "against $x ..."
+	# force uppercase
+	x="${(U)x}"
+	# force prefix of ZSH/ when no path specified (always used in documentations!)
+	if ! [[ $x =~ '/' ]]; then
+		x="ZSH/.*$x.*"
+	fi
+	echo "xlated to $x, against..."
+	for y in $zshmods; do
+		if [[ "$y" =~ "$x" ]]; then
+			passmatches+=( "$y" )
+		fi
+	done
+	case $#passmatches in
+		0)	echo "fatal: nothing matches $x"
+			exit 254
+			;;
+		1)	echo "adding $passmatches"
+			matches+=( $passmatches )
+			;;
+		*)	echo "fatal: $x is ambiguous with: $passmatches"
+			echo "please retry and be more specific!"
+			[[ $* =~ '/' ]] && { echo "hint: use VENDOR/MODNAME syntax to avoid crossed matches"; }
+			exit 253
+			;;
+	esac
+done
+echo "found $#matches total, viewing now..."
+for match in $matches; do
+	echo "next: $match"; sleep 1
+	man zshmodules | between "$match" "^[A-Z][-_.,A-Z0-9]+" | less
+done
+

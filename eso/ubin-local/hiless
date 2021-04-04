@@ -1,0 +1,69 @@
+#!/bin/zsh
+
+setopt kshglob
+setopt localoptions
+setopt nohistexpand
+setopt extendedglob
+setopt nullglob
+setopt dotglob
+setopt interactivecomments
+setopt aliases
+
+disable hash
+disable pushln
+disable integer
+
+alias void=":"
+
+dohiless()
+{
+	_hi=1
+	_pager=2
+	_args=( ${${(s:+:)${*}}} )
+	hi_bin=`which hi`
+	if [[ -x $hi_bin ]]; then
+		# ensure color codes get translated
+		export LESS="-raw"
+		eval "hi $_args[_hi]" | eval "less $_args[_pager]"
+	else
+		eval "less $_args[_pager]"
+	fi
+	return $?
+}
+
+main()
+{
+	case "$*" in
+		+(?)++(?))
+			# used a bisyntactical argument list (argsyntax1'+'argsyntax2)
+			dohiless "$@"
+			;;
+		*)	case $# in
+				0)	# used no command line, send no command line nor LESS
+					less
+					;;
+
+				*)	# just a unisyntactical argument list, so just give it to...
+					case $1 in
+					@*)	# ..hi (started with an '@' symbol)
+						# prefix for less is used because no prefix should be used for  hi
+						# reason? 1) because the program is called 'hiless' not 'lesshi'
+						#         2) if we wanted just less, we would have just used less directly!
+						#			 however, it may be less anoying to deal with two separate programs
+						#			 within a dependant script. this case is offered for courtesy purposes only.
+						less "$@"
+						;;
+					*)	# ..hi (no special markings indicating anything for less)
+						dohiless "$@"
+						;;
+					esac # case $1 in
+					;;
+
+			esac # case $# in
+			;;
+
+	esac # case "$*" in
+	return $?
+}
+
+main "$@"

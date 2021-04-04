@@ -1,0 +1,35 @@
+#!/bin/zsh
+# chrome
+# chromium
+#	shortcut to chrome with instance checking
+
+
+gc="google-chrome"
+[[ $0 == chromium ]] && gc="chromium-browser" 
+echo "binary name to find: $gc"
+
+if pgrep $gc; then
+	echo "warning: already running"
+	echo "restart? [y=yes n=negotiate arguments to process running (y/[n])"
+	read -q
+	if [[ $REPLY == y ]]; then
+		if kill -KILL `pidof $gc`; then
+			echo "killed ok"
+		else
+			echo "fatal: kill failed"
+			exit 127
+		fi
+	else
+		echo "note: your arguments will be passed to the running instance (if configured as single instance)!"
+	fi	
+fi
+echo "attempting to find and run ${gc}..."
+test -x /bin/${gc}  && x=$_
+test -x /sbin/${gc} && x=$_
+test -x /usr/share/bin/${gc} && x=$_
+if [[ -x $x ]]; then
+	echo "found at $x, starting with arguments=($# args--$@)"
+	$x "$@" &> /dev/null & disown
+else
+	echo "could not find (x=$x) $?"
+fi

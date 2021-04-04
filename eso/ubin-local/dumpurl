@@ -1,0 +1,21 @@
+#!/usr/bin/perl
+
+use warnings;
+use v5.18;
+use strict;
+use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
+use Path::Tiny;
+use IPC::Open3;
+
+
+
+my ($opt, $usage) = describe_options(
+        '$0 %o <some-arg> file',
+        [],
+        [ 'verbose|v',  "print extra stuff"            ],
+        [ 'help',       "print usage message and exit" ],
+      );
+
+print($usage->text), exit if $opt->help;
+
+

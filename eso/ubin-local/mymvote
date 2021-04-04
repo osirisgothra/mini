@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# shell
+
+shopt -s interactive_comments
+
+
+# variables
+
+VOTE_LOGGING=0								# 0 = no logging       1 = use VOTELOG in temp dir (TMPLOC)
+VOTELOG="mymsurfvote.log"					# specify alternate name for log here
+NIL=/dev/null								# shouldnt touch unless for compatibility
+ROOTDIR="/"									# same as above, change to C:\ for windows, etc
+TMPLOC="${ROOTDIR}tmp"						# same as above, change to WINDOWS\TEMP for windows, etc
+VOTEPATH="${TMPLOC}/${VOTELOG}"				# same as above, change / to \ for windows, etc
+I3_HTML_WORKSPACE="5 HTML"					# name of i3 workspace to put surf on (i3 window manager only!)
+
+# datasetup
+
+((VOTE_LOGGING)) && LOG="$VOTEPATH" || LOG="${NIL}"
+WKS="$I3_HTML_WORKSPACE"
+
+
+# functions
+
+# function: dosurf
+# arguments: kind=list   content=urls to open side by side
+# returns: last error code if any (not guarenteed to be any value)
+function dosurf()
+{
+	for page; do
+		surf "$page" &> "$LOG" & disown
+	done
+}
+
+# program
+
+pgrep i3 && i3 workspace "$WKS" || echo "i3 not running, not switching workspaces"
+dosurf "http://ftbservers.com/server/aKEAVmuV/vote" "http://minecraft-mp.com/server/57407/vote/" "http://minecraftservers.org/vote/389200" "https://tekkitserverlist.com/server/AT3L3JdS/vote" "https://servers.atlauncher.com/server/1510" "http://bteamserver.com/vote.html?id=23" "http://ftb-infinity-servers.com/server/2/mym-ftb-infinity-serve" "https://pixelmonlist.com/server/MineYourMind/vote"
+((! $?)) && echo "started 7 pages on [$WKS]" || echo "surf returned error code $?"

@@ -1,0 +1,2 @@
+#!/usr/bin/lua
+os.execute("dillo file:///usr/share/doc/lua5.1-doc/doc/manual.html")

@@ -1,0 +1,145 @@
+#!/bin/zsh
+#
+#    screset
+#    a personal script to reset emu10k spu, reinit it, and take the master volume to zero if it isnt already, or put it at 25% if it is
+#    mini
+#    eso/ubin-local
+#
+#   WARNING: very esoteric, written and tested only for Audigy 2ZS Platinum on
+#            a very old Pentium4 Core2 Duo Xubuntu 20.10, with ALSA, JACK
+#            and PulseAudio with Libasound/Libgstreamer/Bluez.pa and the
+#            JackDBUS module setup. You would need to change the modprobe
+#           name 'snd_emu10k1' and the mixer channel name 'Master' to work
+#           with anyone elses stuff. TODO: you could dynamically detect this
+#           stuff but it is ESOTERIC and not meant to be used outside my machine!!!
+#           (if you do so, dont publish a PR, just put it on fork instead!)
+#
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sun 29 Nov 2020 08:59:47 PM EST
+#            osirisgothra@ initially created this file
+#            with the original name, screset
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#
+# When it comes to copyrights, I only mean to copyright my work in a sense that
+# I need to be credited for anything that is directly done by myself in  the
+# scratch. This does NOT apply to copy-pasted items Ive used, or anything I 
+# did not write myself directly or indirectly. The copyright exists on the projects
+# to prevent plagiarism!! PLAGIARISM IS NOT COOL FOLKS!!!!!!!!!! AND TOTALLY EASILY FOUND OUT!
+#
+
+
+
+has_card()
+{
+    if amixer -c0 sget Master &> /dev/null; then
+        return 0
+    else
+        return 1
+    fi
+}
+setvol()
+{
+    amixer -c0 sset Master $1
+}
+getvol()
+{
+    level=$(perl -we '$x=`amixer sget Master`; $x =~ s/^(.*Playback )([0-9]+)(.*)$/$2/gs; print $x')
+    if [[ $1 == "-q" ]]; then
+        return $(( level ))
+    else
+        printf "%d" $(( level ))
+        return $(( level ))
+    fi
+}
+status()
+{
+    if has_card; then
+        amixer sget Master
+    else
+        echo "No sound card"
+    fi
+}
+if has_card; then
+echo 'detected card ok';
+else
+    echo 'card missing, will try to init the card now'
+    echo 'init kernel module...'
+    sudo modprobe snd_emu10k1
+    echo 'start alsa system...'
+    sudo alsactl init
+    echo 'restarting pulseaudio...'
+    echo 'ejecting current pulse process...'
+    sudo pactl exit
+    pactl exit
+    echo 'making sure its gone...'
+    sudo killall pulseaudio -KILL
+    echo 'starting new pulseaudio instance...'
+    pulseaudio &> /dev/null &!
+    echo 'restoring any alsa driver configs...'
+    sudo alsactl restore
+fi
+if has_card; then
+    curvol=$(getvol)
+    if [[ -r /tmp/lastvol ]]; then
+        lastvolstr="$(</tmp/lastvol | tr -d '\n')"
+        if [[ $lastvolstr =~ '^[0-9]+$' ]]; then
+            integer lastvol="$lastvolstr"
+        else
+            # using multiple files here because
+            # 1) user may not be on this terminal tty
+            # 2) this could happen a bunch of times in which case we should preserve each one
+            # 3) we need to not let more than a few tainted files exist
+            echo "lastvol in tmp is corrupted or another file, renaming and using a new value of 99"
+            if [[ $(ls /tmp/lastvol* | wc -l) -gt 5 ]]; then
+                echo "exceeded corrupted limit, please remove these files"
+                echo "aborting to prevent out-of-control writing to the disk, which would eventually run you out of disk space and slow the system"
+                echo "hint: most likely this is because some other program keeps writing to the same file /tmp/lastvol"
+                exit 122
+            fi
+            mytmp=$(mktemp lastvol.tainted.XXXXXXXXXXXX)
+            mv -vf /tmp/lastvol $mytmp
+            integer lastvol=99
+         fi
+    else
+        integer lastvol=100
+    fi
+    echo "volume is $curvol, lastvol=$lastvol"
+    echo "updating volume"
+    if [[ $curvol -eq 0 ]]; then
+        setvol $lastvol
+        # we go to lastvol, lastvol goes to 0
+        echo "0" > /tmp/lastvol
+    else
+        setvol 0
+        echo $curvol > /tmp/lastvol
+    fi
+fi

@@ -1,0 +1,88 @@
+#!/bin/zsh
+emulate zsh
+#
+#    nite
+#    goodnight, sleep tight, dont let the bedbugs fuck with my display settings
+#    mini/eso/ubin-local
+#    esoteric scripts and projects galore
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sat Mar 14 22:46:25 EDT 2020
+#            osirisgothra@ initially created this file
+#            with the original name, nite
+#
+# TARGET NOTES
+#
+# 	EXECUTIVE STATE CHANGES
+#		marking single existing file executable
+#			- mode of 'nite' changed to u+rwx/og+rx.. []
+#		completed (0)
+# 	ARGUMENTUAL ANALYSIS
+#       remaining arguments:
+#			no arguments to list
+#       disposition:
+#			4 were used during execution of template
+#   		0 were extra and/or unexpected
+# 	TEMPLATE SUMMARY OF GENERATION
+#	     outcome: good
+#	     errors: 0
+# 	FINAL NOTE
+#	     template program under renovation
+#        you should REMOVE the TARGET NOTES section once youve reviewed this!
+#		 (Sat Mar 14 22:46:25 EDT 2020): osirisgothra ignored the final note and left this behind for
+#		           the user(s) to see, how embarassed I am for the author!
+#					^ yes i left it on purpose because i am lazy and tired and wrote this script right before bed!
+#
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#
+#	template output completed (code=OK(ERROR_NONE))
+#
+#
+[[ $* =~ --help ]] && { echo "syntax: nite\nwhat did you expect?"; exit 242; }
+# interval='value'
+# 'value' may be 's' for seconds (the default),
+# 'm' for minutes, 'h' for hours or 'd' for days.  Unlike most specifications
+# that require 'value' be an integer, here 'value' may be an arbitrary floating
+# point number.  Given two or more values, it will pause for the amount of time
+# specified by the sum of their values. This can be either a single string or
+# an array [ie; interval=( v1 v2 ... )]. Since a single array value also works
+# it is an array by default below, for further information about sleep(1) see
+# the manpage in sleep(1) or see "info '(coreutils) sleep invocation'".
+
+interval='10s'
+echo "entering nite mode...press ctrl+c to exit"
+while true; do
+	xset s off
+	xset s noblank
+	xset -dpms
+	echo -ne "."
+	sleep $interval
+done

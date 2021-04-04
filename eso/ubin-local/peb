@@ -1,0 +1,13 @@
+#!/usr/bin/python3
+
+from pathlib import Path
+import sys
+import os
+
+home = Path(os.environ['HOME'])
+print(format("",sys.exec_prefix))
+
+if home.exists():
+	print("Home exists! (it is:",home,")\n")
+	
+

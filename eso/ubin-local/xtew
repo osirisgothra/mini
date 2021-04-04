@@ -1,0 +1,5 @@
+#!/bin/bash
+# xtew
+# xte wrapper script
+
+xte "key $1"

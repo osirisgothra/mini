@@ -1,0 +1,62 @@
+#!/bin/zsh
+[[ ${0:t} == zenity ]] && {
+[[ -r ~/.config/flag_warned_about_zenity_dup_name ]] || echo "warning: you really should not call this program zenity unless you know what you are doing"
+touch ~/.config/flag_warned_about_zenity_dup_name 
+}
+setopt interactivecomments
+infofile=$(mktemp)                                        #4
+trap 'rm $infofile' INT EXIT HUP KILL 
+for prefix in /usr/bin /bin /usr/local/bin /usr/share/bin /opt/zenity /opt/bin
+do
+    if [[ $0 == $prefix/zenity ]]; then
+        echo "cannot use $prefix/zenity, its this file" > /dev/stderr
+        declare -g target_binary="/dev/zero"
+    elif [[ -x $prefix/nano ]]; then
+        declare -g target_binary="$prefix/zenity"
+        break
+    else
+        declare -g target_binary="/dev/zero"
+    fi
+done    
+if [[ -x "$target_binary" ]]; then
+    true echo debug pass through silently
+else
+    echo "fatal: cannot locate zenity" > /dev/stderr
+    exit 127
+fi        
+if tty &> /dev/null; then                               #2
+    exec $target_binary $@
+else
+    for x; do
+        if [[ $x =~ '^--help' ]]; then
+            foundhelp=1
+        fi
+    done
+    if ((foundhelp)); then
+        $target_binary "$@" &> $infofile                #1
+        rc=$?        
+        $target_binary --text-info --filename="$infofile" --width=800 --height=600 --title="Zenity Help"
+        exit $rc
+    else
+        exec $target_binary $@                          #3
+    fi
+fi           
+        
+# comments
+#
+# #1         
+# re: foundhelp lines (inside block)
+#         save viewer result
+#         do not run in background or trap may remove file before zenity can read it!
+#         return user's command result, not the viewers result
+# #2
+# re: tty block
+#         passthrough to show help when not in a term
+# #3
+# re: non-help blocks
+#         just run normally
+# #4   
+# re: traps
+#         clean up by removing tempfile
+#         prevents build-up of tmpfiles from mktemp
+#         which can happen quite fast!

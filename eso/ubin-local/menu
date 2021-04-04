@@ -1,0 +1,139 @@
+#!/bin/zsh
+# vim: ft=zsh:sw=2:noet:ts=2:fen:foldclose=all:foldopen=all:fdm=marker:fmr=#{,#}:foldlevel=1:ruler:ls=2:backspace=2
+#    menu
+#    dialog wrapper for quick menu system creation
+#    mini
+#    esoteric projects
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  HISTORY
+#
+#	 	Mon Feb 18 10:24:31 EST 2019
+#            osirisgothra@larnica initially created this file
+#            with the original name, menu
+#
+#  	(this header was created using the template generator by Gabriel T. Sharp)
+#
+# REQUIRED PROGRAMS
+#
+#		 Filename: cdialog, dialog
+# 	 Filedesc: "ComeOn Dialog!" 
+# 	 Packages: gnu-linux,dialog,libncurses
+# 	 Packaged: vendor-packaged at time of distribution
+#    Verscode: 1.2-20150528
+#
+
+#
+# TARGET NOTES
+#
+# dialog <options> { --and-widget <options> }
+#   [--create-rc "file"]
+#   [--ascii-lines] 
+#   [--aspect <ratio>] [--backtitle <backtitle>] [--beep] [--beep-after] [--begin <y> <x>] [--cancel-label <str>] 
+#   [--clear] [--colors] [--column-separator <str>] [--cr-wrap] [--date-format <str>] [--default-button <str>] [--default-item <str>] [--defaultno]
+#   [--exit-label <str>] [--extra-button] [--extra-label <str>]
+#   [--help-button] [--help-label <str>] [--help-status] [--help-tags]
+#   [--hfile <str>] [--hline <str>] [--ignore] [--input-fd <fd>]
+#   [--insecure] [--item-help] [--keep-tite] [--keep-window] [--last-key]
+#   [--max-input <n>] [--no-cancel] [--no-collapse] [--no-cr-wrap]
+#   [--no-items] [--no-kill] [--no-label <str>] [--no-lines] [--no-mouse]
+#   [--no-nl-expand] [--no-ok] [--no-shadow] [--no-tags] [--nook]
+#   [--ok-label <str>] [--output-fd <fd>] [--output-separator <str>]
+#   [--print-maxsize] [--print-size] [--print-version] [--quoted]
+#   [--scrollbar] [--separate-output] [--separate-widget <str>] [--shadow]
+#   [--single-quoted] [--size-err] [--sleep <secs>] [--stderr] [--stdout]
+#   [--tab-correct] [--tab-len <n>] [--time-format <str>] [--timeout <secs>]
+#   [--title <title>] [--trace <file>] [--trim] [--version] [--visit-items]
+#   [--yes-label <str>]
+#{ Box options:
+#   --buildlist    <text> <height> <width> <tag1> <item1> <status1>...
+
+#   --calendar     <text> <height> <width> <day> <month> <year>
+#   --checklist    <text> <height> <width> <list height> <tag1> <item1> <status1>...#   --dselect      <directory> <height> <width>
+#   --editbox      <file> <height> <width>
+#   --form         <text> <height> <width> <form height> <label1> <l_y1> <l_x1> <item1> <i_y1> <i_x1> <flen1> <ilen1>...
+#   --fselect      <filepath> <height> <width>
+#   --gauge        <text> <height> <width> [<percent>]
+#   --infobox      <text> <height> <width>
+#   --inputbox     <text> <height> <width> [<init>]
+#   --inputmenu    <text> <height> <width> <menu height> <tag1> <item1>...
+#   --menu         <text> <height> <width> <menu height> <tag1> <item1>...
+#   --mixedform    <text> <height> <width> <form height> <label1> <l_y1> <l_x1> <item1> <i_y1> <i_x1> <flen1> <ilen1> <itype>...
+#   --mixedgauge   <text> <height> <width> <percent> <tag1> <item1>...
+#   --msgbox       <text> <height> <width>
+#   --passwordbox  <text> <height> <width> [<init>]
+#   --passwordform <text> <height> <width> <form height> <label1> <l_y1> <l_x1> <item1> <i_y1> <i_x1> <flen1> <ilen1>...
+#   --pause        <text> <height> <width> <seconds>
+#   --prgbox       <text> <command> <height> <width>
+#   --programbox   <text> <height> <width>
+#   --progressbox  <text> <height> <width>
+#   --radiolist    <text> <height> <width> <list height> <tag1> <item1> <status1>...
+#   --rangebox     <text> <height> <width> <min-value> <max-value> <default-value>
+#   --tailbox      <file> <height> <width>
+#   --tailboxbg    <file> <height> <width>
+#   --textbox      <file> <height> <width>
+#   --timebox      <text> <height> <width> <hour> <minute> <second>
+#   --treeview     <text> <height> <width> <list-height> <tag1> <item1> <status1> <depth1>...
+#   --yesno        <text> <height> <width
+#
+# Auto-size with height and width = 0. Maximize with height and width = -1.
+# Global-auto-size if also menu_height/list_height = 0.
+#
+
+# syntax: menu <prompt> <item1> <item2> ...
+integer menu_error=127
+integer menu_help_request=126
+integer menu_ok=0
+integer menu_severe=-1
+integer menu_cancel=1
+function isdef() { while(#) [[ ${1-nil} == nil ]]; }
+
+typeset -g menu_self="$0"
+
+case $# in
+	1)	echo "not enough arguments!!";&
+	0)  cat "$menu_self" | perl -wne 'print "${1}\n" if /^#\s*(syntax:.*)$/'
+		exit $menu_help_request
+		;;
+	*)	typeset -g _prompt=$1; shift
+		typeset -a items=( `for n { echo "$n" "$n" }` )
+		
+		h=$((${LINES-25}-2)) w=$(( ${COLUMNS-80}-4 )) mh=$(( ${LINES-25} / 2 ))
+		r=$(dialog --menu --output-fd 1 "$_prompt" $h $w $mh $items || exit $menu_error)
+		if (( ? == 127 )); then
+			echo ok=$menu_cancel item=nil
+			exit $menu_cancel
+		else
+			echo ok=$menu_ok item="\"$r\""
+			exit $menu_ok
+		fi
+		;;
+esac
+# should never get here
+echo ok=$menu_severe item="\"fatal: end-of-code reached, should not happen (corruption??)\""
+

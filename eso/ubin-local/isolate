@@ -1,0 +1,47 @@
+#!/bin/zsh
+
+# isolate [file or directory in current dir] [destination]
+
+setopt extendedglob
+setopt nullglob
+
+# mimic the usual suspects
+case $1 in
+	-a)
+		setopt dotglob
+		shift;;
+	-v) echo "$(basename $0) version 1.0"
+		exit 127;;
+	--help)	echo "usage: isolate [-av --help] [file] [dest]"
+			exit 127;;
+esac
+
+if [[ -e $1 ]]; then
+	files=( ^$1 )
+	if [[ -n $files ]]; then
+		echo "going to remove $files"
+		echo "is this ok? [y/[n]]"
+		if [[ $(read -sk1; echo $REPLY) == y ]]; then
+			echo "user accepts, deleting files"
+			rm -frv $files
+		else
+			echo "user aborted"; exit 127
+		fi
+		opcode=fail
+		if [[ -n $2 ]]; then
+			echo "attempting to placing in destination: $2"
+			if [[ -d $1 ]]; then
+				mv --no-clobber "$1" "$2" && opcode=ok
+			else
+				mkdir "$2" && mv --no-clobber "$1" "$2" && opcode=ok
+			fi
+		else
+			opcode=ok
+		fi
+		echo "operation complete: (return code: $?  operation code: $opcode)"
+	else
+		echo "it seems $1 is already isolated or is not isolatable -- check your command or permissions before trying again."
+		echo "operation incomplete (return code: na operation code: superfail)"
+	fi
+fi
+

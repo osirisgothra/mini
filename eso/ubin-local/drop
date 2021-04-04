@@ -1,0 +1,121 @@
+#!/usr/bin/perl
+# warning: this program uses sudo itself, not usually cosher 
+# set 'my $NONCOSHER=0' to make it standardized, however it wont
+# work without sudo anymore (yuk)
+use warnings;
+use strict;
+use v5.20;
+use Getopt::Long::Descriptive;
+no warnings "experimental";
+
+# Settings for Program 
+# these settings are meant for programmer or admin setup, users should not change
+# these values without consent from the system administrator or owner of the 
+# system it resides. Ownership does not guarentee that these settings are safe. See
+# the license for details.
+
+my $NONCOSHER = 1; 							# unprotected mode, allow reckless use of sudo(1)
+my $complex_help = "\n	 complex command reference
+	-------------------------------------------------------------------------------
+	 command			effect
+	-------------------------------------------------------------------------------
+	 1 2 or 3        write number to dropcache file
+	 s               run sync(1)
+	 q               switch off verbose mode
+	 v		 		 switch on verbose mode
+	 S[1-9]   		 sleep t * 125 ms (where t is 1-9, up to 1125ms, 1 1/8 second)
+	 b               beep
+	 f				 run free(1)
+	 w				 run swapon(1)
+	--------------------------------------------------------------------------------\n"; 
+my $drop_range = qr/^[1-3]$/;
+my ($opt, $usage) = describe_options(
+   'drop %o <level>',
+   [ 'interval|i=i', "times to run drop", { default => 1 } ],
+   [ 'level|l=i',   "drop level to use [1-3]",   { default  => 3 } ],
+   [],   
+   [ 'sync|s=s',   "hidden" ,  { default => 'both' },
+   { one_of => [
+               [ "before|B"  => "synchronize before drop(s)" ],
+               [ "after|A"  => "synchronize after drop(s)" ],
+               [ "omni|O" => "synchronize before and after (default)" ],
+               [ "none|N" => "never synchronize memory to disk" ],
+                                                             ] } ],
+   [ 'complex|c=s', "complex command string (see --help-complex)", { default => 'none' } ],
+   [ 'verbose|v',  "do not be quiet (outputs status messages)"  ],
+   [ 'help|h',  "print usage message and exit" ],
+   [ 'help-complex|H', "print complex command reference" ],
+);
+
+sub verbose 
+{ 
+	say @_ if $opt->verbose;
+};
+
+sub drop
+{
+	my $target = "/proc/sys/vm/drop_caches";
+	my $level = shift;
+	verbose "i'll drop at this level: $level";
+	`echo $level > $target` if -w $target;
+	if ( $NONCOSHER == 1 ) 
+	{	
+		verbose "i will try to drop at higher priv mode" unless -w $target;	# NONCOSHER
+		`echo $level | sudo tee $target` unless -w $target;					# NONCOSHER
+	
+	}
+	else
+	{
+		# comment message out if you dont want this reminder
+		# i didnt add a variable for this because i didnt want
+		# people accidently disabling it and getting confused
+		# we dont erase yellow lines from the road!
+		say "you have turned off $NONCOSHER, no attempts to use sudo will be made" unless -w $target;
+	}	
+}
+sub complex_mode 
+{
+	my $modestr = shift;
+	verbose "mode string: $modestr";
+	
+	my $len = length($modestr);
+	verbose "mode string length: $len";
+	my $cur = 0;
+	
+	while ($cur < $len)
+	{
+		my $next = substr($modestr,$cur+1,1) // "0";
+    	$_ = substr($modestr,$cur,1);	
+		verbose("processing: $_");
+		given($_)
+		{
+					when(/s/) { `sync`; }
+				when(/[123]/) { drop(int($_)); }
+			    	when(/b/) { `beep`; }
+			    	when(/q/) { $opt->verbose = 0; }
+			    	when(/S/) { sleep(int($next)*125); $cur++; }
+			    	when(/v/) { $opt->verbose = 1; }
+			    	when(/f/) { print( `free` ); }
+			    	when(/w/) { print( `swapon` ); }			    		
+					default { verbose "ignoring unknown complex command: $_"; };
+		}
+		$cur++;
+	}
+	return 0;
+};
+
+print($usage->text), exit if $opt->help;
+print($complex_help), exit if $opt->help_complex;
+
+verbose "dropping " . $opt->interval . " times at level " . $opt->level;
+verbose "sync mode is set to: " . $opt->sync;
+my $complexmode = 0;
+$complexmode = 1 if $opt->complex ne "none";
+verbose "complex mode is " . ($opt->complex) . ( $complexmode ? "ON" : "OFF" );
+complex_mode $opt->complex if $complexmode == 1;
+
+for (@ARGV)
+{
+	complex_mode($_) unless /$drop_range/;
+	drop(int($_)) if /$drop_range/;
+}

@@ -1,0 +1,49 @@
+#!/bin/bash
+case $- in 
+    *i*)    
+        if [[ -x $BASH_SOURCE ]]; then
+            "$BASH_SOURCE" "$@"
+            return $?
+        else
+            echo "not executble (and in interactive mode)"
+            echo "adjusting permissions..."
+            chmod a+x "$BASH_SOURCE"
+            echo "please restart the program. end!"
+            return $?            
+        fi
+    ;;
+    *)
+        # already executing normalish
+        true
+    ;;
+esac
+
+while true; do
+read -p "input: " FIRST
+if [[ $FIRST == "ok" ]]; then
+    echo "ok = okay"
+    read -p "okin: " OKIN
+    echo "okin: OKIN"
+    if [[ $OKIN == done ]]; then
+        exit 12
+    else
+        echo "not again"
+        read -p "again: " AGAIN
+        echo "again was: $AGAIN"
+        echo "looping back..."
+    fi
+else
+    echo "ok = something else"
+    echo "leaving"
+    read -p "closing comment: "
+    echo "$REPLY is a closing comment"
+    echo "closing"
+    exit 24
+fi
+if [[ $REPLY == "please stop" ]]; then
+    break
+fi
+done
+exit 48
+
+            

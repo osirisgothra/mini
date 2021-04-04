@@ -1,0 +1,68 @@
+#!/bin/zsh
+# rewrite of ~/bin/surf
+# for zsh, a bit smarter but more hardwired
+# also, no need to make cache or anything its faster now
+# requires also the program 'qfork' (distributed with this script)
+
+# check for qfork
+if ! [[ $(qfork --marco) == "pollo" ]]; then
+	echo "qfork is not installed, it is REQUIRED"
+	exit 127
+fi
+
+# set debug=1 to show debug messages, or debug=0 to not
+# use the DEBUG_SURF if using env
+declare -gi debug=0
+# overrides above, dont change this!
+# second incantation "0" is not the same as "" and unset, it MUST exist to be considered!!
+[[ $DEBUG_SURF == 1 ]] && debug=1
+[[ $DEBUG_SURF == 0 ]] && debug=0
+decho() { [[ $debug == 1 ]] && echo "$(date): $@"; }
+
+# resolve our script to physical path for later
+decho -ne "resolving $0 to "
+declare -g __this=`readlink -e "$0"`
+declare -g __expected_mimetype="application/x-executable"
+if [[ $__this == $0 ]]; then
+	decho "[same script, ok]"
+else
+	decho "$__this (fully dereferenced link)"
+fi
+
+declare -ga prefixes=( / /usr ~/ ./ )
+declare -ga minfixes=( " " "local" "share" "src" "src/fork" "src" "src/fork" "src/clone" ".local" ".local/share" )
+declare -ga suffixes=( /bin /surf "/" /sbin )
+for p ( $prefixes ) {
+for m ( $minfixes ) {
+for s ( $suffixes ) {
+	[[ $p == " " ]] && p=""
+	[[ $m == " " ]] && m=""
+	[[ $s == " " ]] && s=""
+
+	f="$p$m$s"
+	g="${f//\/\///}"
+	if [[ -d $g ]] && [[ -x $g/surf ]]; then
+		g="${g%/}/surf"
+		# resolve all links to their dirs so checks will test if it is the caller script
+		g=`readlink -e "$g"`
+		if [[ -d $g ]]; then
+			decho "$g is a directory"
+		else
+			decho "$g is executable, examining..."
+			if [[ $g = $__this ]]; then
+				decho "this is the currently running script, skipping"
+			else
+				__mimetype=`mimetype --output-format "%m" "$g"`
+				decho "mimetype is $__mimetype"
+				if [[ $__mimetype == $__expected_mimetype ]]; then
+					echo "found $g which is $__mimetype match, passing your arguments to it..."
+					qfork $g "$@"
+					exit $?
+				fi
+			fi
+		fi
+	fi
+}
+}
+}
+

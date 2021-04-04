@@ -1,0 +1,27 @@
+#!/bin/bash
+
+if [[ $1 =~ ^[.0-9]*$ ]]; then
+	WAIT_TIME=$1
+	shift
+else
+	WAIT_TIME=0
+fi
+
+for x; do
+	if [[ -r "$x" ]]; then
+		if [[ -f "$x" ]]; then
+			file -- "$x"
+		fi
+	fi
+done
+hsetroot -cover "$@"
+[[ $WAIT_TIME -gt 0 ]] && {
+	printf " ... [s"
+	printf "$WAIT_TIME"
+}
+
+while [[ $WAIT_TIME -gt 0 ]]; do
+	sleep 1
+	let WAIT_TIME--
+	printf "[u[2K%d" $WAIT_TIME
+done

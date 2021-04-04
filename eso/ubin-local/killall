@@ -1,0 +1,15 @@
+#!/bin/zsh
+# DANGER: DO NOT PUT THIS FILE IN /usr/bin EVER, IT WILL HANG SYSTEM FOR SURE
+#         ONLY PLACE IN USER DIR ($HOME/bin)
+if [[ `which $0` == /usr/bin/killall ]] || [[ `which $0` =~ (usr|var|local) ]]; then
+		echo "exiting for safety, you must not put this file in ANY system directory!"
+
+		# standard critical failure code 127
+		exit 127
+fi
+
+if [[ $* =~ [A-Z] ]]; then
+	sudo /usr/bin/killall "$@"
+else
+	sudo /usr/bin/killall -SIGKILL "$@"
+fi

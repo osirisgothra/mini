@@ -1,0 +1,32 @@
+#!/bin/zsh
+
+setopt extendedglob
+
+while true; do
+	echo -ne 'msh> '
+	read -A items
+	cmd=$items[1]
+	shift items
+	case $cmd in
+		help)
+			echo "\ncommands available:\n\n"
+			ls -C ^msh
+			echo ""
+			echo "built-in\n\n"
+			echo "help	quit\n\n"
+			;;
+				
+
+		quit)
+			echo "exited"; break
+			;;
+
+		*)	
+			if [[ -r $cmd ]]; then
+				./$cmd $items
+			else
+				echo "bad command or shortcut, use help to see command list"
+			fi
+			;;
+	esac
+done

@@ -1,0 +1,20 @@
+#!/bin/sh
+# 
+# elinks
+# a shim to provide www-browser (see description)
+#
+# description
+#
+# this shim is to prevent programs from overriding www-browser by specifying elinks instead
+# if you want to use elinks as the default, use 'update-alternatives www-browser /path/to/elinks' instead
+# 
+# this file was created with nano 4.9-104-gb18f1265-20201024
+
+# favor absolute path, but allow relative path if not found (warning: could be a security risk on some systems)
+# remember to never keep a copy of www-browser anywhere else but where it should be (/etc/alternatives or /usr/bin, but not anywhere else for most users)
+# manual install? delete this file if you dont like this feature, it is esoteric and probably isnt needed by outside circle users:
+    case $- in *i*)
+            echo 'dont use interactive mode!';;
+        *)
+            exec /etc/alternatives/www-browser "$@" || exec www-browser "$@";;
+    esac

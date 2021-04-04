@@ -1,0 +1,61 @@
+#!/bin/zsh
+# this is a personal file with little need for outside use
+# it only adds a minimal manpage viewer in vim
+# features csapprox color support with plugin manager
+# and requires it to be installed already
+# the F-keys are chained to 12 distinctly different color themes
+# get those by googling vim-colorschemes (i think)
+# i'll dump the .vimrc-man file here so you can use it if you want to try it out yourself
+if ((dodump != 1)) {
+    if [[ $# -eq 0 ]]; then
+    # no arguments just causes this file to be edited along with the ~/.vimrc-man file
+        exec nano ~/bin/vman ~/.vimrc-man
+    fi
+    export MANPAGER="vim -u /home/osirisgothra/.vimrc-man -M +MANPAGER -"
+    exec man "$@"
+}
+
+# file dump
+# ---------
+# this is set up so you dont need to worry about if this line changes position or whatnot:
+# to use, type 'env dodump=1 vman'
+#
+
+exec cat "$0" | tail -n+$LINENO
+
+
+vimrc_man_dump='" vim: write:modifiable:mls=2:cc=80:nomore:nofen:et:ts=4:sw=4:bs=2:laststatus=2
+
+filetype plugin on
+" things we wont want to have on for manpages
+set noprompt
+set nomore
+set nocompatible
+
+
+" minimal plugins (colors, we dont want anything else for viman)
+
+call plug#begin()
+Plug '"'"'godlygeek/csapprox'"'"'
+call plug#end()
+
+" default colorscheme for vman
+colo kellys
+" the F-keys are chained to switch the colorscheme, kinda like old bioses used to :)
+map <F1> :colo matrix
+map <F2> :colo kellys
+map <F3> :colo darkbone
+map <F4> :colo oceanblack
+map <F5> :colo moria
+map <F6> :colo dw_orange
+map <F7> :colo candycode
+map <F8> :colo dw_green
+map <F9> :colo elflord
+map <F10> :colo earendel
+map <F11> :colo dw_cyan
+map <F12> :colo default
+'
+
+# it will show up, but also dump to the tempfile in /tmp
+echo "$vimrc_man_dump" | tee /tmp/vimrc-man-dump
+echo "dumped to /tmp/vimrc-man-dump"

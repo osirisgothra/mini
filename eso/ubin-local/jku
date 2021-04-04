@@ -1,0 +1,3 @@
+#!/bin/zsh
+/usr/bin/java -jar ~/.mineyourmind/launcher.jar &> /dev/null &|
+jkk &> /dev/null &|

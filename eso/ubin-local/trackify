@@ -1,0 +1,43 @@
+#!/bin/zsh
+#integer rmcnt=0
+output="$(tty)"
+setopt nullglob
+oldlogfiledir=( $(dirname $(mktemp -tu trackifyXXXX.log))/trackify*.log )
+for ofn in $oldlogfiledir; do
+	echo "removing old tempfile: $ofn"
+	rm -fr "$ofn" && let rmcnt++
+done
+[[ $rmcnt -gt 0 ]] && echo "$rmcnt file(s) removed"
+logfile="$(mktemp trackifyXXXX.log)"
+# no program can output (just echo)
+exec 1>$logfile
+exec 2>$logfile
+
+echo()
+{
+	builtin echo "$@" &> $output
+}
+echo "script output is: $output\nall slave programs will dump any output to $logfile"
+
+typeset -a required=( id3 grep mv basename zsh )
+for r in $required; do
+	if ! which $r; then
+		echo "$r is required and not present (FATAL)"
+		exit 125
+	fi
+done
+
+for x in *.mp3; do
+	if id3 -l "$x" | grep Track..\[0-9\] -q; then
+		if [[ $(basename $x) =~ ^[0-9]*\s ]]; then
+			echo "FATAL: starts with a number, please fix this"
+			echo "will NOT work on this directory to prevent unwanted re-writing the filename and nesting eternally"
+			exit 1
+		fi
+		track=`id3 -l "$x"  | grep -Po '(?<=Track: )[0-9]+'`
+		y="$(printf "%02d" "$track") - $x"
+		mv --verbose "$x" "$y"
+	else
+		echo "skipping $x because it has no valid id3 tag entry for Track"
+	fi
+done

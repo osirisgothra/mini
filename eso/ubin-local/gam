@@ -1,0 +1,4 @@
+#!/bin/zsh
+declare -gx DIALOGRC="$HOME/.jkurc"
+[[ -n $DIALOG_INFO ]] || DIALOG_INFO="Gamma Setting (by Color Channel) Valid Ranges are -5.000 to 5.000 (precise to 3 decimal places)"
+while true; do res=$(dialog --backtitle ${DIALOG_BACKTITLE-Gamma} --ok-label Done --extra-label Change --no-cancel --output-fd 1 --inputmenu ${DIALOG_INFO} 0 0 12 `xgamma |& tr -d -- "-,>"`) && break; echo "$res" | sed -r 's/RENAMED //g;s/(R|G|B)(ed|reen|lue)/xgamma -\L\1gamma/g' > /tmp/cmd; source /tmp/cmd &> /dev/null;  done

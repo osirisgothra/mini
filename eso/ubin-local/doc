@@ -1,0 +1,3 @@
+#!/bin/zsh
+cd /doc/"$1" || cd /doc/zds/"$1" || cd /doc/man
+dillo "file:/$PWD"

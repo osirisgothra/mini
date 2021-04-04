@@ -1,0 +1,14 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+use v5.20.2;
+use lib "/home/osirisgothra/bin";
+use tp;
+
+my $r = new teepee();
+my $s = new teepee();
+
+say("made a new tp R with unival: ".$r->_getuni);
+say("made a new tp S with unival: ".$s->_getuni);
+

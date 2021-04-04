@@ -1,0 +1,8 @@
+#!/bin/bash
+#
+# ufs - unmountfs nameless link
+#
+# cannot just link to (ln -s unmountfs ufs) it because it uses the name of the
+# script to determine it's function and I do not want to add aliases to the same
+# thing (keeping a 1:1 command:function proportion for later expansion needs)
+exec unmountfs "$@"

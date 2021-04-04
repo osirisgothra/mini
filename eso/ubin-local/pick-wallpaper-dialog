@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# pick wallpaper dialog
+
+PICS="$(xdg-user-dir PICTURES)"
+cd "$PICS"
+RESULT="$(zenity --file-selection --title='find wallpaper' --text='pick a wallpaper' --file-filter='Images|*.png *.jpg *.xpg *.gif *.jpe *.jpeg *.bmp')"
+hsetroot -cover "$RESULT"

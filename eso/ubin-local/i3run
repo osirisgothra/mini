@@ -1,0 +1,9 @@
+#!/bin/zsh
+
+i3 floating enable &> /dev/null
+i3 border pixel 14 &> /dev/null
+clear
+echo ""
+echo "                       Enter Selection and Press ENTER"
+echo ""
+exec "$@"

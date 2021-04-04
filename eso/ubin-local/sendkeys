@@ -1,0 +1,50 @@
+#!/usr/bin/zsh
+
+typeset -i wait_interval=3
+
+for p in ${(s@:@)PATH}; do
+	comm="${p}/$1"
+	if [[ -x $comm ]]; then
+		$comm &> /dev/null &
+		sleep $wait_interval
+		shift
+		break
+	fi
+done
+
+
+setopt noxtrace
+
+typeset -A mod=( C	Control_L   A Meta_L
+	  			 S  Shift_L     R Control_R )
+function keydn() { for ((x=0;x++<#;)) xte "keydown ${@: x:1}"; }
+function keyup() { for ((x=#+1;--x>0;)) xte "keyup ${@: x:1}"; }
+function keycombo()
+{
+	for j; do
+		if [[ $j =~ '-' ]]; then
+			mfr="${j%-*}"
+			key="${j#*-}"
+			mfrx="$mod[$mfr]"
+			if [[ "$mfrx" != "" ]]; then
+				echo "splitting $mfr $key from $j and got $mfrx+$key"
+				keydn $mfrx $key
+				keyup $mfrx $key
+			else
+				echo "failed to split modifier: $mfr has no table entry!"
+				exit 127
+			fi
+		elif [[ ${#j} -gt 1 ]]; then
+			for ((k=0;k<$#j;k++)); do
+				xte "key $j[$k]"
+			done
+		else
+			unset mfr
+			key="$j"
+			keydn $key
+			keyup $key
+		fi
+	done
+}
+
+keycombo "$@"

@@ -1,0 +1,107 @@
+#!/bin/zsh
+#
+#    i3-runcmd
+#    A I3-runcmd Program
+#    The I3-runcmd Project / eso-bin
+#    A Project That Gloriously Houses I3-runcmd / esoteric projects and scripts
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sat Oct  6 14:09:31 EDT 2018
+#            osirisgothra@larnica initially created this file
+#            with the original name, i3-runcmd
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+#
+# TARGET NOTES
+#
+# target resides in /home/osirisgothra/bin ... yes
+#
+
+# preprocessed args declarations
+
+declare -gi dorun=1
+declare -g debugging=0		
+declare -gA input=( command 'none' output 'nil' occurances 0 )
+declare -gi dowait=1
+
+# process arguments and process as needed
+if [[ $1 == "-nox" ]]; then
+	shift
+	dorun=0
+elif [[ $1 == "--wait" ]]; then
+	# ^^ for i3-fastcmd compat only
+	shift
+	dowait=1
+elif [[ $1 == "--help" ]]; then
+	echo "syntax: $0 [-nox|--help] [prompt] [format-string] [xfont] [i3-socket]"
+	echo "\nnote: xfont can be replaced with xfontsel in backticks to prompt for a font straight away (but really annoying for repeated use)\n"
+fi
+
+# postprocessed args declarations
+
+declare -g font="${3--*-fixed-*-*-*-*-*-200-*-*-*-*-*-*}"
+declare -g prompt="${1-Input:}"
+declare -g format="${2-unused}"
+declare -g socket="${4-unused}"
+declare -i retv=0
+
+
+[[ $debugging == 0 ]] && exec 2>/dev/null
+[[ $format == unused ]] && unset format
+[[ $socket == unused ]] && unset socket
+
+eval "declare -gA input=( `i3-input ${socket+-s }${socket} ${format+-F }${format} -f $font -P $prompt | sed -r 's/(.*) = (.*)/"\1" "\2" /g' | tail -n3` )"
+retv=$?
+
+if [[ $input[output] != "nil" && $input[output] != "" ]] {
+	echo "OK: input cmd,output,occ=$input[command],$input[output],$input[occurances] ($retv)" > /dev/stderr
+	if ((dorun)) {
+		eval $input[output]
+	} else {
+		echo $input[output]
+	}
+
+} else {
+	echo "NOGO: inputs: ${input[@]} retv=$?" > /dev/stderr
+	declare -p input
+}
+
+if ((dowait)) {
+	eval `resize`
+	if ((COLUMNS < 12)); then
+		echo "[?]:"
+	if ((COLUMNS < 65)); then
+		echo "[$((LINES));1H[44m[2K Press a Key [0m[1;1H"
+	else
+		echo "[$((LINES));1H[44m[2K    *** PRESS ANY KEY TO END PROGRAM OUTPUT DISPLAY ***[0m[1;1H"
+	fi
+	read -sk1
+}

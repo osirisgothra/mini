@@ -1,0 +1,35 @@
+#!/bin/zsh
+
+zmodload 'zsh/mathfunc'
+
+if [[ $* =~ --help ]]; then
+	echo '
+syntax: $(basename $0) [MAX] [MIN] [FORMAT]
+
+	OPTIONS
+
+		MAX			The highest number expected (default=1000)
+		MIN			The lowest number expected (default=0)
+		FORMAT		The format string to use (see printf(1) to see how)
+					The format argument is always the number and can be seen as string or numeric
+
+		--help		Show this help text
+
+'
+	exit 127
+fi
+
+max=${1-1000}
+min=${2-0}
+fmt=${3-%s}
+num=$[ int( rand48() * ( max - min ) ) + min ]
+printf "$fmt" "$num"
+
+
+
+
+# FIX: rewrote in zsh
+##!/bin/bash
+#a=$1
+#r=$(( ${RANDOM} * (32767*((a)+1)) / (32767) / 32767 ))
+#echo $r

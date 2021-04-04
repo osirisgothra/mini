@@ -1,0 +1,46 @@
+#!/bin/zsh
+debugging=0
+
+declare -gi _okay=0
+declare -g _tmp=""
+
+# syntax: trade [file1] [file2]
+
+fail()
+{
+	echo "critical error: $* failed (exiting)"
+	exit 129
+}
+
+trap t4cleanup INT HUP
+
+
+t4()
+{
+	_okay=0
+	_tmp=$(mktemp)
+	if [[ -r $1 ]] && [[ -r $2 ]] && [[ -r $_tmp ]]; then
+		mv -f "$1" "$_tmp" && let _okay++
+		((debugging)) && echo $_okay
+		((_okay < 1)) && fail "src>temp"
+		mv -f "$2" "$1" && let _okay++
+		((debugging)) && echo $_okay
+		((_okay < 2)) && fail "dest>src"
+		mv -f "$_tmp" "$2" && let _okay++
+		((debugging)) && echo $_okay
+		((_okay < 3)) && fail "temp>dest"
+	else
+		fail "reading one or both files"
+	fi
+	echo "$okay operations succeeded for $1 <-> $2"
+}
+
+if (($# < 2 )) || (( $# % 2 )); then
+	echo "syntax is file pairs to trade, two at a time"
+fi
+
+for src dest in $@; do
+	echo "trading $src for $dest, and viceversa..."
+	t4 $src $dest
+done
+trap INT HUP QUIT

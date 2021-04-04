@@ -1,0 +1,119 @@
+#!/usr/bin/perl
+# vim: cc=80:sw=2:ts=2:noet:more:nowrap:fdm=indent:fdl=999:siso=999:so=999
+# {begin config=debug} TODO: remove from release versions (should be installed in common dirs)
+#
+use lib "/src/perl";
+# {/begin}
+
+use warnings;
+use v5.20;
+use strict;
+use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
+use File::Slurp;
+use Path::Tiny;
+use Curses::UI;
+
+
+
+
+# uncomment when inifile is done
+#use File::Config::INI qw( inifile );
+# comment this range out when inifile is done
+#sub inifile { return (); }
+# end comment out when range inifile done
+package main;
+no warnings "experimental";
+
+# functions for inifile ops
+########### inifile
+#--------------------------------------------------------------
+ # The DevDaily::Time Perl module.
+ # Free to use as a template for creating your own Perl modules.
+ #--------------------------------------------------------------
+ package File::Format::INI;
+ require Exporter;
+ use Path::Tiny;
+ use feature 'signatures';
+
+ our @ISA     = qw(Exporter);
+ our @EXPORT  = qw(inifile);   # symbols to be exported by default (space-separated)
+ our $VERSION = 1.00;          # version number
+
+ #use MODULE_NAME 'function_name';
+
+ sub inifile($filename)
+ {
+	die("Need an actual path structure here (inifile.filename.argument)") unless ( blessed($filename, Path::Tiny) );
+
+	
+ }
+
+ 1;
+
+  #As you might guess from the code, the first part of the package name (the DevDaily part) corresponds to the subdirectory you created, and the Time part corresponds to the Time.pm file you created.
+
+  # A lot of the other code is boilerplate Perl code that's needed when creating a module. Possibly the most important thing to remember about it is that when you create a new Perl function you need to include it in the EXPORT statement. For instance, if I created a
+ #  new function called getdayof_week, I'd need to export it like this:
+
+# our @EXPORT  = qw(get_time_suffix get_day_of_week);
+
+#   Fortunately it's actually a pretty easy problem to debug: if you don't export your function you won't be able to access it from the program that tries to call it.
+#################
+
+package main;
+import File::Format::INI;
+
+
+# constants (compile time, do not precompile me)
+use constant HOME => $ENV{HOME};
+use constant PSF => ".logofrc";
+use constant PRESET => "<preset name>";
+
+# presets
+my $presets = inifile("~/.logofrc","/etc/logofrc","none");
+
+
+# command line options
+
+my ($opt, $usage) = describe_options(
+        $0 . ' %o <file>',
+        [ 'no-dialog|t', "use plain-text mode, dont use dialog to show log", ],
+        [ 'no-follow|n',   "do not follow the log, just show it", ],
+        [ 'add-preset|a=s', "add preset PRESET with path used", ],
+        [ 'preset|p=s', "use preset PRESET instead of a path", ],
+        [ 'remove-preset|d=s', "remove preset PRESET (doesnt delete any files)", ],
+        [ 'list-presets|l', "lists presets currently saved", ],
+        [ 'presetfile|f=s', "use PRESETFILE instead of ~/.logofrc", { default => path(HOME)->child(PSF) }, ],
+        [],
+        [ 'verbose|v',  "print extra stuff"            ],
+        [ 'help',       "print usage message and exit" ],
+     );
+sub translate_logfile($)
+{
+	my $log = shift;
+	given($log) {
+		say("unreadable $log") unless -r;
+	}
+	return $log;
+}
+
+my @dialogcmd = qw! dialog --backtitle logof-v1.0 --tailbox !;
+my $uname=(getgrent())[3] // $ENV{'USERNAME'} // "nobody";
+my @dialogsize = qw! -1 -1 !;
+my $logfile = "/var/log/syslog";
+if (@ARGV == 1) {
+	$logfile = translate_logfile($ARGV[0]);
+
+	die("$logfile is unreadable by effective user ($uname)!") unless -r $logfile;
+
+
+}
+elsif (@ARGV > 1) {
+	die("only 1 file should be specified to view");
+}
+system(@dialogcmd,$logfile,@dialogsize);
+say($logfile);
+
+
+
+

@@ -1,0 +1,3 @@
+#!/bin/zsh
+#
+while true; do x=$(eval dialog --output-fd 1 --no-lines --extra-label "'Change Value'" --menu text 0 0 12 $( for x in *; do printf "'%s' '%s' " "$x" "$(cat $x | tr -d '\n')"; done)) || break; y=$(dialog --output-fd 1 --inputbox "$x" 0 0 "$(cat $x)"); if dialog --yesno "write '$y' to '$x'?" 0 0; then echo "$y" | sudo tee "$x"; read -sk1; else dialog --msgbox "discarded result" 0 0; fi; done

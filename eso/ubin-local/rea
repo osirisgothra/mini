@@ -1,0 +1,129 @@
+#!/bin/bash
+#
+#    rea
+#     re-nice/ionice elected applications
+#
+#    eso project
+#    eso-bin on github/osirisgothra
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    NOTE FROM THE AUTHOR
+#
+#    If the world ends and apes and monkeys start dating rattlesnakes, 
+#    I might consider bringing local servers back on. However, it is quite
+#    unlikely to have access to them, beyond having them hosted out of IRC
+#    or some doesnt-exist-without-paying-for-it domain name. See my network
+#    status page at larnica.whyfi.??? (??? is subject to change) for
+#    information, if it is available, when it is available.
+#
+#    LICENSE
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#    File's history is listed top-down as newest-oldest
+#
+#    Sun Aug 12 22:08:14 EDT 2018
+#		this header was created using the template generator 
+#		by Gabriel T. Sharp <osirisgothra@hotmail.com>.
+#		added support to include threads
+#
+#    Wed Apr 12 10:05:13 EST 2018
+#		osirisgothra@larnica initially created this file
+#		with the original name, rea
+#
+#
+#	 FUN FACT
+#
+#	  This program's name could have been 'treat' but since
+#     it already existed, the author was forced to go with the name
+#	  'rea' which was actually the former name of the merged program
+#     that USED to be ran in place of this program. The old 'rea' program
+#     was called that because it set all applicable processes to 'realtime'
+#     priority and used ionice exclusively. This program does not use
+#     ionice nor set realtime priorities, just nice values. However, the
+#     name was repurposed to fit the new, more system-friendly version of
+#     the eso project.
+#
+
+# these are written in this form:
+#    [process]="nice"
+# where:
+#    process	the BASENAME of the process, excluding it's full path (see EXAMPLES)
+#    nice		a numeric integer value between -19 and 19, values greater than 19 will be set to 19, less than -19 will be set to -19
+# EXAMPLES
+#
+#    [zsh]="-4"		sets all processes with the name 'zsh' (including all threads) to the nice value of -4
+#    [bash]="-1"	sets all bash shells running right now to a -1 nice value
+#
+# UNDER CONSTRUCTION: may not work just yet
+#    [java]="[pri]=-1 [thr]=all" all threads too
+#    [java]="[pri]=-1 [thr]=only"  threads only
+#    
+#
+# LANGUAGE NOTES
+#
+#    * the bash language requires [] in the process names in the list below for the hash values, they must be included
+#    * these values must remain on one line unless $IFS is set to $'\n', then the lines could be broken (use at own risk!)
+
+# TODO: pull from .rearc instead if it exists, otherwise it needs to come from the commandline
+declare -A PROC_NAMES=( [java]="[priority]='-1' [threads]='all'" [X]="-1" [perl]="-1" [i3bar]="-1" [play]="-1" [Xorg]="-1" [dbus-daemon]="-1" [xinit]="-1" [startx]="-1" [bash]="-1" [sh]="-1" [ssh]="-1" [gvsd-fuse]="-1" [gvsd]="-1" [init]="-1" [htop]="-1" [nano]="-1" )
+
+for x in "${!PROC_NAMES[@]}"; do
+	declare PROC_DATA="${PROC_NAMES[$x]}"
+	declare -A PROC_VALUES=( )
+	# check to see if value is a multi-type or a single type
+	# the other values get set depending on this, if it is a
+	# single type, we must rewite it to its proper form before
+	# to ensure proper value translation.
+	if [[ $PROC_DATA =~ \[.*\]= ]]; then
+		eval "PROC_VALUES=( ${PROC_DATA} )"
+	else
+		eval "PROC_VALUES=( [priority]='${PROC_DATA--1}' )"
+	fi
+	# assign defaults or values, if they were defined or not
+	PROCESS_PRI=${PROC_VALUES[priority]--1}					# a number from -20 to 19
+	PROCESS_THREADS=${PROC_VALUES[threads]-main}			# main, only, all
+	PROCESS_IOCLASS=${PROC_VALUES[ioclass]-besteffort}		# besteffort, realtime, roundrobin, or idle
+	PROCESS_IODATA=${PROC_VALUES[iodata]-4}					# 0(most) --- 4(avg) --- 7(least)
+	PROCESS_IOCODE=${PROC_VALUES[iocode]-NA}				#	alternate method than previous two, realtime5 would be 'R5', idle 'ID', besteffort would be 'B4' (default for linux), 'I0' is idle, 'NA' means dont use (the default)
+	PROCESS_USER=${PROC_VALUES[user]-current}				# current, owner, groupmember, username, or UID (default is "current")
+
+	echo "threads for: $x (new priority: ${PROCESS_PRI})..."
+	echo "[s"
+
+	declare -a THREADS=(  `ps -L -C "$x" -o tid=` )
+
+	for y in `ps -L -C "$x" -o tid=`; do
+		echo -ne "[u$$: ${x}:${y} setting (to $PROCESS_PRI).. ("
+		sudo -H renice  -n "$PROCESS_PRI" -p "$y" | tr -d '\n'
+		echo ")"
+	done
+done
+echo "renice-ing extra asynchronous processes completed"
+
+

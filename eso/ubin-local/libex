@@ -1,0 +1,92 @@
+#!/usr/bin/env perl
+
+# syntax: libex [libroot] -- [program] [arguments]
+
+use warnings;
+use strict;
+use v5.20.2;
+use Path::Tiny qw( path rootdir cwd );
+use vars qw( $T $ST );
+use subs qw( _uT shdie shwarn getlibs );
+use constant FALSE => 0, TRUE => 1, ORGNAME => 'libex';
+use Getopt::Long::Descriptive qw( describe_options );
+# experimental
+#  +- experimental::autoderef					\$ -> $
+#  +- experimental::lexical_subs				sub name { $var = shift ... -> sub name($var) {
+#  +- experimental::lexical_topic				n/a
+#  +- experimental::postderef					n/a
+#  +- experimental::regex_sets					n/a
+#  +- experimental::signatures					sub name { $var = shift ... -> sub name($) { $var = shift ... (forces any value into scalar equivalent conversion, such as a list context to count
+#  +- experimental::smartmatch					$somevalue =~ /regex?/ -> $somevalue ~~ multimatch
+no warnings "experimental::smartmatch";
+		
+
+my ($opt, $usage) = describe_options(
+    path($0)->basename . " %o ROOT-PATH PROGRAM <ARGUMENT(S)>",
+	[ 'program-root|p', "program path is rooted at same level as library root given on command line", ],
+	[ 'shell|S=s', "run executable through a shell (deafults to sh if none given)" , { default => 'sh' }, ],
+    [ 'standard|s',   "add standard library locations after", ],
+	[ 'before|b', "same as -s, but before not after", ],
+	[ 'i386|3', "use 32-bit/i386 libraries instead of 64-bit ones", ],
+	[ 'include-env|i', "use any values found on LD_LIBRARY_PATH environment variables (subject to --before as well)" ],
+    [],
+    [ 'verbose|v',  "print extra stuff"            ],
+    [ 'help',       "print usage message and exit" ],
+);
+say($usage->text), exit if $opt->help;
+
+my @argv=      ( @ARGV );
+my $argc=scalar( @ARGV );
+my $debugmode=FALSE;
+
+sub _sln   { return ( $debugmode == FALSE ? "\n" : ""); }
+sub _uT    { $ST=((defined($T))?time:$ST);$T=time; }		# set Time (and STart time if needed)
+sub _gT	   { return $ST-$T; }								# give back an actual zero-timebased answer (not a zillionth second answer)
+sub shdie  { _uT; die("$0($?$!&{_gT}): @_".  _sln ); }			# die plus details (but not line numbers)
+sub shwarn { _uT; warn("$0($?$!&{_gT}):	@_" . _sln ); }			# warn = =
+sub getlibs {
+	my $libroot = path(shift);
+	my $lbarch = $opt->i386 ? "i386-linux-gnu" : "x86_64-linux-gnu";    
+	my $ulibroot = $libroot->child("usr")->child("lib");
+	my $slibroot = $libroot->child("lib");
+	my @retval = ( $ulibroot, $ulibroot->child($lbarch), $slibroot, $slibroot->child($lbarch) );
+	return @retval;
+}
+# verification
+# - 1 proper program name
+# - 2 proper arg count
+# - 3 proper argument types (dir, executable, etc..)
+# - 4 up to child process to provide data back and use given data
+#
+given(path($0)->basename) {
+	when(/libex/) { print "program name verification ok\n"; }
+	default { die "program name changed from its original name (due to this being a supervisory program, it should not be renamed) please rename this program back to libex!"; }
+}
+say "arg count: ". $argc;
+shdie "not enough arguments - use --help for list of valid arguments"	unless $argc >= 2;
+
+my $librt = path(shift(@argv));
+my $exec = path(shift(@argv));
+my @args = @argv;
+my @libroots = getlibs($librt);
+# building to library root tree
+@libroots = (@libroots,getlibs("/")) if $opt->standard and not $opt->before;
+@libroots = (getlibs("/"),@libroots) if $opt->standard and $opt->before;
+@libroots = (@libroots,split(":",$ENV{LD_LIBRARY_PATH})) if $opt->include_env and not $opt->before;
+@libroots = (split(":",$ENV{LD_LIBRARY_PATH}),@libroots) if $opt->include_env and $opt->before;
+
+# executing and including in the environment
+# TODO: pass to open3 and modify child environment directly
+#       to eliminate the need for 'exec' or 'env' <= some weight on shell for this still needs lifted
+#
+
+my @outs = ( "env","LD_LIBRARY_PATH=".join(":",@libroots), $exec, @args );
+
+if ( $opt->verbose ) 
+{
+	my $libcnt = 1.0; print "library paths:\n";
+	printf("\t%01.1d\t%-25s\n",$libcnt++,$_) for @libroots; $libcnt=1.0;
+	print "\n\nresulting command line:\n";
+	printf("\t%01.1d\t%-25s\n",$libcnt++,$_) for @outs;
+}
+exec @outs;

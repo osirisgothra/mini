@@ -1,0 +1,87 @@
+#!/usr/bin/perl 
+#===============================================================================
+#
+#         FILE:  i3ed
+#
+#        USAGE:  ./i3ed  
+#
+#  DESCRIPTION: A simple program to run nano and edit .i3rc
+#
+#      OPTIONS:  None
+# REQUIREMENTS:  Perl Version 5.20.2 or later (att: perl 5.30 was out)
+#         BUGS:  N/A
+#        NOTES:  None
+#       AUTHOR:  Gabriel Thomas Sharp (gt), osirisgothra@hotmail.com
+#      COMPANY:  Paradisim NCNP
+#      VERSION:  1.0
+#      CREATED:  10/06/2020 08:27:44 AM
+#     REVISION:  No
+#===============================================================================
+
+use strict;
+use warnings;
+use v5.20.2;
+no warnings 'experimental';
+use feature 'signatures';
+use Path::Tiny;
+use Scalar::Util 'blessed';
+
+my %errorcodes = (  254   =>  "failed during exec, no error code returned",
+                    253   =>  "one or both of the involved files are either unreadable and/or unexecutable",
+                 );
+
+
+#===  FUNCTION  ================================================================
+#         NAME: nano
+#      PURPOSE: Start nano
+#   PARAMETERS: filename
+#      RETURNS: 0 = ok   <>0 = failed (code)
+#  DESCRIPTION: Launches your nano found in /bin/nano
+#       THROWS: [no exceptions]
+#     COMMENTS: requires a filename blessed with Path::Tiny (usually done via path() 
+#        NOTES: #1: an error even if its zero (promote to 254 if its zero)
+#               #2: promote to 253 only if no errorcode is available              
+#     SEE ALSO: nano(1)
+#===============================================================================
+sub nano($filename)
+{
+   die("cannot use $filename as it is not defined") unless defined($filename);
+   die("needs a blessed path") unless blessed($filename);
+    
+   if ( $filename->exists() ) 
+   {
+       my $nanobin = Path::Tiny::rootdir()->child("bin")->child("nano");
+       if ( $nanobin->exists() && -x $nanobin ) 
+       {
+           printf("$nanobin is executable and exists: yes\n");
+           printf("$filename exists: yes\n");
+           exec("$nanobin",$filename) or return ($? > 0 ? $? : 254); #1
+       }
+       else
+       {
+           printf("$nanobin is missing\n");
+       }
+    }
+    else
+    {
+        printf("$filename is missing\n");
+    }
+    return ($? > 0 ? $? : 253); #2
+}
+
+
+#---------------------------------------------------------------------------
+#  Main Program Entry Point
+#
+#  NOTES: #1  These get executed only if exec(@) failed in nano($)
+#---------------------------------------------------------------------------
+
+my $err = nano(path($ENV{HOME})->child(".i3rc"));
+printf("%s\n",$errorcodes{$err}) if defined $errorcodes{$err};  #1
+printf("error %d while executing operation\n",$err) ; #1
+  
+#---------------------------------------------------------------------------
+#  End of Program
+#---------------------------------------------------------------------------
+
+# vim: nowrap:sw=2:ts=2:et:hls:bs=2:cc=80:mls=2:nofen

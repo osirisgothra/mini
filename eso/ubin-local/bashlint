@@ -1,0 +1,53 @@
+#!/bin/bash
+
+
+# SHELL OPTIONS
+
+shopt -s interactive_comments
+shopt -s nullglob
+shopt -s dotglob
+shopt -s extglob
+
+# VARIABLES
+
+LINTFILE=$(mktemp)
+LINTTEMP=$(mktemp)
+IGNORE_XLAT=( [runonce_declare]="declare" )
+IGNORE_LIST=( "runonce" )
+IGNORE_CHAR='#'
+SFMT='$PROG (line ${B_LINE}:${B_COL}): $DESC'
+
+# INIT
+
+# process .bashrc by default if no files given
+if [[ $# -eq 0 ]]; then
+	set "${HOME}/.bashrc"
+fi
+
+for x; do
+	if ! [[ -r "$x" ]]; then
+		echo "$x (line 1:1): warning: $x not readable"
+	fi
+done
+
+# REDIRECTIONS
+
+exec 4<>"$LINTFILE" 5<>"$LINTTEMP"
+
+# MAIN
+
+if [[ -r "$LINTFILE" ]]; then
+	for tgt in "$@"; do
+		cat "$tgt" | sed 's/runonce_declare/declare/g' 1>&4
+		cat "$LINTFILE" | sed 's/'${IGNORE_LIST[@]}'/true/g' 1>&5
+		# we want this style: PROGNAME (line LINE:COLUMN): DESCRIPTION
+		cat "$LINTTEMP" | bash -n 2>&1 | perl -wpe 's/\sline (\d+)/$1:1/g'
+		rm -f "$LINTFILE"
+		rm -f "$LINTTEMP"
+	done
+else
+		echo "bashlint (line 1:1): cant make lint tempfile"
+fi
+# action: return 0 always!
+# reason: use with linters will fail and it wont report why -- we use a normal error line to express any errors
+exit 0

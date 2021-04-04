@@ -1,0 +1,69 @@
+#!/bin/bash
+
+declare -gi XGAMMA_ADDING=0
+declare -g XGAMMA_INC=${G_INC-0.05}
+
+
+# --add flag; allow it to be --add, -add, -a, or --a
+if [[ $1 =~ ^--?a(dd)? ]]; then
+	XGAMMA_ADDING=1
+	shift
+fi
+
+# -a GRGB=( "r" "g" "b" )
+eval $(echo -ne "GRGB=( "; xgamma |& tr -Cd '[0-9. ]' | tr -s ' ' | tr ' ' ',' | grep -P '[0-9.]+,?' -o | tr ',\n' ' ' | tr -s ' '; echo -ne ")\n")
+
+if [[ $# -eq 0 ]] || [[ $1 == 'oneshot' ]]; then
+	while true; do
+		[[ $XGAMMA_ADDING -eq 1 ]] && echo "warning: --add does not influence randomgen, ignoring..."
+		if [[ $1 != oneshot ]]; then
+			echo "keep pressing enter until you see a gamma you like and"
+			echo "then press [Y]..."
+		fi
+		MAJOR=$[ ${RANDOM:1:1} / 3 ]
+		MINOR=$[ ${RANDOM:1:2} ]
+		CMDLINE=( /usr/bin/xgamma -gamma "${MAJOR}.${MINOR}" )
+		echo "${CMDLINE[@]}"
+		eval "${CMDLINE[@]}"
+		if [[ $1 != oneshot ]]; then
+			read -sn1
+			if [[ $REPLY == Y ]]; then
+				exit 0
+			fi
+		else
+			exit 0
+		fi
+	done
+else
+	if [[ "$*" =~ ^(-?[0-9.\ ]+)+$ ]]; then
+		echo "digit(s) only, sending as gamma value...$*"
+		case $# in
+			3)
+				if [[ $XGAMMA_ADDING -eq 1 ]]; then
+					declare -a NEWVALS=( $(calc -e -- "${1}+${GRGB[0]};${2}+${GRGB[1]};${3}+${GRGB[2]}" | tr -d ' \t' | tr '\n' ' ') )
+				else
+					declare -a NEWVALS=( $1 $2 $3 )
+				fi
+				echo "old->new"
+				echo "${GRGB[@]} -> ${NEWVALS[@]} ( +/- $@ )"
+				xgamma -rgamma "${NEWVALS[0]}" -ggamma "${NEWVALS[1]}" -bgamma "${NEWVALS[2]}"
+				;;
+			*)
+				[[ $# -ne 1 ]] && echo "warning: $# values given, only first will be used!"
+				echo "items: $@"
+				echo "GRGB: ${GRGB[@]}"
+				if [[ $XGAMMA_ADDING -eq 1 ]]; then
+					xgamma -gamma $( calc -e -- "${1}+(( ${GRGB[0]} + ${GRGB[1]} + ${GRGB[2]} ) / 3)")
+				else
+					xgamma -gamma ${1}
+				fi
+				;;
+		esac
+	else
+		echo "nondigit parameters detected, delegating to xgamma..."
+		xgamma "$@"
+	fi
+	exit $?
+fi
+echo "abnormal termination"
+exit 127

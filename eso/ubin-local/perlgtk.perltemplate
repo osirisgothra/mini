@@ -1,0 +1,165 @@
+#!/usr/bin/perl
+#
+#   perlgtk-template
+#   sample template for perltemplate
+#   
+##!/bin/bash
+#
+#    perlgtk.template
+#    template for gtk2 programs, example for perltemplate(3pm)
+#    mini
+#    esoteric projects, small projects (but not private or proprietary projects)
+#
+#    Copyright (C) 1995-2021 Gabriel T. Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all projects can be
+#    obtained by visiting the repository at:
+#
+#    <https://github.com/osirisgothra>
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sat 27 Feb 2021 10:41:03 AM EST
+#            osirisgothra@ initially created this file
+#            with the original name, perlgtk.template
+#
+#
+#
+#  This template and header was created using the template generator by Gabriel T. Sharp
+#  You can download the latest version at: <https://www.github.com/osirisgothra/mini.git/eso/ubin-local/template>
+#  (the url is subject to changes on github's behalf, please submit a pull request to fix or request a fix on any url changes)
+#
+
+
+
+use v5.20.2;                        
+use warnings;                      
+use strict;                         
+
+use Path::Tiny qw(path);            # portable path handling
+use Gtk2 -init;                     # gtk2 core lib and init it
+use Getopt::Long::Descriptive;      # magic for CL options
+use File::MimeInfo;                 # no magic
+use Try::Tiny;                      # exception handling
+# make local copies of (these get changed by G::L::Descriptive)
+my $argc = $#ARGV;
+my @argv = @ARGV;
+my $prog_path = path($0);
+my $prog_name = $prog_path->basename();
+
+
+
+  use Getopt::Long::Descriptive;
+
+  my ($opt, $usage) = describe_options(
+    'perlgtk-template %o <image1 ...>\nqv %o <text1 ...>',
+    [],
+    [ 'man|m', "manpage mode" ],
+    [ 'verbose|v',  "print extra stuff"            ],
+    [ 'help',       "print usage message and exit", { shortcircuit => 1 } ],
+  );
+
+  print($usage->text), exit if $opt->help;
+
+my $w=new Gtk2::Window( "GTK_WINDOW_TOPLEVEL" );
+$w->set_title('Quick Viewer ' . $argc . ' Items Opened');
+$w->signal_connect('delete_event' => sub { Gtk2->main_quit; });
+$w->set_border_width(3);
+$w->set_position('center_always');
+
+my $v=new Gtk2::VBox();
+my $s=new Gtk2::ScrolledWindow();
+my $i=undef;
+my $n=undef;
+
+# this example source makes a window, shows the arguments as whatever they are
+
+for $n (@ARGV)
+{
+    print("item: $n\n");
+    $n = path($n);
+    no warnings 'experimental';    
+    if ( -r $n && not $opt->man) 
+    {
+    
+        given(mimetype($n))
+        {
+            # wrap images into an HBox that has
+            # a label with some markup in it, and the image itself next door to it (to the left like file managers do)
+            when (/image/) {
+                my $l = new Gtk2::Label();
+                my $h = new Gtk2::HBox();                   
+                $h->set_size_request(16,16);                    
+                $l->set_use_markup(1); # switch to pseudo-ml (pango) format in text
+                $l->set_markup
+
+
+
+                ("<a href=\"".$n->realpath()."\">" . $n->basename() . "</a>");  
+                # anchor a URL so user can access the whole link
+                # note: pango defaults to not letting clicks happen, and we only want the copy link function
+                # (because I hate programs that open a browser and so on, id rather it copy the link, thats what
+                # happens here, right click the link and you get a menu and choose it from there, as it should be)
+                
+                
+                                    
+                $i= new Gtk2::Image();
+                $i->set_from_file($n);    
+                $h->add($i);        # add image
+                $h->add($l);        # add text describing image
+                $v->add($h);
+            }
+            default {
+                $i = new Gtk2::TextView();
+                $b = new Gtk2::TextBuffer();
+                $i->set_buffer($b);
+                $i->set_size_request(50,50);
+                $b->set_text($n->slurp());
+                $v->add($i);
+            }
+        }
+    }
+    else
+    {
+        $i = new Gtk2::TextView();
+        $b = new Gtk2::TextBuffer();
+        $i->modify_font(Gtk2::Pango::FontDescription->from_string("Liberation Mono 10"));        
+        $i->set_buffer($b);
+        $i->set_size_request(16,16);
+        my $text = `man -7 $n |cat`;
+        if ( $text ) {        
+            $b->set_text($text);
+                    print("text is ".length($text)." in length\n");
+
+        } else {
+        print("text is zero length\n");
+            $b->set_text($n);   # use the argument itself (its not a filename, option, or manpage)
+        }
+        $v->add($i);
+    }            
+        
+}    
+
+$s->add_with_viewport($v);
+$w->add($s);
+# this determines the size of the entire window only
+$w->set_default_size(640,480);
+$w->show_all();
+Gtk2->main();
+
+

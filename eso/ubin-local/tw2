@@ -1,0 +1,131 @@
+#!/bin/bash
+
+
+# declare -g JAVA_LIBPATH="/home/osirisgothra/.mineyourmind/temp/extract/1544148059708"
+declare -g JAVA_LIBPATH="/src/tw2-libs"
+declare -ga JAVA_FLAGS=( "-XX:+UseCMSCompactAtFullCollection"
+						 "-XX:+UseConcMarkSweepGC"
+						 "-XX:+UseParNewGC"
+						 "-XX:+AggressiveOpts"
+						 "-Djava.library.path=${JAVA_LIBPATH}"
+						 "-Xms1024M"
+						 "-Xmx2512M"
+						 "-XX:MaxPermSize=512M" )
+						 
+declare -ga JAVA_JARS=( "/home/osirisgothra/.mineyourmind/libraries/com/mumfrey/liteloader/1.6.4/liteloader-1.6.4.jar"
+			"/home/osirisgothra/.mineyourmind/libraries/net/minecraftforge/minecraftforge/9.11.1.965/minecraftforge-9.11.1.965.jar"
+			"/home/osirisgothra/.mineyourmind/libraries/net/mineyourmind/mojang/launchwrapper/1.8c/launchwrapper-1.8c.jar"
+			"/home/osirisgothra/.mineyourmind/libraries/org/ow2/asm/asm-all/4.1/asm-all-4.1.jar"
+			"/home/osirisgothra/.mineyourmind/libraries/org/scala-lang/scala-library/2.10.2/scala-library-2.10.2.jar"
+			"/home/osirisgothra/.mineyourmind/libraries/org/scala-lang/scala-compiler/2.10.2/scala-compiler-2.10.2.jar"
+			"/home/osirisgothra/.mineyourmind/libraries/lzma/lzma/0.0.1/lzma-0.0.1.jar"
+			"/home/osirisgothra/.mineyourmind/libraries/net/sf/jopt-simple/jopt-simple/4.5/jopt-simple-4.5.jar"
+			"/home/osirisgothra/.mineyourmind/libraries/com/paulscode/codecjorbis/20101023/codecjorbis-20101023.jar"
+			"/home/osirisgothra/.mineyourmind/libraries/com/paulscode/codecwav/20101023/codecwav-20101023.jar"
+			"/home/osirisgothra/.mineyourmind/libraries/com/paulscode/libraryjavasound/20101123/libraryjavasound-20101123.jar"
+			"/home/osirisgothra/.mineyourmind/libraries/com/paulscode/librarylwjglopenal/20100824/librarylwjglopenal-20100824.jar"
+			"/home/osirisgothra/.mineyourmind/libraries/com/paulscode/soundsystem/20120107/soundsystem-20120107.jar"
+			"/home/osirisgothra/.mineyourmind/libraries/argo/argo/2.25_fixed/argo-2.25_fixed.jar"
+			"/home/osirisgothra/.mineyourmind/libraries/org/bouncycastle/bcprov-jdk15on/1.47/bcprov-jdk15on-1.47.jar"
+			"/home/osirisgothra/.mineyourmind/libraries/com/google/guava/guava/14.0/guava-14.0.jar"
+			"/home/osirisgothra/.mineyourmind/libraries/org/apache/commons/commons-lang3/3.1/commons-lang3-3.1.jar"
+			"/home/osirisgothra/.mineyourmind/libraries/commons-io/commons-io/2.4/commons-io-2.4.jar"
+			"/home/osirisgothra/.mineyourmind/libraries/net/java/jinput/jinput/2.0.5/jinput-2.0.5.jar"
+			"/home/osirisgothra/.mineyourmind/libraries/net/java/jutils/jutils/1.0.0/jutils-1.0.0.jar"
+			"/home/osirisgothra/.mineyourmind/libraries/com/google/code/gson/gson/2.2.2/gson-2.2.2.jar"
+			"/home/osirisgothra/.mineyourmind/libraries/org/lwjgl/lwjgl/lwjgl/2.9.0/lwjgl-2.9.0.jar"
+			"/home/osirisgothra/.mineyourmind/libraries/org/lwjgl/lwjgl/lwjgl_util/2.9.0/lwjgl_util-2.9.0.jar"
+			"/home/osirisgothra/.mineyourmind/versions/1.6.4/1.6.4.jar" )
+declare -g JAVA_JARS_F
+declare -g JAVA_ENTRY_METHOD="net.minecraft.launchwrapper.Launch"
+declare -g MC_USERNAME="Player"
+declare -g MC_SESSION="-"
+declare -g MC_VERSION="1.6.4"
+declare -g MC_GAMEDIR="/home/osirisgothra/.mineyourmind/instances/TechWorld2/minecraft"
+declare -ga MC_TWEAKCLASSES=( "cpw.mods.fml.common.launcher.FMLTweaker"
+		"com.mumfrey.liteloader.launch.LiteLoaderTweaker" )
+declare -g LS_DEBUG=0
+declare -ga MC_TWEAKCLASSES_F
+declare -g MC_ASSETS_DIR="/home/osirisgothra/.mineyourmind/assets/virtual/legacy" 
+declare -g MC_WIDTH=854
+declare -g MC_HEIGHT=480
+declare -g JAVA_IMGNAME='java'
+
+## example command line (separated of course)
+## **  java
+## **  -XX
+## **  +UseCMSCompactAtFullCollection
+## **  -XX
+## **  +UseConcMarkSweepGC
+## **  -XX
+## **  +UseParNewGC
+## **  -XX
+## **  +AggressiveOpts
+## **  
+## **  -Xms1024M
+## **  -Xmx2512M
+## **  -XX
+## **  MaxPermSize=512M
+## **  -cp
+## **  /home/osirisgothra/.mineyourmind/libraries/com/mumfrey/liteloader/1.6.4/liteloader-1.6.4.jar
+## **  /home/osirisgothra/.mineyourmind/libraries/net/minecraftforge/minecraftforge/9.11.1.965/minecraftforge-9.11.1.965.jar
+## **  /home/osirisgothra/.mineyourmind/libraries/net/mineyourmind/mojang/launchwrapper/1.8c/launchwrapper-1.8c.jar
+## **  /home/osirisgothra/.mineyourmind/libraries/org/ow2/asm/asm-all/4.1/asm-all-4.1.jar
+## **  /home/osirisgothra/.mineyourmind/libraries/org/scala-lang/scala-library/2.10.2/scala-library-2.10.2.jar
+## **  /home/osirisgothra/.mineyourmind/libraries/org/scala-lang/scala-compiler/2.10.2/scala-compiler-2.10.2.jar
+## **  /home/osirisgothra/.mineyourmind/libraries/lzma/lzma/0.0.1/lzma-0.0.1.jar
+## **  /home/osirisgothra/.mineyourmind/libraries/net/sf/jopt-simple/jopt-simple/4.5/jopt-simple-4.5.jar
+## **  /home/osirisgothra/.mineyourmind/libraries/com/paulscode/codecjorbis/20101023/codecjorbis-20101023.jar
+## **  /home/osirisgothra/.mineyourmind/libraries/com/paulscode/codecwav/20101023/codecwav-20101023.jar
+## **  /home/osirisgothra/.mineyourmind/libraries/com/paulscode/libraryjavasound/20101123/libraryjavasound-20101123.jar
+## **  /home/osirisgothra/.mineyourmind/libraries/com/paulscode/librarylwjglopenal/20100824/librarylwjglopenal-20100824.jar
+## **  /home/osirisgothra/.mineyourmind/libraries/com/paulscode/soundsystem/20120107/soundsystem-20120107.jar
+## **  /home/osirisgothra/.mineyourmind/libraries/argo/argo/2.25_fixed/argo-2.25_fixed.jar
+## **  /home/osirisgothra/.mineyourmind/libraries/org/bouncycastle/bcprov-jdk15on/1.47/bcprov-jdk15on-1.47.jar
+## **  /home/osirisgothra/.mineyourmind/libraries/com/google/guava/guava/14.0/guava-14.0.jar
+## **  /home/osirisgothra/.mineyourmind/libraries/org/apache/commons/commons-lang3/3.1/commons-lang3-3.1.jar
+## **  /home/osirisgothra/.mineyourmind/libraries/commons-io/commons-io/2.4/commons-io-2.4.jar
+## **  /home/osirisgothra/.mineyourmind/libraries/net/java/jinput/jinput/2.0.5/jinput-2.0.5.jar
+## **  /home/osirisgothra/.mineyourmind/libraries/net/java/jutils/jutils/1.0.0/jutils-1.0.0.jar
+## **  /home/osirisgothra/.mineyourmind/libraries/com/google/code/gson/gson/2.2.2/gson-2.2.2.jar
+## **  /home/osirisgothra/.mineyourmind/libraries/org/lwjgl/lwjgl/lwjgl/2.9.0/lwjgl-2.9.0.jar
+## **  /home/osirisgothra/.mineyourmind/libraries/org/lwjgl/lwjgl/lwjgl_util/2.9.0/lwjgl_util-2.9.0.jar
+## **  /home/osirisgothra/.mineyourmind/versions/1.6.4/1.6.4.jar
+## **  net.minecraft.launchwrapper.Launch
+## **  --username
+## **  Player
+## **  --session
+## **  -
+## **  --version
+## **  1.6.4
+## **  --gameDir
+## **  /home/osirisgothra/.mineyourmind/instances/TechWorld2/minecraft
+## **  --assetsDir
+## **  /home/osirisgothra/.mineyourmind/assets/virtual/legacy
+## **  --tweakClass
+## **  cpw.mods.fml.common.launcher.FMLTweaker
+## **  --tweakClass
+## **  com.mumfrey.liteloader.launch.LiteLoaderTweaker
+## **  --width
+## **  854
+## **  --height
+## **  480
+## **  
+formatArgs()
+{
+	[[ $LS_DEBUG -ne 0 ]] && JAVA_IMGNAME="echo" && echo "debug LS_DEBUG is enabled!"
+	unset IFS
+	JAVA_JARS_F="$(perl -we 'print(join(":", qw( '"${JAVA_JARS[*]}"' ) ))')"
+	for tc in "${MC_TWEAKCLASSES[@]}"; do	
+			MC_TWEAKCLASSES_F+=( "--tweakClass" "$tc" )
+	done
+}
+
+main()
+{
+	formatArgs "$@"
+	"$JAVA_IMGNAME" "${JAVA_FLAGS[@]}"  -cp "${JAVA_JARS_F}" "$JAVA_ENTRY_METHOD" --username "$MC_USERNAME" --session "$MC_SESSION" --version = "$MC_VERSION" --gameDir="$MC_GAMEDIR" --assetsDir "${MC_ASSETS_DIR[@]}" "${MC_TWEAKCLASSES_F[@]}" --width "$MC_WIDTH" --height "$MC_HEIGHT"
+}
+
+main "$@"
+

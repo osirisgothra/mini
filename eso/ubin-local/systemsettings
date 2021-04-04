@@ -1,0 +1,74 @@
+#!/usr/bin/perl
+#===============================================================================
+#
+#         FILE: systemsettings
+#
+#  DESCRIPTION: Launcher for systemsettings (systray)
+#
+#        FILES: /usr/local/bin/systemsettings (this file), /usr/bin/systemsettings (kde)
+#               dependant on /usr/bin/kcmshell4 (configuration part loader)
+#
+#         BUGS: Should not depend on /usr/local prefix (todo)
+#
+#        NOTES: Assumes you have /usr/bin/ksystraycmd as well (always distributed 
+#               with kcmshell4)
+#
+#       AUTHOR: Gabriel Thomas Sharp (gts), osirisgothra@hotmail.com
+#
+# ORGANIZATION: Paradisim Enterprises, LLC - http://paradisim.twilightparadox.com
+#
+#      VERSION: 0.1.100214-111244
+#
+#      CREATED: 10/02/2014 11:12:44 AM
+#
+#     REVISION: First Release (not a revision)
+#
+#===============================================================================
+
+use strict;
+use warnings;
+use POSIX; 										# this kde tool is meant only for posix compatible OS's, windows? write a cmd script
+no warnings "experimental";
+use v5.18;
+
+# variables (you should only change stuff HERE if problems arise)
+our $pgrep_program = "/usr/bin/pgrep";
+our $real_location = "/usr/bin/systemsettings";
+our $tray_program = "/usr/bin/ksystraycmd";
+our $prog_location = "/usr/local/bin/systemsettings";
+our $icon = "preferences-system";
+# use to set options for ksystraycmd/systemsettings, respectively
+our @tray_opts = qw ! --startonshow --quitonhide --hidden !;
+our @real_opts = ( ); 
+
+# Fork only if there are no extra arguments (from tools and such, AND if there are no copies of systemsettings running from /usr/bin
+# note that we must use -f, since we have to distinguish between THIS PROGRAM and the real systemsettings that has the same name but
+# NOT the same directory!
+print "program's hard coded location is: $prog_location\n";
+print "(if you need to change this, edit the perl script yourself)\n";
+
+
+if (( $#ARGV > -1 ) || (`$pgrep_program -f $real_location`))
+{	
+	print "Spooning... (Arguments supplied, launching regular systemsettings (to prevent breaking dependant utilities)\n";
+	system "$real_location", @ARGV;
+	POSIX::exit($? >> 8); # returns high byte from system error code (which is the program's 8-bit exit code) from perl's 16-bit code
+}
+else
+{
+	print "No arguments given, assuming systray standalone mode.\n";
+	my $PID = $$;
+	fork;
+	# we don't want the interactive PID to take the control, since the user might be running from
+	# a shell!
+	if ( $PID != $$ )
+	{
+		print "Forking...\n";
+		exec $tray_program,"--icon",$icon,@tray_opts,$real_location,@real_opts;
+		# in the hands of ksystraycmd now
+	}
+	print "Returning Control Process\n";
+	POSIX::exit(0);
+}
+
+

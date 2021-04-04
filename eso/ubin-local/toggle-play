@@ -1,0 +1,14 @@
+#!/bin/zsh
+if pgrep -n "^play$" &> /dev/null; then
+	THESTATE="$(ps -p `/usr/bin/pgrep -n "^play$"` -o state=)"
+	if [[ $THESTATE =~ T ]]; then
+		killall -SIGCONT play
+		echo "resuming"
+	else
+		killall -SIGSTOP play
+		echo "stopping"
+	fi
+else
+	echo "doing nothing (play not running)"
+fi
+

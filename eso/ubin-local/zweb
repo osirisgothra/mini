@@ -1,0 +1,83 @@
+#!/bin/zsh
+setopt interactivecomments
+
+# defaults
+
+declare -gi sx=640 sy=480
+declare -ga args=( )                                                        #2,3
+declare -gi c=0
+declare -gi sx_margin=64
+declare -gi sy_margin=96
+declare -gi margin_sides=2
+
+for x; do
+    if [[ $x =~ "^-" ]]; then
+        echo "a flag ($x) present on cmdline, it will be ignored"
+    else
+        args+="$x"
+    fi
+done
+echo "reconsutructing command line..."
+set -- $args
+echo "command line item count is now $#:"
+for x; do
+    echo "arg $c -> $x"
+    let c++
+done
+if [[ -x `which zqweb` ]]; then                                             #1
+    echo "zqweb detected, using that instead..."
+    exec zqweb -- "$@"
+elif [[ -x `which zenity` ]]; then
+    echo "zqweb absent, but zenity is present, executing zenity in web view mode..."
+    if xrandr &> /dev/null; then
+        eval $(xrandr -q | grep '\bconnected\b' | grep '[0-9]+x[0-9]+' -oP | sed -r 's/([0-9]+)(x)([0-9]+)/sx=\1 sy=\3/g')
+    else
+        echo "warning: guessing resolution failed, failing back to $sx by $sy pixels (safe mode default)"
+    fi
+    noglob let sx=sx-(sx_margin*margin_sides)
+    noglob let sy=sy-(sy_margin*margin_sides)
+    echo "sx,sy=$sx,$sy"
+
+    exec zenity --width $sx --height $sy --title "${0:t} browser - $*" --text-info --html --url="$*"
+else
+    echo -ne "zenity not found, failing back to..."
+    if [[ -n $DISPLAY ]]; then
+        tgt=x-www-browser
+    else
+        tgt=www-browser
+    fi
+    if [[ -x $tgt ]]; then
+        echo "$tgt (present)"
+        exec $tgt "$@"
+    else
+        echo "nothing (exhausted all preprogrammed possibilities)"
+        exec false
+    fi
+fi
+
+# comments
+# #1
+#   NB: all branches must exec one way or another!
+# #2
+#   web browser, wrapping with zenity
+#   can be used as an alternative to
+#   allow it to 'browse'
+#   (browsing will open your other web browser
+#   if not configured for this one)
+# #3
+#   margin sides: margin sides calculation is
+#   used as follows:
+#   if '1' means margin is in TOTAL pixels, not
+#   pixels from edge, '2' means margin is pixels
+#   to edge, which is how we usually percieve margins
+#   to be. Using values higher like '3' or '4' will
+#   cause the margin to be double TOTAL, and double
+#   per-side, repectively:
+#   value       mode        margin value final
+#   0           nomargin    n/a
+#   1           margin      0.5 per side (1 total)
+#   2           margin      1 per side (2 total)
+#   values above 2 are not recommended
+#   because the result is not guarenteed or checked
+#   for bigger values you should just multiply or subtract
+#   the percentage before this call!

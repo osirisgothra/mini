@@ -1,0 +1,53 @@
+#!/bin/bash
+[[ $- =~ i ]] && { echo "please RUN not SOURCE"; return 1; exit 1; }
+
+if [[ $* =~ '--help' ]]; then
+    echo ""
+    echo "sets the display's gamma level (bright-contrast exclusive curve)"
+    echo ""
+    echo "syntax: $BASH_SOURCE [interval-in-secs] [gammalevel, 1.0 to 5.0]"
+    echo ""
+    echo " note: to use gammalevel you must specify interval!"
+    echo "       gammalevel can be decimal (ie, 3.3) but not interval!!!"
+    echo "       (due to bash restrictions with TMOUT)"
+    echo ""
+    echo "(C)2016 Gabriel Sharp, licensed under GNU GPL2"
+    echo "        see LICENSE for details!"
+    echo ""
+    echo ""
+    exit 127
+fi
+if [[ $# -ge 1 ]]; then
+    echo "interval set to $1 on command line !!"
+fi
+if [[ $2 =~ [0-9]+\.?[0-9]* ]]; then
+    echo "command line set: gamma to $2 !!"
+    GAMMI=$2
+else
+    read -p "enter Gamma [1 to 5, decimal ok]:" GAMMI
+fi
+
+echo "press [x] to interrupt, or [r] to reenter value(s)"
+unset glast
+#glast=$(xgamma 2>&1)
+echo "gamma changes are at a ${1-20} second interval ${1-(you didnt specify interval on cmdline!)}"
+while true; do
+    TMOUT=${1-20}
+    read -sn1 IKEY
+    TMOUT=0
+    if [[ $IKEY == "r" ]]; then
+        exec "$BASH_SOURCE" ${1-20}
+        exit 122
+    fi
+    if [[ $IKEY == "x" ]]; then
+        echo "interrupted!"
+        break
+    fi
+    if [[ "$glast" != "$(xgamma 2>&1)" ]]; then
+        echo "gamma changed, resetting to constant value!!"
+        xgamma -gamma ${GAMMI}
+        glast=$(xgamma 2>&1)
+    else
+        true debug echo "No changes to gamma, not setting."
+    fi
+done

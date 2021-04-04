@@ -1,0 +1,16 @@
+
+ 
+   
+the 1 --help less quick brown fox -jumped --over the --lazy=dogs --they were,black,and,white --not=gray:blue
+--fakeargs /fakefile
+--real-args /etc/fstab
+/etc/fstab
+~/.zshrc
+~/.i3rc
+-badargs -are -they -- -these --are=ignored
+--some inline #comments and -- extra text should be ignored
+-- a bad idea
+
+#XX1 NO COMMENTS BEFORE THIS POINT, PLEASE! (make sure you comment: LTR-LTR-NUMBER, LTR is A-Z, NUMBER is 1-6.5e+20
+#YY2 do not remove blanks at start of file!!
+#ZZ3 APPEND_HISTORY_BEGIN [NO COMMENTS BEYOND THIS POINT!]

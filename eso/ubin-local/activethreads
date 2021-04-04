@@ -1,0 +1,48 @@
+#!/bin/zsh
+
+_activethreads() { echo $(ps -o lwp= -L -p $(xprop -id `xprop -root _NET_ACTIVE_WINDOW | grep -Pow '0x[0-9a-f]+'` _NET_WM_PID | grep -Pow '[0-9]+')) }; }
+_setnice()       { for $_pid; do sudo renice -n $nicelevel --pid $_pid; done; }
+_setclass()      {
+case $class in
+    idle)   ionice --class idle -p $_pid
+
+if [[ $* == '-?-h(elp)?' ]]; then
+	echo 	"activethreads v1.0a by Gabriel Sharp <osirisgothra@hotmail.com>\n" \
+		"syntax: activethreads [nicelevel]\n" \
+		"    or: activethreads [class] [class-level]\n" \
+		"    or: activethreads [nicelevel] [class] [class-level]\n" \
+		"    or: activethreads [--help|-h]\n" \  
+		"\n" \
+		"Shows active window's main and helper threads when called with no arguments.\n" \
+		"\n" \
+		"ARGUMENTS\n" \
+		"\n" \
+		"[class]	can be 'best-effort','realtime','none' or 'idle' see note below.\n" \
+		"[class-level]	can be a value from 0-7.\n" \
+		"[nicelevel]    process niceness, from -19 (fastest) to 20 (slowest or 'nicest')\n" \
+		"--help or -h   show the help text (this). You can also use -help or --h.\n" \
+		"\n" \
+		"NOTES\n" \ 
+		
+
+case $# in
+	3)	# nice,class,level
+		nice=$1	class=$2
+		level=$3
+		;;
+	2)	# class,level
+		nice=-1	class=$1
+		level=$3
+		;;
+	1)	# nice
+		nice=$1	class=-1
+		level=-1
+		;;
+	0)	# show threads
+		_activethreads
+		exit $?
+		;;
+esac		
+		
+
+

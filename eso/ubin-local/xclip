@@ -1,0 +1,94 @@
+#!/bin/zsh
+
+# never change this
+myuuid=7a3118cc-17fa-47d4-900a-b96ad749c032
+
+# may need to change it
+debugging=0
+
+if ((debugging))	\
+{					\
+	decho() { f=""; [[ $1 =~ ^- ]] && { f=$1; shift; }; echo "$f" '[32;1m'"[$SECONDS]"'[31;1m'"$*"'[0m'; }
+}    				\
+else 				\
+{					\
+	decho() { return $?; }
+}					\
+
+# get script path *OR* fall back on first executable xclip and assume
+myname="$0"
+[[ -x $myname ]] || myname=`which xclip`
+if ! grep -q $myuuid $myname; then
+	echo "script identity self-check failed, please check for corruption or tampered script file"
+	exit 128
+fi
+for xclip_bin  in `which -a xclip` /usr/bin/xclip; do
+	if [[ $xclip_bin != $myname ]]; then
+		break
+	fi
+	xclip_bin=""
+done
+if [[ -x $xclip_bin ]]; then
+	unset myname
+else
+	echo "xclip is not installed, please install it before using this shim"
+	echo "command not found: xclip"
+	echo "getting libcnf response in background..."
+	( test -x /usr/lib/command-not-found && $_ xclip ) & disown
+	exit 127
+fi
+
+# NB: /usr/bin/xclip uses sub-standard argument parsing that is not part of the modern CLI standard on linux:
+# note: xclip help is accessed by -help not --help! (b/c some may see it as a bug) furthermore all xclip flags are -singledashed not --doubledashed
+#		and words in flags can have as many characters dropped that will still identify them (meaning -selection and -sele and -s are the same)
+#		it also means '-io' is not equivalent to '-in -out', in fact since there is not a command starting with -io, its incorrect, and, all 
+#		non recognized options (starting with - or not) are interpreted as filenames
+# xclip -io  would look for a file named '-io'
+# xclip -i -o would behave as expected per modern gnu standards
+# (as for OS/2 and windows users: wont even go there..)
+
+if [[ $* == --help ]]; then
+	# additional help requires use of between(1) and hi(1)
+	# without between perl will be used
+	[[ -x `which hi` ]] || hi() { cat; }
+	[[ -x `which between` ]] || { $xclip_bin -help; cat "$(realpath $0)" | perl -wne 'print if /help_begin/ ... /help_end/ and not /help_(begin|end)/'; return; }
+	{	$xclip_bin -help;
+	cat "$(realpath $0)" | between help_begin help_end; } | hi '[[:punct:]]' 'xclip' '[A-Z]{2,}' '[a-z]+\([0-9]\)'
+elif [[ -n $XCLIP_CLIPBOARD ]]; then
+	# help_begin
+	# zxclip and eso/ubin-local/xclip specific help:
+	# a frontend for gnu's xclip
+	# syntax: zxclip [arguments to pass to xclip] (usually called xclip in esoteric, or zshx/xclip in zshx)
+	# options
+	#	see xclip(1)
+	# additional settings
+	# 	user can set "XCLIP_CLIPBOARD" to whatever clipboard is wanted
+	# acceptable values are primary,secondary, or clipboard
+	# also, the X names can be used (XA_PRIMARY, XA_SECONDARY, XA_CLIPBOARD)
+	# the first character is used to identify with xclip, so only that is really
+	# needed, the other characters are allowed but must be in that set
+	# shown above (you cant use XA_CORRECT to mean XA_CLIPBOARD, but you can
+	# use XA_CLI or XA_PR, or even 'seco', etc)
+	# note that XA_ and upper case letters are put to lower case when passed to xclip
+	# also note that xclip itself does NOT support the uppercase and/or XA_ values
+	#
+	# written for the zsh-x project by Gabriel Sharp <osirisgothra@hotmail.com> (C)2019-20
+	# help_end
+	_CLIP="${(L)XCLIP_CLIPBOARD##XA_}"
+elif xrdb -query | grep -oqPa 'selectToClipboard:.*true'; then
+	_CLIP="clipboard"
+else
+	_CLIP="primary"
+fi
+
+if [[ $* =~ -[-a-zA-Z0-9]+ ]]; then
+	decho "passing command line to xclip"
+	$xclip_bin "$@"
+elif [[ $_CLIP =~ ^(pr?i?m?a?r?y?|se?c?o?n?d?a?r?y?|cl?i?p?b?o?a?r?d?) ]]; then
+	decho "using clipboard $_CLIP"
+	$xclip_bin -sel $_CLIP
+else
+	echo "warning $_CLIP not a valid clipboard (check XCLIP_CLIPBOARD), using clipboard as selection"
+	$xclip_bin -selection clipboard
+fi
+

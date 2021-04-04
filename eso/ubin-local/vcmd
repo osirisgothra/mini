@@ -1,0 +1,226 @@
+#!/bin/bash
+# vim: nowrap 
+# MANPAGE: vcmd(8)
+# MANFILE: vcmd.8.gz (vcmd.8)
+# FORMAT: inline comment (use hdr2man to compile to manpage - this text will be removed) !REMOVEME!
+# 
+#
+# SYNOPSIS
+#
+#    vcmd       (program name)
+#    
+#    binvtsio   (program group)
+#
+#    eso-bin    (project group)
+#
+#    esoteric 
+#    binaries & (project description)
+#     scripts   
+#
+#
+# SUMMARY
+#
+#    Run command in a separate virtual (text) console terminal.
+#
+#
+# LICENSE
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# HISTORY
+#
+#	 Fri Jan  4 12:33:51 EST 2019
+#            osirisgothra@larnica initially created this file
+#            with the original name, vcmd
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+#
+# TARGET NOTES
+#
+# target resides in /home/osirisgothra/bin ...[0Gyes
+#
+# BUGS
+#
+#   initially, command syntax was: 
+#   
+#       vcmd [command1] [command2] [etc]
+#
+#   this was in error, it should have been:
+#   
+#       vcmd [command] [args]
+#   
+#   but instead, i am correcting it AND making a change to:
+#                                   
+#       vcmd <ID> [command] [args]
+#
+#   the explanation of the parameters are as follows in USAGE.
+#
+#   Also, changing command from class 1 to class 8 since it requires
+#   class 8 commands to function.
+#
+#
+# USAGE
+#
+# An explanation of each part of the command, are written below. Please note that
+# for completeness' sake, the parameters from bugged versions is also included
+# since their function is needed for upgrade purposes. See the BUGS section above
+# for details.
+# 
+# Currently, the syntax of vcmd(8) is:
+#
+#       
+#       vcmd <ID> [command] [args]
+#
+#       vcmd            As expected, this is the program's name used at runtime.
+#
+#       [command]       This referrs to an executable sh(1) or bash(1) command.
+#                       The meaning of this positional argument does not 
+#                       change.
+#
+#       [command1]      In the second incorrect incantation, only single commands
+#       [command2]      were passed, and no arguments would be allowed, instead
+#       [etc]           you could include [command2], [command3], and so on.
+#
+#       [args]          As it should have been, the items following [command]
+#                       should be the arguments to pass to that command. For
+#                       more information on how to invoke command and arguments
+#                       please refer to the bash(1) and/or sh(1) manpage(s).
+#
+#       <ID>            This is an UPPERCASE ALPHANUMERICAL STRING, without spaces,
+#                       and, without any special diretics or marks. It must be in
+#                       an 8-bit ASCII range from: [A-Za-z0-9]. If the <ID> does
+#                       not match this, it will be assumed that the program has
+#                       no ID, and it's PID will be used instead. For this reason,
+#                       you can NOT use all numbers as they are reserved for the
+#                       process identifier purpose (read on).
+#
+#                       If you DO specify all numbers, the program will FIRST check
+#                       for a program with that PID running, regardless of name
+#                       so be sure you are not using old values as a reference.
+#                       This program is not responsible for recycling PIDs so please
+#                       make sure you know what your PID is before calling it.
+#     
+#     SEE ALSO:
+#       bash(1)  sh(1)  openvt(8) chvt(8)
+#
+#
+#
+#
+findtty () {
+        for x in `pidof $1`
+        do
+                t=$(ps -o tty= -p $x) 
+                if [[ $t =~ tty ]]
+                then
+                        echo $t
+                        return 0
+                fi
+        done
+        return 1
+}
+critical() {
+      # syntax=critical [returnvalue] [line] [original-arguments]
+      ps="${PIPESTATUS[*]}"
+      rv=$1
+      line=$2
+      shift 2
+      echo "critical: program error ($rv|$ps|$REPLY|$(caller)|$CMDID|$#|$*)"
+      echo "report to the author with this text: $rv-$$-$PPID-$UID-$line@$(uname -a)"
+      read -sn1 -p 'copy text and press ENTER to exit program'
+      sleep 5
+      exit $rv
+        echo "stuck, kill me"
+      while true; do sleep 999; done
+}
+       
+
+
+if [[ $VCMD_USE_VERSION -eq 1 ]]; then
+    for x; do
+	    sudo openvt -ws -- sudo -u "$USER" "$x"
+    done
+elif [[ $VCMD_USE_VERSION -eq 2 ]]; then
+    sudo openvt -ws -- sudo -u "$USER" "$@"
+elif ( ! [[ -v VCMD_USE_VERSION  ]] ) || [[ $VCMD_USE_VERSION -eq 3 ]]; then
+    CMDID="$1"
+    # NOTE: 'case' would be used here but is not because linting for extglob
+    #       is not supported by bash. zsh does support this but is not a core
+    #       shell and is not normally installed with the system files. Regex
+    #       is supported by bash, so they are used instead.
+    #       
+    if [[ $CMDID =~ ^[A-Z]+[0-9A-Z]+$ ]]; then
+        mode=id
+        shift
+    elif [[ $CMDID =~ ^[0-9]+$ ]]; then
+        mode=pid
+        shift
+    else
+        mode=newpid
+        # do not shift, CMDID is going to be the command instead of an ID, the ID will be from the new PID created when the process is run.
+    fi
+    ## CRITICAL SECTION -- LOG ERRORS ON ALL EXTERNAL ACTIONS ##
+    case $mode in
+            # user wants to START a new process, no mode was given
+            # any errors would be logged, and this is always returned as-is
+        newpid)
+            sudo openvt -ws -- sudo -u "$USER" "$@" | tee /tmp/vcmd.errormsg.log
+            exit $?;;
+        pid)
+            # user wants to switch to PID=$CMDID, 
+            # anything other than chvt is an error!
+            if ps -p $CMDID; then                
+                if TTYNUM=$(findtty "$1"); then
+                    # important: do not wait, we already have (probably) a openvt waiting on this
+                    # todo: maybe verify openvt is waiting on pid=$CMDID, and if not, wait for it(?)
+                    sudo chvt ${TTYNUM##tty} | tee /tmp/vcmd.errormsg.log
+                    exit 0
+                else
+                    echo "error: $CMDID found but not successful in switching to it (ttynum reported as: \"$TTYNUM\")" | tee /tmp/vcmd.errormsg.log
+                    sleep 2
+                fi
+            else
+                echo "error: pid $CMDID does not exist" | tee /tmp/vcmd.errormsg.log
+                echo "call without a pid to run a new ${1}." | tee /tmp/vcmd.errormsg.log
+                sleep 2           
+            fi
+            exit 1;;                                                       
+        id) # user wants to start a new command using id CMDID
+            # - or - 
+            # user wants to SWITCH TO a command previously started with id CMDID
+            sudo openvt -ws -- sudo -u "$USER" "$@" | tee /tmp/vcmd.errormsg.log           
+            exit $?;;
+            # remember, critical() calls exit()!
+        *) critical 143 $LINENO;;
+    esac
+    critical 144 $LINENO         
+else
+    echo "ERROR: VCMD_USE_VERSION initialized to an unsupported value: \"$VCMD_USE_VERSION\""
+    echo "(please 'unset' your environment variable before running this command or call it"
+    echo "with /bin/env VCMD_USE_VERSION=3 to use the normal version of the program)"
+    read -sn1 -p "Press ENTER To Continue" || { echo "waiting 5 seconds..."; sleep 5; }
+fi

@@ -1,0 +1,37 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+use v5.20;
+use Time::HiRes qw! nanosleep !;
+
+sub sleepms 
+{ 
+	nanosleep( int(shift()) * 1000000 );
+}
+
+my $header = "{ \"version 1\" } [ [";
+
+sub print_item
+{
+	my $name = shift;
+	my $color = shift;
+	my $full_text = shift;
+	print "{\"name\":\"$name\",\"color\":\"$color\",\"full_text\":\"$full_text\"}"
+}
+sub print_anon_item
+{
+	my $color = shift;
+	my $full_text = shift;
+	chomp($full_text);
+	print_item("item",$color,$full_text);		
+}
+
+print($header);
+
+for my $item (@ARGV)
+{
+	my @dirs = split(':',$ENV['PATH']);
+	print for @dirs;
+	print_anon_item("#ffff00",`$item`);
+}

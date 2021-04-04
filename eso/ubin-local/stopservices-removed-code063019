@@ -1,0 +1,196 @@
+shopt -s extglob
+shopt -s interactive_comments
+shopt -s extdebug
+shopt -s globstar
+
+if [[ $# -gt 0 ]]; then
+	
+	if [[ $* =~ --help ]]; then
+		echo "usage: stopservices"
+		echo "   or: stopservices [sname, ...]"
+		echo "     : stopservices --help"
+		echo ""
+		echo "used to stop a predefined list of services (first form) or"
+		echo "services specified as an argument list (second form)."
+		echo ""
+		echo "option(s)"
+		echo "sname   any service name recognized by systemctl(1) or service(1)"
+		echo "        as delegated by systemctl(1). At any time, a name can be"
+		echo "        passed as --start to change this program over to starting"
+		echo "        services instead of stopping them. This applies to this"
+		echo "        list only and has no effect on the built-in service list"
+
+		echo "--help  show this help message"
+		echo ""
+		echo "LICENSE"
+		echo "subject to license (detailed in the scripts source $BASH_SOURCE)"
+		echo ""		
+	else
+		# operate on individual service name(s), each arg is a service name 
+		# passed on to systemctl
+		aspect=stop
+		for sname; do
+			if [[ $sname == --start ]]; then
+				aspect=start
+			else
+				case $UID in
+					0)	systemctl $aspect "$sname";;
+					*)  sudo systemctl $aspect "$sname";;
+				esac
+			fi
+		done
+	fi
+else
+
+	# normal operation, no arguments
+		
+	# functions
+	
+	#
+	# warn(str, [str...])
+	#
+	# emit a warning on stderr where 'str' is any string, multiple strings 
+	# are processed one at a time on separate lines with headings
+	# NOTES: will output in color if xterm or a linux console is detected
+	# however it uses the TERM variable and expects a color
+	# will output to /dev/stderr
+	# 
+	warn()
+	{
+		case $# in
+			0)	echo "usage: warn str [str...]"; return 127;;
+			1)	case $TERM in
+					linux|xterm*)
+						echo "[32;1mwarning[30m[[31m$(date +%x\ %X)[30m]:[0;1m $*[0m";;
+					*)
+						echo "[32;1mwarning: $*[0m"	;;
+				esac;;
+			*)	for arg; do	warn "$arg"; done;;
+		esac
+	}
+
+	#
+	# service(name)
+	# service(take:name)
+	#
+	# kill/stop service "name" or "[take:]name"
+	# where "take" can be: ko: kill process only, so: stop service only
+	# example: service apache2:so
+	#          stops service apache2 but not kill the processes named "apache2"
+	#          service gnome-settings-daemon:ko
+	#          kills 'gnome-settings-daemon' process, but doesnt attempt to stop a service with the same name
+	# (these examples are real-world "default" examples, they are used since they 
+	# should make sense to most users)
+	service()
+	{
+		name="${1##*:}"
+		take="${1%%:*}"
+		[[ $take == $name ]] && take="normal"
+		shift
+		echo -ne "[34;1mstopping service \"$name\" (method=${take}):[31;1m "
+		local -i skip=0
+		if [[ $# -gt 0 ]]; then
+			warn "ignore extra params ($*)"
+		fi
+		if [[ $take == "so" ]] || [[ $take == "normal" ]]; then
+			if isserv "$name"; then
+				if sudo systemctl stop "$name"; then
+					echo -ne " [0mservice:[31mstopped ok[0m"
+				fi
+			else
+				let skip++
+			fi
+		fi
+
+		if [[ $take == "ko" ]] || [[ $take == "normal" ]]; then
+			if isproc "$name"; then
+				echo "PROCESS: $name exists!"
+				if sudo killall -KILL "$name" &> /dev/null; then
+					echo -ne "killed[0m"
+				else
+					warn "fail: kill process $name"
+				fi
+			else
+				let skip++
+			fi
+		fi
+
+		if [[ $skip -ge 1 ]]; then
+			echo " processes:[33mn/a[0m"
+		else
+			printf "\n"
+		fi
+	}
+
+	# 
+	# isserv(servicename)
+	#
+	# self-explanitory, allows multiple names to be passed
+	# returning TRUE (0) when ALL services exist and are enabled
+	# by the systemd run-time manager as either services or sockets
+	# does not detect not-enough-arguments, however, systemctl will
+	# return false because no arguments equals an error.
+	#
+	isserv()
+	{
+		# do not need a grabloop because systemctl supports multiple names
+		# which means we dont have to evaluate them 1x1
+		if sudo systemctl -q is-enabled "$@" &>/dev/null; then
+			return 0
+		else
+			return 1
+		fi
+	}
+
+
+	#
+	# isproc(procname, [...])
+	#
+	# like isserv, takes one or more names, if more than one name specified, 
+	# unlike isserv, each argument passed back into isproc(name) one at a 
+	# time, and returns false(1) on the first process not found. if the loop
+	# completes, that means all processes were found, and therefore it returns
+	# true. The loop only is executed if there are more than one arguments. A
+	# single argument will be tested and return true(0) if it is present, or
+	# false(1) if it is not present. If no arguments are given, the function will
+	# return false, since "nothing" cannot possibly be considered as something that
+	# exists.
+	# TODO: make this work, but for now its this
+	isproc()
+	{
+		if pgrep "$*"; then
+			return 0
+		else
+			return 1
+		fi
+	}
+
+	# main program for normal mode
+
+	# to use, you can:
+	# 	1) specify your own via SERVICES_TO_STOP (exported and global, and of course, prior to running)
+	#   2) specify your own via arguments, these override SERVICES_TO_STOP so be careful!
+	#   3) add/remove values directly to SERVICES_TO_STOP below this comment block
+	#   4) just run without arguments to use the defaults (or your new defaults if you used steps 1 or 3)
+	# do not forget that each service is in the format of '[take:]name' where 'take' is optional, name is not
+	# for more info on what that means, please read the header for the 'service' function above!
+	[[ -v POST_RUN ]] || declare -ga POST_RUN=( 'drop bs312bs1sb' 'free -h' 'swapon -a' 'xbindkeys' )
+	[[ -v SERVICES_TO_STOP ]] || declare -ga SERVICES_TO_STOP=( 
+
+	for nametake in "${SERVICES_TO_STOP[@]}"; do
+		service "$nametake"
+	done
+	for post in "${POST_RUN}"; do
+		if pgrep "$post"; then
+			echo "skipping $post"
+		else
+			echo "running $post"
+		fi
+	done
+	if [[ -r ~/morestopservices ]]; then
+			echo "found extra stop script in home, executing..."
+			source ~/morestopservices
+	fi
+	
+	
+fi

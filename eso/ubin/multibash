@@ -1,0 +1,52 @@
+#!/bin/bash - 
+#===============================================================================
+#
+#          FILE: multibash
+# 
+#         USAGE: ./multibash 
+# 
+#   DESCRIPTION: Run bash over and over with certain options
+# 
+#       OPTIONS: ---
+#  REQUIREMENTS: ---
+#          BUGS: ---
+#         NOTES: ---
+#        AUTHOR: Dr. Fritz Mehner (fgm), mehner.fritz@fh-swf.de
+#  ORGANIZATION: FH Südwestfalen, Iserlohn, Germany
+#       CREATED: 02/08/2015 13:17
+#      REVISION:  ---
+#===============================================================================
+
+declare -gx REPL CANCELLED maintitle 
+maintitle="multibash executor"
+set +x
+menu() { IFS=$'\n';declare -gx REPL=""; declare -g CANCELLED=0; if REPL=( $(dialog --backtitle "$maintitle" --no-tags --output-fd 1 --radiolist -- "$1" 0 0 0 "${@:2}") ); then return 0; else CANCELLED=1; return 1; fi; }
+
+while true; do
+
+	 menu		"MultiBash Executor Program Selector - Select Using SPACEBAR"	\
+				"bash"								"Run Bash Normally"				"on" 		\
+				"bash --norc"						"Run Bare (No Scripting)"		"off"		\
+				"bash -l"							"Run As Login Shell"			"off"		\
+				"bash -x"							"Run and Debug Commands"		"off"		\
+				"bash -v"							"Run and Verbose Commands"		"off"		\
+				"bash -r"							"Run Restricted"				"off"		\
+				"bash --rcfile /etc/skel/.bashrc"	"Run With Skeleton Config"		"off" 		\
+	 			"vim ~/bin/multibash"				"Change Script Settings"		"off"		;
+
+	if ((CANCELLED)); then
+		clear
+		echo "Cancellation - Returning to Shell..."
+		break
+	else
+		clear 
+		echo "type 'exit' to return to multibash"
+		export PS1="multibash -- $PS1"		
+		eval "${REPL[@]}"
+	fi
+
+done
+
+
+
+			

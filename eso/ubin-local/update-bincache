@@ -1,0 +1,70 @@
+#!/bin/zsh
+
+# these lines set the
+#   substitution: on+glob+pchars
+#          globs: on+emptyinvalids+superextendedmode
+# options (nb: globs as in globbings, not globals)
+
+
+setopt extendedglob
+setopt globassign
+setopt globdots
+setopt globsubst
+setopt kshglob
+setopt nullglob
+setopt promptsubst
+
+#set -x
+
+if [[ $* =~ '--help' ]] || [[ $# -gt 0 ]]; then
+	[[ $* =~ '--help' ]] || echo "no parameters should be given!"
+	echo "syntax: update-bincache"
+	echo "creates ~/.config/bincache with all names of binaries, duplicates removed"
+	echo "from your system path (at this time, PATH=$path)."
+	echo "creates ~/.config/bincache.tmp for sorting and deduplicating"
+	echo "uses dependencies: rm, printf(i), echo(i), sort, uniq, and, zsh (shell and utilit(i)es)"
+	echo "note: (i) = some dependencies may have alternates within zsh"
+	echo "see LICENSE for details, and README.md supplied for the github/osirisgothra/mini.git/eso/ubin-local"
+	exit
+fi
+
+
+plural_count() {
+	[[ $1 -eq 1 ]] && s="" || s="s";
+	echo "$1 ${2}${s}"
+}
+item_count() {	plural_count $1 "item" }
+file_count() {	plural_count $1 "file" }
+
+
+rm -f ~/.config/bincache
+rm -f ~/.config/bincache.tmp
+
+
+for p ($path) {
+	if [[ -d $p ]] {
+		items=( $p/* )
+		printf "working in $p ($(item_count $#items))\n"
+		integer add=0 skip=0
+		for i ( "${(s: :)items[@]}" ) {
+			if [[ -x "$i" ]]; then
+				if [[ "$i" =~ "\[" ]]; then
+					i="["
+				else
+					i=$i(:t)
+				fi
+				echo "$i" >> ~/.config/bincache.tmp
+				let add++
+			else
+				let skip++
+			fi
+		}
+		echo "^"
+		echo "+- Added $(file_count $add) and skipped $(file_count $skip)."
+	}
+}
+echo "sorting index..."
+cat ~/.config/bincache.tmp | sort | uniq > ~/.config/bincache && echo "index sorted" || echo "warning: got bad return code ($?), please check the error listed inside the bincache!"
+echo "removing tempfile..."
+rm -f ~/.config/bincache.tmp && "tempfile removed ok" || echo "failed to remove tempfile, please remove it yourself!"
+

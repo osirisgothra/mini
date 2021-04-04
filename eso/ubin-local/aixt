@@ -1,0 +1,7 @@
+#!/bin/bash
+OWNER=ps --pid `ps --pid $PPID -o "%P" --no-header` -o %c --no-header
+OWNER_PID=ps --pid `ps --pid $PPID -o "%P" --no-header` -o %p --no-header
+OWNER_PPID=ps --pid `ps --pid $PPID -o "%P" --no-header` -o %P --no-header
+
+
+

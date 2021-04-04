@@ -1,0 +1,32 @@
+#!/usr/bin/env perl 
+#===============================================================================
+#
+#         FILE: runeth
+#
+#        USAGE: ./runeth  
+#
+#  DESCRIPTION: Run Under Non Existent Terminal Handle
+#
+#      OPTIONS: ---
+# REQUIREMENTS: ---
+#         BUGS: ---
+#        NOTES: ---
+#       AUTHOR: Gabriel Thomas Sharp (GTS), osirisgothra@hotmail.com
+# ORGANIZATION: Paradisim, LLC
+#      VERSION: 1.0
+#      CREATED: 02/11/2015 07:27:48 PM
+#     REVISION: ---
+#===============================================================================
+
+use strict;
+use warnings;
+use utf8;
+
+use Curses::UI;
+
+my $win = Curses::UI->new( clear_on_exit=>1, color_enable=>1 );
+
+
+
+
+

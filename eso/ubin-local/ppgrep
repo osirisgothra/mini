@@ -1,0 +1,72 @@
+#!/bin/bash
+#
+#    ppgrep
+#    ppgrep
+#    esobin
+#    esobinprojects
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Fri Nov 23 18:52:58 EST 2018
+#            osirisgothra@larnica initially created this file
+#            with the original name, ppgrep
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+#
+# TARGET NOTES
+#
+# target resides in /home/osirisgothra/bin ...[0Gyes
+#
+
+# wraps pgrep for now
+QUIET_MODE=0
+DEBUG_MODE=0
+[[ $DEBUG_MODE -eq 1 ]] && decho() { echo "$SECONDS/$? [$(declare -p PIPESTATUS)] C=[$(caller)]: $*"; } || decho() { :; }
+declare -a args=( )
+for x; do
+	decho parsing $x ...
+	if [[ $x == "-q" ]]; then
+		QUIET_MODE=1
+	else
+		args+=( "$x" )
+	fi
+done
+decho "command line: $(declare -p args)"
+decho "quiet mode: $QUIET_MODE"
+if [[ $QUIET_MODE -eq 1 ]]; then
+	stdall="/dev/null"
+else
+	stdall="/dev/stdout"
+fi
+PGREP_TARGET="$( [[ -x /usr/bin/pgrep ]] && echo '/usr/bin/pgrep' || which pgrep )"
+if [[ -x $PGREP_TARGET ]]; then
+	command "$PGREP_TARGET" "${args[@]}" &> "$stdall"
+fi
+

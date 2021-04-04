@@ -1,0 +1,35 @@
+#!/bin/bash
+	while true; do
+		sleep 5
+		declare -a names=( `cat /proc/*/comm` )
+		for zz in vlc surf firefox java parole gimp; do
+			if [[ "${names[@]}" =~ (^| )${zz}( |$) ]]; then
+				echo "found process: $zz"
+				# grep bash /proc/*/comm | head -n1 | sed -r 's/(^\/proc\/|\/comm:.*$)//g
+				PIDS=( $( grep bash /proc/*/comm | sed -r 's/(^\/proc\/|\/comm:.*$)//g' | tr '\n' ' ' ) )
+				echo "pid(s) for %zz are: ${PIDS[@]}"
+				for pidno in "${PIDS[@]}"; do
+					case `ps --no-headers -o state $pidno | tr -d '\n'` in
+						T)	# stopped
+							echo "process $zz, pid $pidno is stopped - sending SIGCONT..."
+							kill -SIGCONT $pidno
+							;;
+						S)	# sleeping
+							echo "process $zz, pid $pidno is sleeping"
+							;;
+						R)	# running
+							echo "process $zz, pid $pidno is running/active"
+							;;
+						*)	# other
+							echo "process $zz, pid $pidno is in some other state (zombie or terminating)"
+							;;
+					esac
+				done
+			else
+				echo "process image $zz not loaded (skipping)"
+			fi
+			echo "pass completed"
+		done
+		echo "waiting to start next pass (5 seconds) === ctrl+break/ctrl+c anytime will end this program ==="
+	done
+echo "warning: over-reached end of file (state is corrupted - happens when edits during runtime, please restart script!)"

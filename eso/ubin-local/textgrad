@@ -1,0 +1,56 @@
+#!/usr/bin/perl
+
+# pragma
+
+use warnings;
+use strict;
+use v5.20.2;	# so we can use features like say, given, when, function sigs, and more (not all are in use depending on version of this script)
+no warnings 'experimental';	# we know given/when/default is experimental (it has been so for almost 15 years now, and its still about the same)
+use vars qw( %env @argv $argc  );
+%env = %ENV;
+@argv = @ARGV;
+$argc = $#ARGV + 1;
+
+
+# modules
+use Term::ANSIColor qw( :constants :constants256 );
+use Getopt::Long::Descriptive;
+use Path::Tiny qw(path);
+use File::Slurp;
+use Data::Dumper;
+use feature 'signatures';
+
+sub inrange($v,$min,$max) {
+	print("inrange call: v=$v m=$min x=$max");
+	return 0 unless defined($v);
+	return ($v < $min || $v > $max);
+}
+sub rgb($r,$g,$b) {
+	die("r value is out of range ($r)") unless inrange($r,0,255);
+
+	my $out = sprintf( "RGB%X%X%X",$r,$g,$b);	
+	eval "printf( ".$out.", \"\")";
+}
+
+#for ($r=0;$r<16;$r+=1){
+#for ($g=0;$g<16;$g+=1){
+#for ($b=0;$b<16;$b+=1){
+# test inrange 
+# 15 is between 0-2 (false)
+# 15 is between 0-20 (true)
+# 15 is between -16 - -2 (false)
+
+my $pass=0;
+inrange(15,0,2);
+say("inrange 15 is in 0 to 2=false test ok") unless inrange(15,0,2);
+#psay("inrange 15 is in 0 to 20=true test ok") if inrange(15,0,20);
+#psay("inrange 15 is in -16 to -2=false test ok") unless inrange(15,-16,-2);
+die("inrange self-test failed, $pass of 3 tests passed (need all to pass)") unless $pass == 3;
+say("inrange self-test succeeded! (all 3 tests passed)") if $pass == 3;
+die("pass variable corrupted state (shouldnt happen, check perms/diskspace/md5/sha") if $pass != 3;
+
+
+	
+
+#}}}
+

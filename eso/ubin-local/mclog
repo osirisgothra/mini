@@ -1,0 +1,25 @@
+#!/usr/bin/python3
+
+import sys
+import os
+import os.path
+su
+class Command:
+	commandlistitems = []
+	def new(_self, commandList):
+		for x in commandList:
+			print("added item:", str(x))
+			_self.commandlistitems += x
+	def execute(now=False):
+		print("todo: actually execute ",commandlistitems)
+
+
+	
+		
+	
+	
+	
+			
+		
+		
+		

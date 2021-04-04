@@ -1,0 +1,63 @@
+#!/bin/zsh
+# warning: this script calls itself, a lot
+#          so please be careful when editing it!
+
+# automatically set for starting up when outside of a window manager
+[[ -n $DISPLAY ]] || { [[ $# -eq 0 ]] && set -- -xstart; }
+
+
+# execute the xinit command first
+# execute window manager loop here
+case $1 in
+	-xstart)
+	xinit -- /home/osirisgothra/bin/i3-start -- -xinit
+		rv=$?
+		echo "returned to xstart"
+		exit $rv
+		;;
+	-xinit)
+		while true; do /usr/bin/i3 || break; done
+		rv=$?
+		echo "window manager signaled exit, possibly"
+		exit $rv
+		;;
+esac
+# otherwise execute like stated below (for starting programs in i3 config)
+
+# execute on start and restart
+declare -g i3initwait=0.50
+declare -g waitcursordisptime=0.33
+# change to 'true' to disable idle or make a file named ~/.noidleprog
+# this program will be executed instead upon its detection
+bgr() 
+{
+	"$@" &> /dev/null & disown
+}
+declare -g idleprog=sleep
+[[ -r ~/.noidleprog ]] && { idleprog=true; source ~/.noidleprog; }
+case $1 in
+	every)
+		# idle allow wm to finish its own init first, then apply the cursor and wait for it to be applied (static limit is for user viewing of the cursor for visual confirmation of startup)
+		$idleprog $i3initwait
+		xsetroot -xcf /home/osirisgothra/cursor/wait
+		$idleprog $waitcursordisptime
+		xrandr --output HDMI-0 --mode 1920x1080
+		nvidia-tweak
+		xsetroot -xcf /home/osirisgothra/cursor/progress
+		xrdb -merge /home/osirisgothra/.Xdefaults
+		xsetroot -xcf /home/osirisgothra/cursor/default
+		;;
+	first)
+		xrandr --dpi 96
+		bgr uxterm
+		pwp
+		xsetroot -xcf /home/osirisgothra/cursor/default
+		javaku
+		#gnome-settings-daemon
+		#dbus-daemon --session
+		#nvidia-tweak
+		# execute on first start*
+		#killall xbindkeys
+		#xbindkeys
+		;;
+esac

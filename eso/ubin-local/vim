@@ -1,0 +1,63 @@
+#!/bin/zsh
+
+# TERM could be linux under one situation:
+#     user is in a console/tty and has attached DISPLAY to remotely (in terms of X, not in terms of network connections, though some X servers may be outside the machine)
+#     in which case a DISPLAY could be valid, but user probably doesnt want to start a gui vim outside the console arena because they arent there (!)
+# note: this program uses UA to validate binaries (update-alternatives) 
+# ua_cmd        executable to use for UA
+# ua_link       text position where UA stores its master link with --query
+# g/vim_path    binary locations according to UA    ( DO NOT QUOTE THESE!! ) <- change to hardlink when no UA or compiled-self versions are used 
+# (you could also just replace the two with your favorite editors for CLI/GUI)
+#fallback_cmd   command used when no binaries are resolved as a last resort
+
+declare -gi ua_link=4
+declare -g  ua_cmd="/usr/bin/update-alternatives"
+declare -g vim_path=${$($ua_cmd --query vim)[ua_link]}
+declare -g gvim_path=${$($ua_cmd --query gvim)[ua_link]}
+declare -g fallback_cmd="/bin/nano"
+if [[ -x $fallback_cmd ]]; then
+    true "fallback command ok"
+else
+    echo "fatal: $fallback_cmd does not exist, please put it in its proper place to use this script!"
+    exit 127
+fi
+echo "display: $DISPLAY term: $TERM, g/vim: $gvim_path/$vim_path  fallback: $fallback_cmd, ua=$ua_cmd, ualpos=$ua_link"
+if [[ $DISPLAY != "" ]] && [[ $TERM != linux ]] && [[ -x $gvim_path ]]; then
+    # gui mode
+    target=$gvim_path
+elif [[ -x $vim_path ]]; then
+    # cli mode
+    target=$vim_path
+else
+    # fallback mode
+    nanoflags=( `nano --help | grep -Po -- '(\s|^)--?[^=0-9[:punct:] ]+' ` )
+    declare -ga newopts=( )
+    target=$fallback_cmd
+    # strip options (todo: convert opts?)
+    # right now we assume that user may expect nano, so we wont touch nano-existing arguments
+    # todo: possibly dont allow short options, not a problem yet
+    echo "reparsing options (warning: some vim and nano options may overlap)"
+    for x; do
+        if [[ $x =~ ^- ]]; then
+            for y in $nanoflags; do
+                if [[ "$y" == "$x" ]]; then
+                    let retain++
+                    break
+                fi
+            done
+            if [[ $retain -gt 0 ]]; then
+                echo "retaining nano-specific option: $x($y)"                
+                newopts+="$x"
+            else
+                echo "removed vim option: $x"
+            fi
+        else
+            echo "retained non-option: $x"            
+            newopts+="$x"
+        fi
+    done
+    # update argument list
+    set -- $newopts
+    
+fi
+$target "$@"

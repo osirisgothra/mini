@@ -1,0 +1,224 @@
+#!/usr/bin/perl
+#
+#   
+#
+#            DEPRECEATED, NO FURTHER ADDITIONS TO THIS FILE
+#            SEE THE NEW VERSION: mman
+#
+#
+#
+#
+# FILE
+#    man
+#    man with a few extra features
+#
+# PROJECT
+#    eso-bin/ubin-local
+#	 esoteric projects
+#
+# AUTHOR / COPYRIGHT
+#
+#    Copyright (C) 2020, Gabriel Thomas Sharp
+#
+#    Written by Gabriel Thomas Sharp osirisgothra@larnica.(none)
+#    Latest versions of this and all of Gabriel Thomas Sharp's projects can be
+#    obtained from:
+#
+#     <<projbranch>>
+#
+#    Documentation Available At:
+#
+#     <http://www.github.com/osirisgothra/eso-bin/ubin-local.git>
+#
+# LICENSE
+#
+#    eso-bin/ubin-local/man  is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  NOTES
+#
+#     * TODO: move 'use' statements to top if you want to keep them**
+#    ** this feature will be added to the next version of perltemplate (hopefully)
+#   *** warnings are disabled for experimental and once because they are pretty
+#       annoying here, you might want to re-enable them for your own program
+#       to do this during testing and development.
+#
+#  HISTORY
+#
+#	Mon Feb 10 20:04:32 2020
+#         osirisgothra@larnica.(none) created this file using the template generator 'perltemplate'
+#         and named it man for the project '<projname'.
+#
+#
+# (created with perltemplate by Gabriel T. Sharp <osirisgothra@hotmail.com>)
+#
+
+use warnings;
+use v5.20.2;
+use strict;
+use feature "signatures";			# 	allow 'sub routine($param1, $param2, $and_so_on)' styled functions
+no warnings "experimental";			# 	allow given/when/default and smartmatching without their warnings***
+no warnings "once";					# 	allow variables to be used just once without warning***
+my $uid = int(`id -u`);
+print("your id=$uid");
+my $cmdprefix;
+$cmdprefix = "sudo " unless $uid == 0;
+
+
+my %err = ( 	modload => 131,
+				none => 0,
+				fatal => 255,
+				generic => 1,
+				help => 127,
+				break => 27,
+			);
+my %mess_enUS = (	check =>	"checking for %s...",
+				failed =>	"failed to %s (context was %s, error code: %n)\n",
+				unex =>		"unexpected error during: %s code=%n, wtext=%s",
+				ok =>		"ok!",
+				miss =>		"MISSING",
+				missing =>	"the module %s is missing, please use 'cpan install %s' to obtain it"
+				
+			);
+my %mess_de = (	check =>	"checking for %s...",
+				failed =>	"failed to %s (context was %s, error code: %n)",
+				unex =>		"unexpected error during: %s code=%n, wtext=%s",
+				ok =>		"ok!",
+				miss =>		"MISSING",
+				missing =>	"the module %s is missing, please use '${cmdprefix}cpan install %s' to obtain it",				
+			);
+
+my %mess = %mess_enUS;
+sub endl { say(""); }			;
+endl;
+
+
+# conditional loader for checking
+sub checkload {
+	my $module = shift;
+	printf($mess{check}, $module);
+	unless ( eval sprintf("require %s;",$module) ) {
+		printf($mess{miss}); endl;
+		printf($mess{missing},$module,$module); endl;
+		exit $err{modload};
+	} else {
+		print($mess{ok}); endl;
+		return $err{ok};
+	}
+};
+
+checkload "Getopt::Long::Descriptive"; 
+checkload "Path::Tiny";
+	
+### DEEP DEBUG ONLY: 	die("found result=$? msg=$! def=".( $_ // "[none]" )." defl=".(@_ // "[none]"));
+
+use Env qw( @PATH $HOME );				#	access $PATH as an array (it is already setup here)
+my $summary = "\nLaunch manual viewer with some extra abilities.\n";
+my $details = "\n* Adding \"--\" will cause arguments to be forcibly passed to man(1)\n";
+sub passalong
+{
+	my $r = system("/usr/bin/man",@ARGV);
+	exit($r);
+}
+$_=$ARGV[0] // "";
+passalong if @ARGV and /^(-[a-eg-uw-zA-Z]|--section(=\S+)|[0-9])$/;
+
+sub find($target)
+{
+	unless ( defined($target) ) {
+		say "returning nothing since we got nothing in target to find";
+		return undef;
+	}
+	
+	for my $path (@PATH) {
+		unless ( defined($path) ) {
+			say "path returned was undefined :(";
+		}
+		else
+		{
+			#say "about to evaluate (p->child(t): [p]ath=' ${path} ' [t]arget='${target}'";
+			my $item = path($path)->child($target);
+			return path($item) if -r -x -f $item and not $item =~ /^$HOME/;
+		}
+	}
+}
+
+my $last_resort_reader=path(Path::Tiny::rootdir())->child("bin")->child("cat");
+say ("last resort reader set to: $last_resort_reader");
+die("last resort reader was not present, you MUST make sure you have at least this file to run this program!") unless $last_resort_reader->exists();
+my %readers = (	perl => (find("perldoc") // $last_resort_reader),
+				python => (find("pydoc") // $last_resort_reader),
+				man => (find("man") // $last_resort_reader),
+				info => (find("info") // $last_resort_reader),
+				www => (find("www-browser") // $last_resort_reader),
+				cheat => (find("cheat") // $last_resort_reader), 
+				plain => (find($ENV{"PAGER"}) // $last_resort_reader),
+			  );
+printf("%25s as %s interpreter/reader\n",$readers{$_},$_) for keys %readers;
+
+				
+
+my ($opt, $usage) = describe_options(
+    '%c %o <some-arg> file',
+	[ $summary ] ,
+	[ "\nMain options:\n" ] ,
+	[ 'force|f=s', "force reader type (perl, python, man, info, www, or plain)" => { default => 'man',  one_of => [
+		[ "perl|p" 		=> hidden => { hidden => 1 } ],
+		[ "python|P"	=> hidden => { hidden => 1 } ],
+		[ "man|m" 		=> hidden => { hidden => 1 } ],
+		[ "info|i" 		=> hidden => { hidden => 1 } ],
+		[ "www|W" 		=> hidden => { hidden => 1 } ],
+		[ "plain|L" 	=> hidden => { hidden => 1 } ],
+		] }
+	],
+    [],
+	[ "\nMiscellaneous options:\n"],
+    [ 'verbose|v',  "print extra stuff"            ],
+    [ 'help',       "print usage message and exit" ],
+	[ $details ],
+);
+my $ARGC = $#ARGV+1;
+
+say($usage->text), exit if $opt->help;
+sub vsay { CORE::say(@_) if $opt->verbose; }
+vsay("getopt: arguments left: $ARGC" );	
+vsay("in verbose mode");
+vsay($opt->force);
+
+my $prefix=Path::Tiny::rootdir()->child('usr')->child('bin')->child($opt->force);
+
+
+
+
+sub findrank($topic) {
+
+	return "/usr/bin/man %s";
+}
+
+
+if ($ARGC) {	
+	for (@ARGV) {
+		my $item = $_;
+		my $handler=sprintf(findrank($item),$item);		
+		system $handler;
+	}
+
+} else {
+	say("What manpage do you wish pitifully for?");
+}
+	
+
+
+# REF START
+=pod

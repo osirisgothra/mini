@@ -1,0 +1,8 @@
+#!/bin/zsh
+#
+# info shortcut for mocp
+# (C)2020 Gabriel T Sharp, (osirisgothra@hotmail.com)
+#
+
+mocp --info
+

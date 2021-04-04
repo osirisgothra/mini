@@ -1,0 +1,89 @@
+#!/bin/zsh
+emulate zsh
+#
+#    compositor
+#    A Compositor Program
+#    The Compositor Project / eso-bin
+#    A Project That Gloriously Houses Compositor / esoteric projects and scripts
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sat Oct  6 22:10:33 EDT 2018
+#            osirisgothra@larnica initially created this file
+#            with the original name, compositor
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+#
+setopt interactivecomments
+setopt 	extendedglob
+
+declare -gi com_lasterr=250
+declare -gi com_firsterr=128
+declare -gi com_no_error=0
+declare -gx com_binary="compton"
+declare -gxa errors=( unreachable	'cannot locate compositor $com_binary'
+						generic		'generic error'	 )
+
+
+fail()
+{
+	(($#)) || { echo "fatal; no arguments"; exit $com_lasterr; }
+	kind="$*"
+	local -i ecode=1
+	for ekind emsg in $errors; do
+		if [[ $ekind == $kind ]]; then
+			printf "error(%s::%04X): %s" "$ekind" "$ecode" "$emsg"
+			exit $ecode
+		fi
+	done
+	echo "fatal: unknown action=$kind message=$emsg"
+	echo "        check code and try again or notify if it is a bug."
+	exit 255
+}
+
+com_binary=`which $com_binary`
+while [[ $# -gt 0 ]]; do
+	declare nextarg="${1}"; shift
+	case ${(L)nextarg} in
+		on|1|true|yes|y|enable?(d)|start|create|begin|go|birth) 	mode=on;;
+		off|0|false|no|n|disable?(d)|stop|kill|end|finish|destroy)	mode=off;;
+		*)	echo "unknown argument: $nextarg"; exit $(( 127 + ${#nextarg} ));;
+	esac
+done
+echo "mode: $mode"
+
+case $mode in
+
+	on)		 compton -bcCGf -i 0.8 -e 0.8 --no-fading-openclose --sw-opti;;
+	off)	 killall -KILL compton && echo "ok (no errors, returned 0)" || echo "got extra result code: $?";;
+	*) echo "fatal: invalid argument fell through ($mode = mode)";;
+
+esac
+

@@ -1,0 +1,105 @@
+#!/bin/zsh
+#
+#    libroot
+#    generate a command line to include libraries from a particular root location
+#    eso/ubin-local
+#    esoteric scripts and projects
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository:
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sun Mar 15 10:42:57 EDT 2020
+#            osirisgothra@ initially created this file
+#            with the original name, libroot
+#
+# TARGET NOTES
+#
+# 	EXECUTIVE STATE CHANGES
+#		marking single existing file executable
+#			- mode of 'libroot' changed to u+rwx/og+rx.. []
+#		completed (0)
+# 	ARGUMENTUAL ANALYSIS
+#       remaining arguments:
+#			no arguments to list
+#       disposition:
+#			5 were used during execution of template
+#   		0 were extra and/or unexpected
+# 	TEMPLATE SUMMARY OF GENERATION
+#	     outcome: good
+#	     errors: 0
+# 	FINAL NOTE
+#	     template program under renovation
+#        you should REMOVE the TARGET NOTES section once youve reviewed this!
+#		 (Sun Mar 15 10:42:57 EDT 2020): osirisgothra ignored the final note and left this behind for
+#		           the user(s) to see, but on purpose because it is alpha.
+#  SIMILAR TO
+#	resize(1) - this program also returns lines to be evaluated by shell/programs
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#
+#	template output completed (code=OK(ERROR_NONE))
+#
+#
+
+# TODO: make more advanced, but for now its quite simplex and only for x64
+
+# force into help mode if help parameter(s) exist
+if [[ $* =~ -?-h(elp)? ]]; then
+	shift $#
+fi
+
+case $# in
+	1)	libroot=$1
+		if [[ -d $libroot ]]; then
+			libout=( $libroot/lib
+					 $libroot/lib/x86_64-linux-gnu
+					 $libroot/usr/lib
+					 $libroot/usr/lib/x86_64-linux-gnu )
+					 # 32-bit arch: change x86_64-linux-gnu to i386
+					 # legacy servers: use i586 or i686 instead of x86_6..nu
+			printf "LD_LIBRARY_PATH=${(j#:#)libout}"
+			exit 0
+		else
+			echo "error: $libroot does not exist"
+			exit 127
+		fi
+		;;
+	0)	echo "syntax: libroot ROOT-DIRECTORY"
+		exit 126
+		;;
+	*)	echo "error: command line '$0 $@' is not valid."
+		echo "Type $0 alone for a brief syntax explanation."
+		exit 125
+		;;
+esac
+
+echo "error: program corruption detection! please check file contents for integrity!"
+echo "(this should never happen unless file is incomplete or garbled)"
+
+exit 124
+exit 124

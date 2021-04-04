@@ -1,0 +1,23 @@
+#!/bin/zsh
+# comment out for debugging
+exec 1> /dev/null
+exec 2> /dev/null
+# main program
+if [[ $# -eq 0 ]]; then
+    # this special gui version allows for file selecting via gui
+    # if no files were specified on the command line, new files are okay
+    # also, we split into a multiple list of files, can open more than one (but in the same session, using NextDoc/PrevDoc to go to them, or close them first
+    # advantage to this? to allow entries into the recent files list and history, plus the users saved places bar can be used
+    # or any other features that are unique to the user's system
+    while true; do
+        files=( ${(s:|:)$(zenity --file-selection --file-filter "All Documents|*" --title "XNano -- Open Document" --multiple)} )
+        /usr/bin/xterm -e ~/bin/nano $files
+        if zenity --question --text "Edit more files?" --title "XNano -- Question"; then
+            true debug echo preparing to edit more files
+        else
+            break
+        fi
+     done
+else
+    exec /usr/bin/xterm -e ~/bin/nano "$@" &!
+fi

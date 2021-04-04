@@ -1,0 +1,102 @@
+#!/bin/bash
+#
+#  mountfs, unmountfs	-	warm and fuzzy (un)mount script
+#
+#
+#  Author:
+#	Gabriel T. Sharp
+#
+#  Copyright (c) 2016 Gabriel T. Sharp, License (this script) GNU LGPL 3.1*
+#  License (parent software which this file is bundled) GNU GPL 3.0
+#
+#  (*) NOTE THAT  ONLY  THIS  FILE FALLS
+#      UNDER  GNU   LGPL 3.1,  NOT  IT'S
+#      CONTAINING PRODUCT(S) OR SOFTWARE
+#      PACKAGE(S).
+#
+#  File was created on Sat 10 Sep 2016 at 07:44:55 AM EDT
+#  Last updated on Sat 10 Sep 2016 at 07:45:27 AM EDT
+#
+#  Code change letter: - (none)
+#
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU Lesser General Public License as
+#  published by the Free Software Foundation, either version 3 of the
+#  License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU Lesser General Public License for more details.
+#
+#  You should have received a copy of the GNU Lesser General Public License
+#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#  For more support, visit our homepage: http://paradisim.tk
+#  Report any bugs to <bugs@paradisim.tk> or visit our FAQ on our website.
+#
+
+case $- in i) chmod a+x $BASH_SOURCE;
+			  echo "saving current path.."
+			  pushd .
+			  cd "$(dirname $BASH_SOURCE)"
+			  if [[ -r unmountfs ]] && [[ -L unmountfs ]] && [[ -x unmountfs ]]; then
+			  	echo "unmountfs: already a readable executable link"
+			  elif [[ -r unmountfs ]] && [[ -L unmountfs ]]; then
+			  	echo "unmount is a readable link but not executable, setting execute permissions"
+			  	chmod a+x unmountfs
+			  elif [[ -r unmountfs ]]; then
+			  	echo "unmountfs exists in this directory, but it is not a link, you will have to take care of that manually!"
+			  	echo "(delete it and try again if you didnt need that file/program, or move it if you want to keep it offline)"
+			  else
+			  	echo "unmountfs not here--making the link"
+			  	ln -s "$BASH_SOURCE" unmountfs
+			  fi
+			  echo "returning to your original path"
+			  popd
+			  echo "please restart as standalone executable (permissions now set)"			  
+			  return $?
+			  ;;
+		   r) echo "restricted shell - cannot continue"
+		   	  exit 122
+		   	  ;;
+		   *) echo "searching...";;
+esac
+if [[ $1 == media ]]; then
+	echo "failsafe: you specified 'media' as the label, this is not the label but rather the directory udisksctl uses to put the labels or mount points into. Please pick a label from within the media directory, but do not include anything except the label (example: /media/mydrive -> use 'mydrive' as the label)"
+	echo "stopped further processing. (dont feel bad this is a common mistake, in fact I am the reason for this feature!)"
+	exit 121
+fi
+if [[ -b $1 ]]; then
+	echo "already a block device, using it..."
+	DEVICE=$1
+elif [[ $1 =~ ^[-0-9a-fA-F]+$ ]]; then
+	echo "appears to be UUID, looking it up..."
+	DEVICE=$(findfs UUID=$1)
+else
+	echo "\"$1\" is not a block device or UUID, search mode is LABEL"
+	DEVICE=$(findfs LABEL=$1)
+fi
+if [[ -b $DEVICE ]]; then
+	echo "found filesystem on $DEVICE, using that..."
+else
+	echo "object $1 is not a valid label, block device, or UUID; failed (stop)."
+	exit 121
+fi
+
+if [[ $BASH_SOURCE =~ unmountfs ]]; then
+	echo "mode: unmount"
+	MNTCMD=unmount
+else
+	echo "mode: mount (default)"
+	MNTCMD=mount
+fi
+
+echo "udisksctl \"$MNTCMD\" -b \"$DEVICE\""
+if udisksctl "$MNTCMD" -b "$DEVICE"; then
+	echo "udisksctl returned no errors"
+	echo "OK"
+else
+	echo "udisksctl failed with code $?"
+	echo "check your settings and arguments!"
+fi

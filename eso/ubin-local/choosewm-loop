@@ -1,0 +1,12 @@
+#!/bin/bash
+
+while true; do
+	xset s off
+	xset s noblank
+	xset -dpms
+	killall -SIGKILL dbus-daemon dbus-launch 
+	killall -SIGKILL xscreensaver xscreensaver-command xscreensaver-text xscreensaver-getimage xscreensaver-getimage-video xscreensaver-getimage-file
+	killall -SIGKILL i3-nagbar
+	echo "restarting choosewm..."
+	/usr/bin/choosewm "$@"	
+done

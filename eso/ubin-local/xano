@@ -1,0 +1,68 @@
+#!/bin/bash
+DOWAIT=0
+# xano
+#	passthru for nano(1) to make edited FILE(s) executable for user, group, guests
+#
+# syntax
+#	xano [FILE]...
+#
+# note
+#   use nano(1) for more complicated command lines
+#	as no full-proof checking is done prior to chmod(1)
+#
+if [[ -r ~/.config/xano-edited ]]; then
+	if ! ps av | grep 'bin/[n]ano' -Po; then
+		echo "CLEANUP: doing cleanup since nano sessions are unopened at this time..."
+		mapfile -t ITEMS < ~/.config/xano-edited
+		for ITEM in "${ITEMS[@]}"; do
+			if [[ -s "$ITEM" ]]; then
+				echo "skipping $ITEM (has data)..."
+			else
+				echo -ne "\e[31;1mremoving $ITEM...\e[0m"
+				if rm -f "$ITEM"; then
+					echo "ok"
+				else
+					echo "failed, just removing from list ($?)"
+					echo "** see ~/.config/xano-failremove for a list of failed files **"
+					echo "$ITEM" >> ~/.config/xano-failremove
+				fi
+				sleep 0.325
+			
+			fi
+		done
+		rm ~/.config/xano-edited
+	else
+		echo "ENGAGED: nano sessions exist, skipping for now..."
+	fi				
+else
+	echo "CLEAN: session history empty, no need to cleanup anything..."
+fi
+[[ $DOWAIT -eq 1 ]] && { echo "[press a key]"; read -sn1; }
+echo "proceeding with request(s)..."
+for x; do
+	echo "checking argument '$x' is acceptable: "
+	if [[ $x == ^- ]]; then		
+		echo "    no: argument in command line, running nano normally..."
+		echo "skipping checks and running directly..."
+		exec nano "$@"
+		# script xfer point
+	else
+		echo "   yes: item not argument option: $x"
+		if [[ ! -x "$x" ]]; then
+			echo "creating/making file executable..."
+			touch "$x"
+			chmod a+x "$x"
+			echo "finshed, editing file now..."
+		else
+			echo "file exists and executble, leaving untouched..."
+		fi
+		echo "argument '$x' accepted as a command line file"
+	fi
+done
+echo "note: unsaved empty files will not be deleted; logged to ~/.config/xano-editied!!"
+echo "$@" >> ~/.config/xano-edited
+echo "processing done or not needed, proceeding with nano..."
+exec nano "$@"
+			
+		
+

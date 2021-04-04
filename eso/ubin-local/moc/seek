@@ -1,0 +1,17 @@
+#!/bin/zsh
+#
+# seek shortcut for mocp
+# (C)2020 Gabriel T Sharp, (osirisgothra@hotmail.com)
+#
+
+if [[ $1 =~ ms$ ]]; then
+	float val=${1/ms/}.0
+	val=$(( val / 1000.0 ))
+elif [[ $# == 0 ]]; then
+	val=1
+else
+	val=$1
+fi
+	
+mocp --seek $val
+

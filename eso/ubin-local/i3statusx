@@ -1,0 +1,77 @@
+#!/usr/bin/perl
+# vim: fdl=1:ts=2:noet:sw=2:bs=2:ruler:fdm=indent:mouse=a:fcl=all
+#
+# ignore these fdm=indent:mouse=all:fcl=all:fdl=9 ok?
+#
+#note: perlsupport and perlsyn users: use fmr=syntax instead of fdm=marker
+#================================================================================
+#
+#         FILE: i3statusx
+#
+#        USAGE: ./i3statusx  
+#
+#  DESCRIPTION: i3status replacement
+#
+#      OPTIONS: ---
+# REQUIREMENTS: ---
+#         BUGS: ---
+#        NOTES: ---
+#       AUTHOR: Gabriel T. Sharp (osirisgothra), internalinsomnia@gmail.com
+# ORGANIZATION: internal insomnia group
+#      VERSION: 1.0
+#      CREATED: 05/21/2019 02:31:37 PM
+#     REVISION: ---
+#===============================================================================
+
+
+use warnings;
+use strict;
+use v5.20;
+no warnings 'experimental';
+
+my $header = '  
+{"version":1}
+[';
+
+my $sample = '
+[{"name":"disk_info","instance":"/","full_text":"6.4 GiB"},
+ {"name":"disk_info","instance":"/src","full_text":"2.9 GiB"},
+ {"name":"disk_info","instance":"/home/osirisgothra/.ftblauncher/play","full_text":"483.8 MiB"},
+ {"name":"load","full_text":"1.16@1/60th 0.40@1/10th  0.65@1/4th"},
+ {"name":"tztime","full_text":"Sunday April 7, 2019    6:54 PM  EDT  40sec(s)"}
+]
+';
+
+sub head { print $header; }
+sub group 
+{	
+	my $mhash = shift;	# hash containing key/values in a nameless group
+	unless ( defined($$mhash{'name'}) ) 
+	{  
+		$$mhash{'name'} = 'noname' . 
+							int((rand() * 1024)); 
+	}
+	my $nf=1;
+	print('[{');
+	print "\"name\":\"$$mhash{'name'}\"";
+	for ( keys(%$mhash) ) {
+		unless ($_ eq "name") {
+			print(",") if $nf++;
+			print("\"$_\":\"$$mhash{$_}\"");
+		}
+	}
+	print("}\n");
+}
+
+my $g = {	a => "b", c => "d" };
+
+head();
+# my $last = "";
+group ( $g );
+
+
+
+
+
+
+

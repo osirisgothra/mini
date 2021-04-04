@@ -1,0 +1,71 @@
+#!/usr/bin/zsh
+zexit=( getopt_error	127
+		internal_error	126
+		list_items		125
+		help_shown		124
+		reserved_end	128
+		reserved_start	96 )
+
+# based upon code provided in /usr/share/doc/util-linux/examples/getopt-parse.bash
+# revamped a bit for zsh flavoring and trimming
+TEMP=`getopt -o lh --long list,help -n "${0} command-line parser" -- "$@"`
+if [[ $? != 0 ]] ( echo "Terminating..." >&2 && exit $zexit[getopt_error] )
+eval set -- "$TEMP"
+
+while true ; do
+	case "$1" in
+		-l|--list) for x in /proc/sys/vm/*; do printf "%-40s %20s\n" "$(basename $x)" "${$(cat $x): 0:20}"; done; exit 125;;
+		-h|--help) echo "$helptext"; exit 124;;
+		--) shift ; break ;;
+		*) echo "Internal error!" ; exit 126 ;;
+	esac
+done
+#### end cmdline parsing ####
+
+#uncomment once we dont care anymore about errors
+#exec &4>&2
+#exec &2>/dev/null
+
+item=${1=null}
+target=/proc/sys/vm/$1
+value=${2=0}
+exists=0
+if [[ -r $target ]]; then
+	exists=1
+fi
+oldvalue="$([[ -r $exists ]] && cat $target || echo null)"
+
+case $# in
+	1) if ((exists))  echo "$item ($target)='$oldvalue'"
+	   if ((!exists)) echo "$item ($target) does not exist! (try --list)"
+		;;
+	2)	if ((exists)); then
+		echo "going to change $item"
+		echo "this is it's old value (in red only)[31;1m"
+		cat "$target"
+		echo "[0m"
+		echo "about to set $item($target) to $2 is that right?"
+		echo "[32m[Y] = YES[31m [N] = NO, NEVERMIND[36m (OR ANY OTHER KEY TO STOP)[0m"
+		read -sk1 "response?press a [KEY] from the list provided above!"
+		if [[ ${(U)response} == Y ]]; then
+			echo "about to change it, press ENTER to confirm again or CTRL+C to abort"
+			read -sk1
+			echo "proceeding in 2 seconds..."
+			echo "2.."
+			sleep 1
+			echo "and 1..."
+			sleep 1
+			echo "...aaand..."
+			sleep 0.5
+			#                         same as just '> $target' but with superuser privs, dev/null used to prevent the output from actually being written to screen
+			echo "$value" | sudo tee "$target" &> /dev/null
+		else
+			echo "aborted, no further processing will be performed!"
+		fi
+		else
+			echo "FATAL: cannot change/show item or value, target $target does not exist!"
+		fi
+		;;
+	*)	echo "FATAL ERROR: too many arguments! at most 2 arguments expected, a [target] and a [value]!"
+		;;
+esac

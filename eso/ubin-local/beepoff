@@ -1,0 +1,64 @@
+#!/bin/zsh
+
+setopt nozle
+setopt extendedglob
+setopt interactivecomments
+
+typeset -a prefix
+typeset -a probecmds
+
+emulate zsh
+{
+	debugging=0
+	user=`id -un`
+	nowarn=0
+	sudofile="/etc/sudoers"
+	if ((debugging)); then
+		true()
+		{	# NB: always return 0 to adhere to 'true' builtin's behavior
+			case $cmd in
+				debug)	# debug [expr], executes [expr] as regular command if debugging is on
+					"$@"
+					return 0
+					;;
+				*)
+					builtin true "$@"
+					return 0
+					;;
+			esac
+			return 0
+		}
+	fi
+	if [[ -r "/etc/sudoers" ]]; then
+		if grep -Pq ${user}'.*ALL.*NOPASSWD:\s*ALL' /etc/sudoers; then
+			nowarn=1
+		fi
+	else
+		echo "cannot possibly work, current user cannot even read /etc/sudoers!"
+		echo "stopping now..STOP"
+		return 122
+	fi
+	onmsg="turning speaker %F{2}on%F{0}"
+	offmsg="shutting %F{1}off%F{0} speaker"
+	sudowarn="%F{3}warning:%F{7} you are not root, using sudo to elevate permissions. No exclusive rights detected, but trying anyway (this could fail!)... \n(hint: to avoid this message define BEEPOFF_NOWARN=1 or give user ALL NOASSKPASS permissions in sudoers!)"
+	isroot=$(( `id -u`+`id -g` == 0 ))
+	progname=$0
+	if [[ $progname =~ beepon ]]; then
+		echo ${(%%)onmsg}
+		probecmds=( modprobe )
+	else
+		echo ${(%%)offmsg}
+		probecmds=( modprobe '-r' )
+	fi
+	if ((isroot)); then
+		prefix=( exec )
+	else
+		if ((BEEPOFF_NOWARN == 1)) || ((nowarn)); then
+			true debug echo "nowarn in effect: no warnings issued!"
+		else
+			echo ${(%%)sudowarn}
+		fi
+		prefix=( exec sudo )
+	fi
+	$prefix $probecmds pcspkr
+}

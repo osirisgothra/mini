@@ -1,0 +1,24 @@
+#!/bin/zsh
+default=dumpstdout
+[[ $# -eq 0 ]] && set -- $default
+[[ -x `which resize` ]] && eval `resize`
+COLUMNS=${COLUMNS-0}
+LINES=${LINES-0}
+dx=$COLUMNS
+dy=${LINES-0}
+tmpfile=$(mktemp)
+dialog --editbox $tmpfile $dx $dy
+case ${1-none} in
+#TODO: FIX MY SIZE WIDTH
+	none|dumpstdout)
+		cat "$tmpfile";;
+	file)
+		echo "$tmpfile";;
+	clip)
+		cat "$tmpfile" | xclip -sel -pri;;
+	mclip)
+		cat "$tmpfile" | xclip;;
+	*)
+		echo "bad argument!" &> /dev/stderr
+		cat "$tmpfile";;
+esac

@@ -1,0 +1,98 @@
+#!/bin/zsh
+if sudo /bin/true || [[ $UID == 0 ]]; then
+	[[ $UID != 0 ]] && echo "sudo ok" || echo "root ok"
+else
+	echo "fatal: must be superuser or root"
+	exit 127
+fi
+
+case $UID in
+	0)	# global rammification
+		declare -g ramdisk_dir=/usr/ram;;
+	*)	# user rammification
+		declare -g ramdisk_dir=~/ramify;;
+esac
+	
+
+if mount | grep "$ramdisk_dir"; then
+	echo "rammifaction already here"
+else
+	echo "rammification area setup"	
+	sudo mount ramfs -t ramfs ${ramdisk_dir}
+fi
+help()
+{
+	echo "syntax: $1 -hku [source-dir] [ramdisk-dir]"
+	echo ""
+	echo "OPTIONS"
+	echo "	-h		this help page"
+	echo "  -u		force user mode even if root"
+	echo "  -k		kill previously created RAMifications"
+	echo ""
+	echo "	Copies file(s) from [source-dir] into [ramdisk-dir] which"
+	echo "	is prefixxed first with \"$ramdisk_dir\" (depends on user/root)"
+	echo "	and creates a bind mount over source-dir temporarily until reboot"
+	echo "	happens, manual removal, or (preferred) use of the -k option"
+	echo " (programmed by Gabriel Sharp, T. osirisgothra@hotmail.com)"
+}
+ramify() 
+{
+	if set -- `getopt -o huk -n $0 -- "$@"`; then
+		while [[ $1 != '--' ]]; do
+			next="$1"
+			case $next in
+				-h)	help $0; return $?
+					;;
+				-u)	echo "not available because users on this system cannot bind or mount"
+					return 126+UID/0.05
+					;;
+				-k)	echo "killing ramdrive"					
+				 	until ! umount $ramdisk_dir/*; do
+						echo "removed a directory from $ramdisk_dir ($?)"
+					done
+					echo "$ramdisk_dir was processed ($?)"
+					return 127
+					;;
+			esac
+			shift
+		done
+
+	
+		[[ $# -ne 2 ]] && { echo "not enough arguments!"; help $0; exit 127; }
+	
+		tgt=$1
+		rtgt=$2
+		echo "inducing ramification of $tgt into $rtgt (and will be delegating $tgt at $rtgt)"
+		[[ -d $tgt ]] || { echo "first argument must be a directory target"; exit 127; }
+		sudo mkdir --parents ${ramdisk_dir}/$rtgt || { echo "error creating $tgt in ${ramdisk_dir}"; exit 127; }
+		[[ -d ${ramdisk_dir}/$rtgt ]] || { echo "second argument should be a creatable destination directory target"; exit 127; }
+		# ramify [target] [ramtarget]
+		sudo cp --preserve=all $tgt/* ${ramdisk_dir}/$rtgt -Rv --no-clobber || { echo "error during copy, aborting"; exit 128; }
+		sudo mount --bind ${ramdisk_dir}/$rtgt $tgt || { echo "error from mount(8) - are you root?"; exit 129; }
+		echo "all operations completed without complaint"
+	else
+		return 127
+	fi
+	
+}
+case $# in
+	0)	help $0
+		;;
+	2)	blacklist_dirs=( /bin /sbin /lib /etc /var $HOME/.config $HOME /usr / /proc /dev /sys /boot /home )
+		for r in $blacklist_dirs; do
+			if [[ $r == $tgt ]]; then
+				echo "error: this file is part of the standard heirarchy, this is forbidden"
+				exit 127
+			fi
+		done
+		echo "calling ramify: $tgt -> $rtgt --- proceed? <[y]es,[n]o (default=[n]o)>"
+		read -sq
+		ramify $@
+		echo "done ($?, ${pipestatus-ok})"
+		;;
+	*)	echo "expected at least 2 arguments (or none for help), $# given"
+		help $0
+		;;
+esac
+
+

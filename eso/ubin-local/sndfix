@@ -1,0 +1,10 @@
+#!/bin/sh
+# TODO: rememdy the core problem for me, which I suspect is OSS
+# however my pc is on the verge of breaking for GOOD, so until i replace
+# it, i shall use this to fix the blacklisting problem
+
+# soundblaster and other simmilar cards using the emu10k1 processor
+sudo modprobe snd_emu10k1
+# most HDMI ports use this for low-level sound encoding support
+# (by low-level i mean the specification's features and stuff, NOT sound quality, bitrate, etc..)
+sudo modprobe snd_hda_intel

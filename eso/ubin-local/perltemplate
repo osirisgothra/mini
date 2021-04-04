@@ -1,0 +1,792 @@
+#!/usr/bin/perl
+#    Project Information                                                       {{{ 
+#       vim: sw=2:tw=2:noet:nowrap:fen:fdm=marker:fmr={{{,}}}:fdo=all:fcl=all:cc=105:nu:bs=2:nows:wm=0
+#       filename: perltemplate
+#       description: perl CLI template generator 
+#       project: mini (on github)
+#  																		        }}}   
+#    Copyright  (C) 1995-2018 Gabriel Thomas Sharp                             {{{ 
+#
+#    Written by Gabriel T. Sharp <21shariria\@gmail.com>                       }}} 
+#    Project Repository                                                        {{{    
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).#
+#                                                                           }}} 
+#    LICENSE                                                                   {{{
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#                                                                              }}}
+#    HISTORY                                                                   {{{
+#
+#	 Sat Nov  3 08:37:04 EDT 2018
+#            osirisgothra\@larnica initially created this file
+#            with the original name, perltemplate
+#  (this header was created using the template generator by Gabriel T. Sharp,
+#   if that is confusing read paragraph below for a more detailed description.)
+#
+#                                                                              }}}
+#  PROGRAM SETTINGS {{{
+
+use warnings;
+use strict;
+use v5.20;
+my $has_no_curses=0;
+
+# Curses::UI is only needed for the GUI section
+# of the generator (a work in progress) so it is
+# not needed for the CLI.
+if ( ! eval("require Curses::UI") ) {
+	$has_no_curses=1;	
+} else {
+	require Curses::UI; 
+}
+
+
+use Getopt::Long::Descriptive;
+
+no warnings "experimental";
+
+
+# }}}
+
+### TEMPLATE EXCHANGES:
+### (from exchange loop output)
+#	exchanging <author-alias> with templar{items}[author-alias]
+#	exchanging <author-email> with templar{items}[author-email]
+#	exchanging <author> with templar{items}[author]
+#	exchanging <copyright-years> with templar{items}[copyright-years]
+#	exchanging <date> with templar{items}[date]
+#	exchanging <docbranch> with templar{items}[docbranch]
+#	exchanging <filedesc> with templar{items}[filedesc]
+#	exchanging <filename> with templar{items}[filename]
+#	exchanging <hostname> with templar{items}[hostname]
+#	exchanging <projdesc> with templar{items}[projdesc]
+#	exchanging <projname> with templar{items}[projname]
+#	exchanging <username> with templar{items}[username]a
+###
+
+# {{{ TEMPLATE content data
+############################################# TEMPLATE START ################### ############################################# TEMPLATE START ################################################################ TEMPLATE START ###################
+############################################# TEMPLATE START ################### ############################################# TEMPLATE START ################################################################ TEMPLATE START ###################
+
+# sh_head			a resillience measure commonly used to prevent executing as an sh script by accident as some executors might do
+# header			the descriptive file, project, author, and license header (so you dont have to do this)
+
+my %fragments = ( 
+
+sh_head => "#!/usr/bin/perl
+    eval 'exec /usr/bin/perl -S \$0 \${1+\"\$@\"}'
+        if \$running_under_some_shell;'",
+
+header => 
+"#!/usr/bin/perl
+#
+# FILE
+#    <filename>
+#    <filedesc>
+#
+# PROJECT
+#    <projname>
+#	 <projdesc>
+#
+# AUTHOR / COPYRIGHT
+#
+#    Copyright (C) <copyright-years>, <author>
+#
+#    Written by <author> <author-email>
+#    Latest versions of this and all of <author>\'s projects can be
+#    obtained from:
+#
+#     <<projbranch>>
+#
+#    Documentation Available At:
+#
+#     <<docbranch>>
+#
+# LICENSE
+#
+#    <projname>/<filename>  is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  NOTES
+#
+#     * TODO: move 'use' statements to top if you want to keep them**
+#    ** this feature will be added to the next version of perltemplate (hopefully)
+#   *** warnings are disabled for experimental and once because they are pretty
+#       annoying here, you might want to re-enable them for your own program
+#       to do this during testing and development.
+#
+#  HISTORY
+#
+#	<date>
+#         <username>@<hostname> created this file using the template generator 'perltemplate'
+#         and named it <filename> for the project '<projname'.
+#
+#
+# (created with perltemplate by Gabriel T. Sharp <osirisgothra\@hotmail.com>)
+#
+
+use warnings;
+use v5.18;
+use strict;
+no warnings \"experimental\";			# 	allow given/when/default and smartmatching without their warnings***
+no warnings \"once\";					# 	allow variables to be used just once without warning***
+
+",
+
+slurp => "
+use File::Slurp;
+use Curses::UI;
+
+
+
+# read in a whole file into a scalar
+my \$text = read_file( '/etc/fstab' ) ;
+# read in a whole file into an array of lines
+my \@lines = read_file( '/etc/fstab' ) ;
+# write out a whole file from a scalar
+write_file( '/tmp/fstab-whole', \$text ) ;
+# write out a whole file from an array of lines
+write_file( '/tmp/fstab-lines', \@lines ) ;
+# Here is a simple and fast way to load and save a simple config file #
+# made of key=value lines.
+
+my \%conf = read_file( \$file_name ) =~ /^(\\w+)=(.*)\$/mg ;
+write_file( \$file_name, {atomic => 1}, map \"\$_=\$conf{\$_}\\n\", keys
+\%conf ) ;
+# insert text at the beginning of a file
+prepend_file( 'filename', \$text ) ;
+# in-place edit to replace all 'foo' with 'bar' in file
+edit_file { s/foo/bar/g } 'filename' ;
+# in-place edit to delete all lines with 'foo' from file
+edit_file_lines sub { \$_ = '' if /foo/ }, 'filename' ;
+# read in a whole directory of file names (skipping . and ..)
+my \@files = read_dir( '/path/to/dir' ) ;
+			
+",
+
+ansi => "
+
+use Term::ANSIColor 4.0  qw ( colorstrip color colored uncolor coloralias :constants colorvalid :pushpop );
+
+sub ansi_demo()
+{
+
+    print color \'bold blue\';
+    print \"This text is bold blue.\\n\";
+    print color \'reset\';
+    print \"This text is normal.\\n\";
+    print colored(\"Yellow on magenta.\", \'yellow on_magenta\'), \"\\n\";
+    print \"This text is normal.\\n\";
+    print colored [\'yellow on_magenta\'], \'Yellow on magenta.\', \"\\n\";
+    print colored [\'red on_bright_yellow\'], \'Red on bright yellow.\', \"\\n\";
+    print colored [\'bright_red on_black\'], \'Bright red on black.\', \"\\n\";
+    print \"\\n\";
+
+    # Strip all color escape sequences.
+
+    print colorstrip \'\\e[1mThis is bold\\e[0m\', \"\\n\";
+
+    # Determine whether a color is valid.
+
+    my \$valid = colorvalid(\'blue bold\', \'on_magenta\');
+
+    print \"Color string is \", \$valid ? \"valid\\n\" : \"invalid\\n\";
+
+    # Create new aliases for colors.
+
+    coloralias(\'alert\', \'red\');
+
+    print \"Alert is \", coloralias(\'alert\'), \"\\n\";
+    print colored(\"This is in red.\", \'alert\'), \"\\n\";
+    print BOLD, BLUE, \"This text is in bold blue.\\n\", RESET;
+
+    # localized
+
+    {
+    	local \$Term::ANSIColor::AUTORESET = 1;
+    	print BOLD BLUE \"This text is in bold blue.\\n\";
+    	print \"This text is normal.\\n\";
+    }
+
+    print PUSHCOLOR RED ON_GREEN \"This text is red on green.\\n\";
+    print PUSHCOLOR BRIGHT_BLUE \"This text is bright blue on green.\\n\";
+    print RESET BRIGHT_BLUE \"This text is just bright blue.\\n\";
+    print POPCOLOR \"Back to red on green.\\n\";
+    print LOCALCOLOR GREEN ON_BLUE \"This text is green on blue.\\n\";
+
+    # localized 
+    
+    print \"This text is red on green.\\n\";
+    {
+    	local \$Term::ANSIColor::AUTOLOCAL = 1;
+    	print ON_BLUE \"This text is red on blue.\\n\";
+    	print \"This text is red on green.\\n\";
+    }
+    
+    print POPCOLOR \"Back to whatever we started as.\\n\";
+}    
+",
+
+path => "
+
+use Path::Tiny;
+
+sub path_demo()
+{
+    # creating Path::Tiny objects
+    print `tput clear`;
+    print(\"For this to work, must have /tmp/foo.txt and /tmp/foo/bar.txt first, attempt will be made to create them...\");
+
+    sleep(0.5);
+    
+    my \$data1 = `ls -l /`;
+    my \$data2 = `ls /etc`;
+    
+    path('/tmp/foo/bar.txt')->spew(\$data1);
+    path('/tmp/foo.txt')->spew(\$data2);
+
+    my \$dir = path(\"/tmp\");
+    my \$foo = path(\"foo.txt\");
+    my \$subdir = \$dir->child(\"foo\");
+    my \$bar = \$subdir->child(\"bar.txt\");
+    
+    # stringifies as cleaned up path
+
+    my \$file = path(\"./foo.txt\");
+
+    say \$file; # \"foo.txt\"
+
+    # reading files
+
+    my \$guts = \$file->slurp;
+    my \@lines = \$file->lines;
+    my (\$head) = \$file->lines( {count => 1} );
+    my (\$tail) = \$file->lines( {count => -1} );
+
+    \$guts = \$file->slurp_utf8;
+    \@lines = \$file->lines_utf8;
+
+    print `stty sane`;
+    say \"head\";
+    say \$head;
+    say \"tail\";
+    say \$tail;
+    say \"write data...\";
+    
+    # writing files
+    
+    my \@data = qw ( sample data );
+
+    \$bar->spew( \@data );
+    \$bar->spew_utf8( \@data );
+
+    # reading directories
+
+    for ( \$dir->children )
+    { 
+        say(\"children: \$_\"); 
+    }
+
+    my \$iter = \$dir->iterator;
+    
+    while ( my \$next = \$iter->() ) 
+    { 
+        say(\"iterated: \$next\"); 
+    }
+}
+",
+
+open3 => "
+
+use IPC::Open3  qw( open3 );
+
+
+sub open3_demo()
+{
+    print \"do open3 example? [y/[n]]\";
+    
+    \$_ = readline();
+    if (/y/) 
+    {
+    	
+    	my \$pid = open3( \\*CHLD_IN, \\*CHLD_OUT, \\*CHLD_ERR, \'xcalc\',\'-fg\',\'red\' );
+    	my \@handles = ( \\*CHLD_IN, \\*CHLD_OUT, \\*CHLD_ERR );	
+    	my(\$wtr, \$rdr, \$err);
+    	use Symbol \"gensym\"; \$err = gensym;
+    	\$pid = open3(\$wtr, \$rdr, \$err, \'xcalc\',\'-fg\',\'red\' ); 
+    	waitpid( \$pid, 0 );
+    	my \$child_exit_status = \$? >> 8;
+    }
+}
+",
+getopt => "
+
+use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
+
+my (\$opt, \$usage) = describe_options(
+    \'\$0 \%o <some-arg> file\',
+    [ \'no-dialog\', \"dont use dialog to show log\",  ],
+    [ \'no-follow\',   \"do not follow the log, just show it\",   { default  => 79 } ],
+    [],
+    [ \'verbose|v\',  \"print extra stuff\"            ],
+    [ \'help\',       \"print usage message and exit\" ],
+);
+
+say(\$usage->text), exit if \$opt->help;
+say(\"getopt: arguments processed: \$#ARGV\");
+
+",
+
+curses => "
+## CURSES ##
+use Curses::UI;
+
+my \$cui;  # Main Program Object, it must be global so accessor/menu/etc subs can see it
+           # even though subs are defined inside of the same routine, subs wont be able to
+           # read any function-local data, this is a closure that keeps loops from compromise.
+           # an illustration of the closure:
+
+#  GLOBAL STACK     FUNC STACK
+#  +---------------+---------+ -> creates function B() but its access is still limited to global and above unless a ref was passed too
+#  |     FUNC A    +    A    |
+#  |     FUNC A    +    | var|
+#  +---------------+---------+
+#  +---------------+---------+
+#  |     FUNC B    +    B    |-> tries to access cui, but if its in A how would it?
+#  +---------------+---------+
+#  GLOBAL STACK     FUNC STACK
+#    +---------------+
+# |->|     var       |
+# |  +---------------+
+# |    ^
+# |    |
+# |    | accessible!
+# |    |
+# | +---------------+---------+ -> creates function 'FUNC B'
+# | |     FUNC A    +    A____|
+# | |               +    |////| <- readable by A only
+# | +---------------+---------+
+# | +---------------+---------+
+# -|     FUNC B    +    B     |-> tries to access var, and can because its global
+#  +---------------+----------+
+
+my \$file = undef;
+my \$statusbar_showing = 0;
+my \$statusbar_text = \"I am some status text\";
+sub exit_dialog()
+{
+    my \$return = \$cui->dialog	(	-message   => \"Do you really want to quit?\",
+	    							-title     => \"Are you sure?\",
+		    						-buttons   => ['yes', 'no'], );
+    exit(0) if \$return;
+}
+
+sub curses_demo()
+{
+    say(\"curses: entering setting\");
+
+    my \$debug = 0;  #1=yes 0=no
+    \$cui = Curses::UI->new( -color_support => 1, -clear_on_exit => 1, -debug => \$debug, ); # this is where we gloss over setting up all the widgets and data structures + start the event loop
+
+    # menu subs
+
+    sub help_contents_act
+    {
+        \$cui->dialog(\"Contents: Nothing!\");
+    }
+    sub about_dialog
+    {
+        while(1) {
+        my \$yes = \$cui->dialog( 	-message => \"Template Program v1.0\", -buttons => [
+            {   -label    => '< About The Author >',
+                -value    => 191,
+                -onpress  => undef,
+                -shortcut => 'o', }
+        ,
+        \"ok\"], -values  => [1,0], -title   => \"About\", );
+        given(\$yes) {
+            when (191)
+            {
+                \$cui->dialog( 	-message => \"The Author of this program seems like a nice enough person!\", -buttons => [\"ok\"], -values  => [1,0], -title   => \"About Author\", )
+            }
+            default
+            {
+                return;
+            }
+        }
+        }
+    }
+    sub open_dialog
+    {
+        \$file = \$cui->filebrowser(	-path => \"/tmp\", -show_hidden => 1, );
+
+        # Filebrowser will return undef if no file was selected.
+        
+        if (defined \$file) 
+        {   
+            unless (open F, \"<\$file\") 
+            {	
+                # do something with file
+                close F; 
+            } 
+            else 
+            { 
+                \$cui->error(qq(Error opening \"\$file\":\\n\$!)); 
+            }
+        }
+    }
+    sub undo_act
+    {
+        # todo: undo something
+    }
+    sub redo_act
+    {
+        # todo: redo something
+    }
+    sub next_act
+    {    
+        # todo: next something
+    }
+    sub prev_act
+    {    
+        # todo: previous something
+    }
+    sub statusbar_act
+    {
+        \$statusbar_showing ^= 1;   # toggle it
+        \$cui->status(\$statusbar_text) if \$statusbar_showing;
+        \$cui->nostatus unless \$statusbar_showing;
+    }
+    sub toolbar_act
+    {
+        \$cui->error(\"It\'s toolbar has yet to be completed!\");
+
+    }
+    sub progress_act
+    {
+        \$cui->progress( -max => 10, -message => \"Counting 2 seconds...\", );
+        for my \$second (0..2) 
+        {	
+            \$cui->setprogress(\$second); 
+            sleep 1; 
+        }
+        \$cui->noprogress;
+    }
+
+    my \@menu = (
+
+                { -label => \'File\',
+                  -submenu => [{        -label => \'Open...\'     ,     -value => \\&open_dialog  },
+                               {        -label => \'Exit      ^Q\',     -value => \\&exit_dialog  }],
+                },
+                { -label => \'Edit\',
+                  -submenu => [{        -label => \'Undo      ^U\',     -value => \\&undo_act  },
+                               {        -label => \'Redo\'        ,     -value => \\&redo_act  }],
+                },
+                { -label => \'Search\',
+                  -submenu => [{        -label => \'Find      F3\',     -value => \\&find_dialog  },
+                               {        -label => \'Replace   F4\',     -value => \\&replace_dialog  }],
+                },
+                { -label => \'View\',
+                  -submenu => [{        -label => \'Statusbar ^S\',     -value => \\&statusbar_act  },
+                               {        -label => \'Toolbar   ^T\',     -value => \\&toolbar_act }],
+                },
+                { -label => \'Document\',
+                  -submenu => [{        -label => \'Previous   PGUP\',     -value => \\&prev_act  },
+                               {        -label => \'Next       PGDN\',     -value => \\&next_act  }],
+                },
+                { -label => \'Demos\',
+                  -submenu => [{        -label => \'path\',             -value => \\&path_demo },
+                               {        -label => \'ansi\',             -value => \\&ansi_demo },
+                               {        -label => \'open3\',             -value => \\&open3_demo }],
+                },
+                { -label => \'Help\',
+                  -submenu => [{        -label => \'Contents   F1\',     -value => \\&help_contents_act  },
+                               {        -label => \'About\'        ,     -value => \\&about_dialog  }],
+                },
+
+                );
+    \$cui->add( \'menu\',\'Menubar\', -menu => \\\@menu, -fg => \"blue\",);
+    \$cui->mainloop;
+}    
+curses_demo();
+## END CURSES ##
+"
+### new sections will go here (maybe)
+
+);
+ ############################################ TEMPLATE ENDED ##################
+############################################# TEMPLATE ENDED ###################
+ ############################################ TEMPLATE ENDED ##################
+
+## END TEMPLATE ## }}} 
+
+ ##############################################################
+## PROGRAM ##                                             ####
+ ###########                                              ##
+                                                          #
+
+
+my $nonoptargs = "" . <<EOF
+Non-option arguments are, abreviated and in exact order:
+    [fnam] [fdes] [pnam] [pdes] [anam] [anik] [hnam] [gdir] [date] [year] [mail]
+
+	Fields
+
+		[fnam]  	The Name of the File
+		[fdes] 		The File's Description
+		[pnam]      The Project Name in which File Belongs to
+		[pdes]      The Aforementioned Project's Description
+		[anam]      The File's Author's Real Name
+		[anik]      The Alias That the File's Author is Known by, if Any
+		[hnam]      The Hostname where the Author Created This File (not the Publishing Website)
+		[gdir]      The Path Tail of the GitHub Url where this Project is Stored Online (defaults to [anik]/[pnam])
+		[date]      The Date the file is created (defaults to current system date/time).
+		[year]      The Last Year that the Copyright Date-Range Covers (defafults to the current year).
+		[mail]      The E-Mail Address of the Author where Users can Reach Regarding This Program (defaults to [anik]@[host]).
+        
+		The first seven lines default to information taken directly from the system including the username, hostname, real name, and email based on the currently logged in user's database and operating system."
+EOF
+;
+
+my ($opt, $usage) = describe_options(
+        '$0 %o <some-arg> file',
+        [ 'interactive|i', "enter interactive mode (not for piping)" ],
+        [ 'disable|d=s', "disable module+code section: curses|getopt|ansi|slurp|path|all", { default => "nil" } ],
+        [ 'enable|e=s', "re-enable module+code section (as above)", { default => "nil" } ],
+        [ 'lic|l=s', "use a license: GPL GPL2 GPL3 LGPL ADOBE APACHE", { default => "GPL2" } ],
+        [ 'recursions|r=i',"maximum depth allowed for <name> tags.", { default => 3 } ],
+        [ 'name|n=s', "name of the template (used for future template presets)", { default => "template-project" } ],
+        [],
+        [ 'verbose|v',  "print extra stuff"            ],
+        [ 'help',       "print usage message and exit" ],
+	    [ $nonoptargs ],	
+      );
+say($usage->text), exit if $opt->help;
+#die("not supported yet") if $opt->interactive;
+die("recursions must be nonzero") if $opt->recursions < 1;
+my $username = `id -un` // $ENV{"USER"} // "nobody";
+my $host = `hostname` // $ENV{"HOST"} // "localhost";
+my $domain = `domainname` // $ENV{"DOMAIN"} // "localdomain";
+my $date = localtime;
+my $author = `awk -F: '{ if (\$1 == ENVIRON["USER"]) { print substr(\$5,1,-1 + match(\$5,",")); } }' /etc/passwd` // "Johnson Toppan Dicksen";
+chomp ($username, $host, $domain, $author);
+my $year = ((localtime())[5]+1900);
+my @al = @ARGV;
+
+# enable/disable sections
+sub setup_sections
+{
+	my %sections = qw( curses on
+				 getopt on
+				 ansi   on
+				 path   on
+				 slurp  off
+				 open3  on
+				 all    off );
+
+	for my $sect (keys(%sections))
+    {
+    #	say("checking $sect section");
+    	for my $item (split(',',$opt->disable)) 
+    	{
+    		if ($sect eq $item)
+    		{
+    			$sections{$sect}="off";
+    		}
+			elsif ($item eq "all")
+			{
+				$sections{$_} = "off" for keys(%sections);
+			}
+    	}
+	}
+
+	for my $sect (keys(%sections))
+	{
+    	for my $item (split(',',$opt->enable)) 
+    	{	
+			if ($item eq "all")
+			{
+				# whenever 'all' is used with disable, switch all back to 'off' state no matter where we are. this is done
+				# because enable-all is more important than disable-all, it gets looked at last as fragments are added to
+				# the final template (SEE: setup_template)
+				$sections{$_} = "on" for keys(%sections);								
+			}
+    		elsif ($sect eq $item)
+    		{
+    			$sections{$sect}="on" ;
+    		}
+     
+    	}		
+    }
+	return %sections;
+}
+
+# build template before dropping values into the template placeholders
+# this must be done separately in case user overrided some option
+# later in the command line, such is the case when using shell
+# alias features that may have partially constructed the command
+# line prior to the user actually entering any of their own
+
+
+sub setup_template
+{
+	my $template = "";
+	my %templar = ();
+	my %sections = setup_sections;
+	
+    $template = $fragments{'header'};	# we always use the header!
+
+    for my $z (keys(%sections))
+    {
+    	if ($sections{$z} eq "on" or $sections{'all'} eq "on")
+    	{
+    			$template .= $fragments{$z} // "";
+    		
+    	}
+    }
+
+    %templar = (
+      	name =>  $opt->name // "template-project",
+    	template => \$template,
+      	items => {
+    		# can be set via command line
+    		filename => $al[0] // "perltemplate-file", 
+    		filedesc => $al[1] // "the <filename> perl script",
+    		projname => $al[2] // "<filename>-proj",
+    		projdesc => $al[3] // "project <projname>: container for <filename>",
+    		date => $al[9] // $date,      
+    		'copyright-years' => $al[10] // $year,
+    		author => $al[4] // $author,
+    		'author-email' => $al[11] // "${username}\@${host}.${domain}",
+    		'author-alias' => $al[5] // $username,
+    		username => $al[6] // $al[5] // $username // "self",
+    		hostname => $al[7] // $host . "." . $domain,
+    		docbranch => $al[8] // "http://www.github.com/<username>/<projname>.git",
+    	},
+    );	
+    my $i = 0;
+    while ($i++ < $opt->recursions) 
+    {
+    	for (keys(%{$templar{items}}))
+    	{
+			#print("exchanging <$_> with templar{items}[$_]\n");
+    		$template =~ s/<$_>/${$templar{items}}{$_}/g;
+    	}
+    }
+	return %templar;
+}
+sub noninteractive
+{
+	my %result = setup_template();
+	print(${$result{'template'}});
+}
+
+my (@mnuMain, $wndMain, $ctlText, $mnuMain, $cui) = ( (), 0,0,0,0 );
+
+
+sub exit_dialog()
+{
+	my $return = $cui->dialog	(
+									-message   => "Do you really want to quit?",
+									-title     => "Are you sure???",
+									-buttons   => ['yes', 'no'],
+
+								);
+	exit(0) if $return;
+}
+sub about_dialog()
+{
+	return $cui->dialog	(
+						-message	=>	"PerlTemplate v1.0 Private Alpha (C)2020 Gabriel T Sharp",
+						-title		=>	"About $0",
+						-buttons	=>	['ok'],
+					);
+}
+
+sub interactive
+{
+	if ( $has_no_curses == 1 ) {
+		say("You must install Curses::UI To use this feature!");
+		exit(127);
+	}
+
+		
+        $cui = new Curses::UI( -color_support => 1 );
+
+        @mnuMain = 		( 	
+        						{ 	-label => 'File',
+							  			-submenu => 	[
+															{ -label => 'About	F1',	-value => \&about_dialog },
+															{ -label => 'Exit	^Q',	-value => \&exit_dialog },
+														]
+								}
+							);
+		$mnuMain =$cui->add(	'menu', 'Menubar',
+								-menu => \@mnuMain,
+								-fg => 'blue',
+							);
+								
+			
+		$wndMain = $cui->add( 	'window',	'Window',
+								-border => 1,
+								-y => 1,
+								-bfg => 'magenta',
+							);
+				
+
+		$ctlText = $wndMain->add(	'TextControl',	'TextEditor',
+									-text => "Here is some text\n" . "And some more",
+							);
+
+		
+		
+				
+	
+		$cui->set_binding( \&about_dialog, 265 );
+		$cui->set_binding( sub { $mnuMain->focus() }, "\cX" );
+		$cui->set_binding( \&exit_dialog, "\cQ");		
+		$ctlText->focus();
+	
+        $cui->mainloop();
+};
+#### EXECUTION POINT ####
+if ( $opt->interactive ) {
+	interactive();
+} else {
+	noninteractive();
+}
+#exit ($opt->interactive ? interactive() : noninteractive());
+####
+ #                                        
+ ##                           ###############
+ ####                        ## END PROGRAM ##
+ ###########################xx###############

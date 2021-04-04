@@ -1,0 +1,62 @@
+#!/usr/bin/perl
+use v5.20;
+use warnings;
+use strict;
+use Path::Tiny('path','rootdir');
+use IPC::Run('run');
+
+# use KDEMODE=1 if you want vlc to run with skins and services of KDE5, this may start kdeinit if not already
+# running. It will probably start some KDE services as well (like file.so, setting daemons, keyring, and most likely
+# cryptography services). Usually you dont want to force this, if left at ZERO (0) (reccomended!) then KDE will
+# be autodetected by VLC anyway. This setting is mainly for those who wish to use the KDE features even when they
+# are not using the KDE desktop management system. KDE DOES NOT NEED TO BE RUNNING TO USE THIS BUT ITS LIBRARIES
+# MUST BE INSTALLED. The libraries required are the same dependencies that are installed with programs like krita
+# konsole, kaffeine, and even kdialog. If you have any of these, then you should be ok to use it. Otherwise, it may
+# not work AT ALL. Dont change this value if you are NOT sure what it does or will do to your system!!!
+
+# get advanced help so we can use _longopt complete assistance
+# this also disables anything else happening!
+if ( scalar(@ARGV) > 0 ) {
+exec("/usr/bin/vlc -H") if ( $ARGV[0] eq "--help" );
+}
+
+# only do this if there is no 'cli' argument anywhere in the command line
+# this usually means the user  wants to use the command line to enter commands
+# and therefore moving to a new workslafe would not be helpful
+my $stay = 0;
+for (@ARGV)
+{
+		$stay = 1 if (/cli/);
+}
+my $WSVPFX = "PBX_VLC_I3_";
+my $WSVSFX = "_WORKSPACE";
+my $WSVSGRP = "0";
+sub workspace {	return $ENV{ $WSVPFX . shift . $WSVSFX } // $WSVSGRP . shift . " " . shift; }
+
+# which is used with 
+my $KDEMODE = 0;
+my $WSNAME = workspace("TERMINAL",1,"TERM"); # ENV{PBX_VLC_I3_TERM_WORKSPACE} // "01 TERM ";
+my $WSDEST = workspace("VIDEOLAN",6,"VLC");  # ENV{PBX_VLC_I3_VLC_WORKSPACE} // "06 VLC ";
+print("workspaces to be assigned for i3: \n\tcurrent or return-to desktop: $WSNAME \n\twhere to place vlc window: $WSDEST \n(you can set these, see --help for more!)\n") unless defined($ENV{PBX_VLC_I3_VLC_WORKSPACE});
+
+my $vlcpath = rootdir()->child('/usr')->child('bin')->child('vlc');
+say $vlcpath;
+
+# @array of ref[array]
+my @preruns = ( ["i3","workspace","$WSDEST"], 
+				[ "clear" ],
+				[ "i3", "border", "1pixel" ],
+				);
+
+for my $prerun (@preruns) 
+{
+	my @prerun = @$prerun;
+	say @prerun;
+	#============+++ CURRENT PROGRESS +++===================
+}
+
+# TEMP: TODO: finish this to be dynamic not hardcoded
+`i3 workspace "$WSDEST"` unless $stay;
+system("/usr/bin/env","XDG_CURRENT_DESKTOP=KDE","/usr/bin/vlc",@ARGV) if $KDEMODE;
+system("/usr/bin/vlc",@ARGV) unless $KDEMODE;
+`i3 workspace "$WSNAME"` unless $stay;

@@ -1,0 +1,63 @@
+#!/bin/zsh
+#
+#    wineselect
+#    select wine prefix or show it
+#    mini/eso/ubin-local
+#    various projects and programs that are single-file or single-target
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository:
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sat Nov  9 22:16:01 EST 2019
+#            osirisgothra@ initially created this file
+#            with the original name, wineselect
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#
+
+die() { echo "explicit error triggered:\n\t $* \n"; case $- in *i*) return 127;; *) exit 127;; esac; }
+sel() { ln -s $* $target || die "wineselect on $* failed!"; }
+[[ -o interactive ]] && die 'cant run interactively'
+help="syntax: $0 [32 | 64]"
+[[ $# -ne 1 ]] && die $help
+# set these to your "off-wine" prefix locations
+# the 'sel' is required and is the action performed on the tail:
+win64dir="sel /b/way/ur/wine-prefixes/win64"
+win32dir="sel /b/way/ur/wine-prefixes/win32"
+# set this to wherever your .wine dir is (not sure? try "$HOME/.wine" or ~/.wine)
+target="/b/way/ur/.wine"
+aspect="$*"
+# target must be removed first
+rm -f $target || die "cant remove .wine - fatal"
+case $aspect in
+	# add your own archetectures here, 32 and 64 are already here
+	# example: "128) sel $win128dir" and "win128dir='/b/way/ur/wine-prefixes/win128' (in above)
+	32)	eval $win32dir ;;
+	64)	eval $win64dir ;;
+	*) echo "unsupported archetechture: $aspect";;
+esac

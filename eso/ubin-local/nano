@@ -1,0 +1,451 @@
+#!/bin/zsh
+# ^  in case this doesnt work or gets changed somehow linked to sh
+# v- check to make sure we are running zsh and not sh
+
+emulate sh
+printf "checking shell\n"
+if test "x${ZSH_VERSION}" = "x";  then
+	printf "This script requires zsh, and zsh must be at least version 3.0 in order to run correctly!\n"
+	exit 127
+fi
+printf "checking version\n"
+# v- by this point here, ZSH_VERSION is set, $0 contains /path/to/zsh
+if test ${ZSH_VERSION%%.*} -lt 3; then
+	printf "This zsh version $ZSH_VERSION is too old, script requires zsh => 3.0 in order to run correctly!\n"
+	exit 126
+fi
+printf "setting mode of operation\n"
+
+# v- by this point, zsh is running, and its either v3.0 or newer, safe to end sh emulation
+
+emulate zsh
+
+declare -ga created=( )
+
+cleanup()
+{
+    if [[ $created != "" ]] && [[ $#created -ge 1 ]]; then
+        for c in $created; do
+            if [[ -s "$c" ]]; then
+                echo "file $c has data, closed ok!"
+            else
+                echo "file $c is empty, removing and adding its name to ~/.nano-empties..."
+                echo "$c" >> ~/.nano-empties
+                rm "$c" && echo "file $c removed ok"
+            fi
+       done
+    fi
+}
+trap -- cleanup HUP INT EXIT QUIT KILL
+
+# autoexpand locations (look-for-here-locations) (NEVER put system paths in here!!!)
+
+debug_pollargs()
+{
+    echo -n "main::$0: args=${(j:,:)@}"
+    echo -n " ($# argument"
+    [[ $# -ne 1 ]] && print -P 's)' || print -P ')'
+}
+
+#debug_pollargs $@
+
+# lfhls: look for file here list
+# format: any zsh-expandable string (ie, ~ is same as /home/yourname or $HOME)
+#         prefix with a '@' to include entire directory tree underneath*
+#
+# * dangerous if misused (like '/' is a VERY bad idea and is blacklisted but others exist, cough*/usr*cough)
+# discern if we need to look
+
+# rules at this time:   rule                if true then need_to_look equals...
+# 1                     files all exist     0
+# 2                     user is not root    1
+# 3                     load averages > 2.4 0
+# 4                     memory < 50MB       0
+# 5                     user can read tmp   mask 1**
+# 6                     --help is the only arg (special: bypasses all)
+# **set to 1 if already 1, 0 otherwise
+# *** TODO: some of this is still not implemented!
+setopt aliases; alias array='declare -ga' dict='declare -gA' global='declare -g'
+
+integer -g need_to_look=0
+integer -g load_is_high=0
+integer -g mem_is_low=0
+float   -g load_level=1
+array   -g lfhls=(  ~/bin ~/www @/tmp/recur @/src/perl )
+float   -g loadlimit=2.5
+float   -g load_level="${$(</proc/loadavg)[1]}"
+integer -g mem_limit_mb=50
+integer -g mbfree=$(( $(awk '{ if (/mF/) print $2; }' /proc/meminfo) / 1024 ))
+array   -g cml=( )
+array   -g nano_nonexec=( '.txt' '.md' 'README' '.html' '.htm' '.ini' 'rc' '.cnf' '.conf' 'tab' '(more to come, add  them here)' )
+global     pts_assume_gui=1
+global     gui_term="xterm-256color"
+array   -g ignore_terms=( stterm st fbterm ansi vt100 vt350 )
+global     con_term="linux"
+global     nano_target="/bin/nano"
+global     gui_file=~/.nanorc-x
+global     con_file=~/.nanorc-console
+global     rc_file=~/.nanorc
+
+
+
+# AUTONANO_NOPERLINC            0/undefined=use perl paths from @INC  
+#                               1=disable all perl paths
+# AUTONANO_PERLINC_NORECURSE    0/undefined=when using paths for perl, recurse into subdirs prefix is added (see later for what that does)
+#                               1=only use top-level paths from @INC
+
+# rule 6 done first because it short circuits the program altogether:
+if [[ $# -eq 1 ]] && [[ $1 == --help ]]; then
+    exec $nano_target --help
+fi
+# rule 1, files all exist
+for x; do
+    # stays zero unless a missing file is found
+    # no zero check because its the first rule and not stateful
+    # if file exists [nothing] else [need to look=1]
+    [[ -f $x ]] || {
+        let need_to_look=1
+        # no need to check the rest, it wont change anything -- found or not
+        break
+    }
+    
+done
+if [[ $need_to_look == 0 ]]; then
+      print -P "%O%F{10}INFO: command line FILENAMES are explicit existing filenames, ($@), no further searching will be done!!%f%b"
+fi
+# rule 2, user is not root
+if [[ $UID -eq 0 ]]; then
+    need_to_look=0
+    print -P "%B%F{1}WARNING: USER is root, some functions will be bypassed!%f%b"
+
+fi
+# rules 3, load average > 2.5
+# 2.53 2.73 2.95 5/365 120328 <- example 1/5/15 min, active/sleeping, lastpid
+if [[ $load_level -gt $loadlimit ]]; then
+    need_to_look=0
+    load_is_high=1
+    print -P "%F{1}WARNING: SYSLOAD is very high, some functions will be bypassed!%f"
+fi
+# rule 4, mem < 50mb
+if [[ $mbfree -lt $mem_limit_mb ]]; then
+    need_to_look=0
+    load_is_high=1
+    mem_is_low=1
+    print -P "%F{1}WARNING: FREEMEM is very low, some functions will be bypassed!%f"
+
+fi
+# rule 5, user can read tmp
+if [[ ! -w /tmp ]]; then
+    print -P "%F{1}WARNING: user $UID cannot manipulate /tmp, some functions will be bypassed!%f"
+    # from program's point of view, /tmp IS memory so...
+    mem_is_low=1
+    # which will hurt load eventually...
+    load_is_high=1
+    # so dont...
+    need_to_look=0
+fi
+# test case: disable when path elements are used anywhere in command line (may be removed later)
+if [[ $* =~ '/' ]]; then
+    need_to_look=0
+fi
+
+# had an argument
+if [[ $need_to_look -eq 1 ]]; then
+
+    if [[ $AUTONANO_NOPERLINC -ne 1 ]]; then
+        if [[ $AUTONANO_PERLINC_NORECURSE -eq 1 ]]; then
+            pfx=""
+        else
+            pfx="@"
+        fi
+        if [[ $* =~ '\.p([ml]|od|erl|[0-9]?pm)$' ]]; then
+            declare -ga extrapaths=( `perl -we 'CORE::say for @INC'` )
+        else
+            declare -ga extrapaths=( )
+        fi
+        if [[ $* =~ '\.[Pp]([Yy][mc23MC]?)$' ]]; then
+            print -P "%F{2}adding python paths because documents may be of that format...%f"
+            for pyp in ``; do
+                extrapaths+=$pyp
+            done
+        fi
+        for incpath in $path $extrapaths $fpath; do
+            if [[ -d $incpath ]]; then
+                lfhls+="$pfx$incpath"
+                echo "added $incpath to list of paths, in recursive mode"
+            fi
+         done
+         # no errors wanted
+         unset pfx perlinc_path &> /dev/null
+    fi
+    # fixup command line (first pass)
+    print -P "checking pre-expansions..."
+    for x; do
+        if [[ -f "$x" ]]; then
+            echo "not expanding $x because $x exists as a file!"
+        else
+            print "x=$x "
+            for z in $lfhls; do
+                if [[ $z =~ '^@' ]]; then
+                    declare -ga p=( $(find ${z#@} -type d) )
+                else
+                    declare -g p="$z"
+                fi
+                for yy in $p; do
+                    # remove any trailing path-sep elements
+                    y=${yy:P}
+                    print -Pn "${y}/${x}..."
+                    if [[ -f $y/$x ]]; then
+                        print -P "%F{2}found!%f"
+                        x=$y/$x
+                    else
+                        print -P "%F{198}no%f"
+                    fi
+                done
+            done
+        fi
+        cml+=$x
+    done
+    #debug_pollargs $@
+
+    set -- $cml
+    # no longer needed
+    #debug_pollargs $@
+
+    unset cml
+fi
+printf "$ZSH_VERSION detected\n"
+# v- lets see if a file exists or not
+#    we'll create any nonexisting files and make them executable so we dont have to later (since i usually make executables with nano)
+#    we'll use a blacklist for certain types
+#    this will automatically skip switch items or numerical ones
+if [[ $* =~ not.found ]] || [[ $* =~ aliased.to ]] || [[ $* =~ '^\s*\S+\s*\(\)' ]]; then
+	echo "\n"
+	echo "error: command line looks like a failed or obscure output from the which command from either the shell or zsh(1), this wont end well (stopping here)"
+	echo "--- extraneous body follows! ---"
+	i=0
+	for n ; do
+		echo "[line $i]: $n"
+		let i++
+	done
+	echo "--- end extranious body text ---"
+	echo "\n"
+	exit 122
+fi
+
+for x ( ${*%%-*} ) {
+	if [[ -e $x ]]; then
+		printf "not setting $x to anything (exists)\n"
+	else
+		printf "nonexistent, attempting to resolve...\n"
+		nonexec_score=0
+		for y ( $nano_nonexec ) { [[ $x =~ ${y}$ ]] && let nonexec_score++; }
+		if ((nonexec_score)); then
+			printf "skipped %s (nonexec score of %d\n" $x $nonexec_score
+		else
+		    created+="$x"
+			printf "creating %s and setting executable: %s" $x $(touch $x && chmod a+x $x && printf ok || printf failed:$?)
+			printf "\n"
+		fi
+	fi
+}
+
+# section end   --autonano
+
+# TODO: re-organize after converting to perl
+
+# section start --nanobyscore
+#
+#    nanobyscore
+#    start nano depending on situation
+#    mini/eso/ubin-local
+#    esoteric scripts and projects
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sun 16 Aug 2020 12:08:46 PM EDT
+#            osirisgothra@ initially created this file
+#            with the original name, nano
+#
+#	 PURPOSE
+#
+#    This program is a shim for nano(1) and does not intercept any command
+#    line options ever and never will. It is transparent and has only one
+#    purpose: to assign two different configurations depending on the state
+#    of the terminal:
+#			1) direct/no emulator (console, serial, etc) terminal
+#           2) terminal emulator mode (terminal emulators that run under Xorg, for example: xterm, uxterm, rxvt, Eterm, xfce4-terminal, gnome-terminal, konsole, etc)
+#			3) (PLANNED) hardware terminal manager (fbterm, vesaterm, etc)
+#           4) (PLANNED) terminal under another programs control (vimterm, vim-console, rekonq, kde terminal interfaces, X terminal interface, tmux, screen)
+#
+#	USER CONFIG
+#
+#		You can set the variables below to control where/how your items are used.
+#
+#	SETUP
+#
+#		New to this program? Just MOVE your .nanorc to .nanorc-x, and then copy that
+#       file to .nanorc-console. You can edit them independently for X or console
+#		respectively. Once you do that, just run the script and it will do the
+#		rest. If you change variables below, you will of course have to change
+#		the above steps to match the new configuration.
+#
+#		NB: if either .nanorc-* get deleted, nanorc will stop working, recreate them
+#           to fix that problem. Also, do not place anything at ~/.nanorc or it
+#			will cause nano to not launch! You can still run nano normally by
+#           using /bin/nano directly, of course. (/bin/nano is the POSIX standard
+#			location and it is has been standardized over the last 30 years of its
+#			existence, so its a safe bet it will be there).
+#
+#		I did not write nano(1), only this script (nano(1gts)), so give nano
+#		authors credit and see their manpage (man://1/nano).
+#
+#  (template+header created using template(1gts) by Gabriel T. Sharp)
+#
+
+# settings
+
+# pts_assume_gui   if the terminal is using pseudoterminal (slave/master) assume gui mode
+# gui_term		   terminal you want to use when in a gui terminal of any kind (defaults to xterm-256color)
+# con_term		   the terminal identifier used by console terminals (usually 'linux' (the default),'cons25', 'cons50', 'console', ..)
+# nano_target      the fqdn to the nano binary (must be the binary, not a script)
+# gui_file         the .nanorc to use when within an X terminal/session
+# con_file         the .nanorc to use within the console terminal
+# rc_file          the name of the (usually ~/.nanorc) configuration file to DELETE AND COPY OVER
+# ignore_terms		list of terminals to ignore
+#
+# gui means framebuffer also when pts_assume_gui is present
+# TODO: add detection for fbterm/frambuffers
+#
+
+# pre-translate (works for zsh only but does not check, so dont be dumb and
+# try to specify zsh-like responses from the command line!)
+# case one: <prog_name>: aliased to <executable_prog_name>
+#           it must be a name resolvable as an executable file
+#           if it isnt, its ignored
+if [[ $* =~ ^[^:]+:\\saliased\\sto\\s(.*) ]]; then
+	_nohit=1
+	print -fP "detect zsh-style alias string (used with which FILE, usually)..."
+	print -fP "attempting to match against [$match] within string [$*]"
+	_pmatch=${match[1]}
+	if [[ -r $_pmatch ]] && [[ -x $_pmatch ]]; then
+		for _type in `mimetype -a $_pmatch -l en`; do
+			if [[ $_type == text/plain ]]; then
+				print -fP "translating to $_pmatch aliased"
+				set -- "$_pmatch"
+				_nohit=0
+				break
+			fi
+		done
+	fi
+	if ((_nohit)); then
+		print -fP "\n"
+		print -fP "%F{50}warning:"
+		print -fP "%F{62}- [$*] appears to be a zsh alias string"
+		print -fP "%F{74}- ^ is not aliased to an executable/readable file"
+		print -fP "%F{86}  neither/nor is plain text (mimetype text/plain)"
+		print -fP "%F{98}- ^ might not edit how you expect [press enter to continue, ctrl+c to abort]"
+		read -sk1
+	fi
+fi
+
+
+
+
+# CHECK USER'S TEMPLATE FILES (for gui and console modes, you need one each)
+
+for chk in "$gui_file" "$con_file"; do
+	if ! [[ -s "$chk" ]] || [[ -d "$chk" ]] || ! [[ -r "$chk" ]]; then
+		printf "fatal: cannot read $chk, make sure its there and you have permission to read it\n"
+		exit
+	else
+		printf "$chk verified ok\n"
+	fi
+done
+
+# MAKE ROOM FOR A LINK FROM/TO .NANORC AND USER'S TEMPLATE FILE
+
+if [[ -L "$rc_file" ]]; then
+	rm -f "$rc_file" &> /dev/null
+elif [[ -d "$rc_file" ]]; then
+	printf "fatal: .nanorc is a directory, this is not good, fix that please!\n"
+	exit 127
+elif [[ -f "$rc_file" ]]; then
+	printf "fatal: .nanorc is not a link, please rename it so we can make the links for this program (cannot continue)\n"
+	exit 128
+fi
+printf "\"$rc_file\": verified slot is available\n"
+
+# CHECK WHETHER TO USE GUI OR CONSOLE CONFIGURATION
+
+# if ignore list match, hardware variables to short out all other checks:
+# - force to gui config
+# - force either to be gui config
+# - force either to use TERM
+for x in $ignore_terms; do
+	if [[ $x == $TERM ]]; then
+		export gui_term=$TERM
+		export con_term=$TERM
+		export con_file="$gui_file"
+		break
+	fi
+done
+if xwininfo -root &>/dev/null || ( [[ `tty` =~ pts ]] && ((pts_assume_gui)) ); then
+	# gui mode
+	printf "selecting gui as target (${gui_term})\n"
+
+	export TERM=${gui_term}
+	ln -s "$gui_file" "$rc_file"
+else
+	[[ $TERM == "" ]] && export TERM=${con_term}
+	ln -s "$con_file" "$rc_file"
+fi
+
+if [[ -r "$rc_file" ]]; then
+	# never use /usr/bin/nano, it is not backwards compatible with older distributions (the location not the filename)
+	printf "passing arguments ${(qq)@} to $nano_target\n"
+	# quotes not needed for zsh, bash ports will need to add them
+	[[ $TERM == ${con_term} ]] && mterm=${con_term} || mterm=${gui_term}
+	printf "term is $TERM, mterm is $mterm\n"
+    h=0
+    for x; do
+        [[ -r "$x" ]] && ( ! [[ -w "$x" ]] ) && { let h++; }
+    done
+    ((h > 0)) && extra_args="sudo" || extra_args=""
+
+	####################################### ENTERING: NANO BINARY RUN ###
+
+    env TERM=$mterm ${extra_args} $nano_target $@
+
+	####################################### EXITING: NANO BINARY RUN
+
+else
+	printf "error: \"$rc_file\" unavailable (proceeding anyway in case of a rofs!)\n"
+	$nano_target $@
+fi

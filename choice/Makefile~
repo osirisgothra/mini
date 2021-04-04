@@ -1,0 +1,22 @@
+# Makefile for choice
+#
+
+
+choice: choice.cpp
+	g++ choice.cpp -std=c++11 -o choice
+
+all: choice
+
+install: choice
+	sudo cp choice /usr/bin
+
+uninstall: /usr/bin/choice
+	sudo rm -f /usr/bin/choice
+
+clean: choice
+	rm choice
+
+
+.PHONY: uninstall clean
+
+

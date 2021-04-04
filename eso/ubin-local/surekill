@@ -1,0 +1,47 @@
+#!/bin/bash
+SECONDS=0
+echo()
+{
+	command /bin/echo "[30;1m[[32;1m$SECONDS[30;1m][38;5;${RANDOM: 0:3}m $*"
+}
+MODE='--exact'
+
+if [[ SUREKILL_ANY=1 ]]; then
+	echo "notice: -any invoked by command line SUREKILL_ANY=1"
+	MODE=""
+fi
+if [[ $1 == -any ]]; then
+	MODE=""
+	shift
+	echo "entering ANYMATCH mode (-any specified)"
+	echo "warning: processes with ANY of the string will match!!"
+	sleep 4
+	echo "continuing startup..."	
+fi
+ERRLOG="/tmp/surekill-errors.log"
+
+echo "attempting sure-kill for the following: $@"
+echo "beginning scan..."
+while [[ "$1" != "" ]]; do
+	if pgrep $MODE "$1" > /dev/null 2> $ERRLOG; then
+		echo "found process match for $1, sure killing it..."
+		sudo killall $MODE --signal KILL "$1" 2> $ERRLOG
+	else
+		echo "skipping $1 -- no process found! (note: use -any on command line to relax restrictions on name finding)"
+	fi
+	shift
+done
+
+if [[ -s $ERRLOG ]]; then
+	echo "Errors were recorded in logfile: $ERRLOG"
+	echo "Some items may have had extended errors, please check error log!"
+	echo "Preserving Error Log!"
+else
+	echo "No Errors, Removing Temporary Error Log"
+	rm -f $ERRLOG
+fi
+echo "Completed Script, Returning To Calling Process"
+unset -f echo
+
+# return terminal to normal state via reset attributes in ANSI
+echo "[0m"

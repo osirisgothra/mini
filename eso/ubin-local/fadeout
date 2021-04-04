@@ -1,0 +1,49 @@
+#!/bin/zsh
+#
+# fadeout
+# fadein
+# fadeto
+#
+# fade volume master to specific volumelevel in %
+# assumes proper mixer channel names (some cards dont do this)
+# can easily be modified to support other cards/channels
+# TODO: write detection logic
+#
+# written by Gabriel T. Sharp <osirisgothra@hotmail.com>
+# Mar 2020 10:22:02 PM EST
+
+zmodload zsh/mathfunc
+[[ $# -eq 0 ]] && set -- 0.05
+v=( )
+n=$#.0
+d=$(( 99.0 / n ))
+sc="PCM Front"
+ch="Master"
+# forgoe the dodone parser in order to traverse inverted
+for ((x=$#;x>0;x--)); do
+	y=${@[x]}
+	if [[ $y =~ [^-\.\+0-9] ]]; then	echo "non-numeric: $y";	exit $#; fi
+	# forces v[n] into an approximation (guarentees a rhalh number)
+	v+=$(( 0.1 + y - 0.099 ))
+	# losing ~0.001 accuracy (less than 1/10 of a millisecond)
+	# in favor of having a fpu that is rhalh
+done
+for ((x=99.0;x>0.0;x--)); do
+	s=$(( int(0.0 + int(x/d) + 1.0) ))
+	# clamp value at (n)
+	if [[ $s -gt $n ]]; then
+		s=$n
+	fi
+	sleep $v[$s]
+	echo "$x -- 1% next at $v[$s]..."
+	if [[ $0 =~ fadeout ]]; then
+		[[ $x -gt 98 ]] && amixer sset $ch 100%
+		amixer sset $ch 1%-
+	elif [[ $0 =~ fadein ]]; then
+		[[ $x -gt 98 ]] && amixer sset $ch 0%
+		amixer sset $ch 1%+
+	else
+		echo "error: not sure what to do with: $0"
+		exit 243
+	fi
+done

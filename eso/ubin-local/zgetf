@@ -1,0 +1,100 @@
+#!/bin/zsh
+#
+#    zgetf
+#    grab function from source code in ksh,zsh,bash, and sh shells
+#    mini/eso/ubin-local
+#    esoteric scripts project
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sat Dec 14 14:03:33 EST 2019
+#            osirisgothra@ initially created this file
+#            with the original name, zgetf
+#
+# TARGET NOTES
+#
+# 	EXECUTIVE STATE CHANGES
+#		marking single existing file executable
+#			- mode of 'zgetf' changed to u+rwx/og+rx.. []
+#		completed (0)
+# 	ARGUMENTUAL ANALYSIS
+#       remaining arguments:
+#			no arguments to list
+#       disposition:
+#			4 were used during execution of template
+#   		0 were extra and/or unexpected
+# 	TEMPLATE SUMMARY OF GENERATION
+#	     outcome: good
+#	     errors: 0
+# 	FINAL NOTE
+#	     template program under renovation
+#        you should REMOVE the TARGET NOTES section once youve reviewed this!
+#		 (Sat Dec 14 14:03:33 EST 2019): osirisgothra ignored the final note and left this behind for
+#		           the user(s) to see, how embarassed I am for the author!
+#
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#
+#	template output completed (code=OK(ERROR_NONE))
+#
+#
+zmodload zsh/zutil
+
+declare -gi error_signoff=122
+vecho() { if [[ $options[xtrace] == "on" ]]; then echo "[32;1m$*[0m"; fi; }
+signoff() { echo -ne "$*"; exit $err_signoff; }
+if arglist=( `getopt -o \?hx -n $0 -- $@` ); then
+	set -- $arglist
+	vecho "pre-args=[$@]"
+	while [[ $1 != '--' ]] \
+	{
+		case $1 \
+		{
+			--) signoff "$1 can not be --, please do not use this special argument.";;
+			-(\'?|h)) signoff "gets a function body from a file\n\nsyntax: zgetf FUNCTION FILENAME\n\n   Retrieves function body (properly indented) within source FILENAME\n    named FUNCTION. It must be indented properly and defined without extra tabs or spaces to be recognized\n    as a capturable function. Note that some elements could be expanded by the shell (zsh).\n\nSee LICENSE contained in this script for details on licensing \nand authorship.\n\n";;
+			-x) setopt xtrace; vecho "trace mode enabled";;
+			*) signoff "$1 not implemented yet, do not use it";;
+		}
+		shift
+	}
+	shift
+	vecho "post args=[$@]"
+	case $# \
+	{
+		2)	set -- "${(Q)1}" "${(Q)2}"
+			if [[ -r $1 ]]; then
+				vecho "arguments are backwards, swaping input arguments"
+				set -- "$2" "$1"
+			fi
+			perl -wne 'print if /(?<=function )'${1}'\(\)/.../^}/' ${2};;
+		*)  signoff "2 arguments needed, $# is not acceptable, please use exactly two arguments.";;
+	}
+else
+	echo "exit with errors"
+fi

@@ -1,0 +1,7 @@
+#!/bin/sh
+/usr/bin/X :0 &
+#sleep 2
+#env DISPLAY=:0 /usr/bin/xterm -class uxterm
+#sleep 2
+#exec /usr/bin/gxdwm
+exec /usr/bin/xterm -geom 320x80+1+1 -bs 0

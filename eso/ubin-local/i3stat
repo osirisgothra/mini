@@ -1,0 +1,111 @@
+#!/bin/zsh
+
+# development lifecycle and timeline
+# CURRENT TASK: working on dbz checks in makename@1-5 marked with [X]
+#				next task is marked with [+]
+# ---- introduction
+#	- write pseudocode (cant be run)
+#	- write almostcode (runs but without significant values)
+#	- flesh out almostcode to beta code:
+#[X]	- needs to resolve div by zero in makename:8
+#[+]	- needs makelist to return string instead of number
+#	- incorporate settings
+#   - next makelist needs tested
+#	- next main cycle needs tested
+# ---- optimize
+#	- zmodload modules instead of using external binaries
+#	- globbing whenever possible
+#	- mini lang support
+#	- support for a i3statrc file in /etc, or .i3statrc in HOME diretories.
+#	- improve object naming conventions to better reflect contents of variable(s)
+#	- option parsing from CLI for testing/debugging
+# ---- testing
+#	- upload/advert on ftp sites and irc channels
+#   - testing ends after samebugs per wk <= 4, or ubugs per wk <= 1
+# ---- distribution
+#	- incorporate into i3 package
+#	- upload to repository on github
+#	- possibly if allowed, instead use a pull request on i3 => i3status
+#	- advertise as a tutorial in either youtube or reddit
+# ---- feedback
+#	- responses
+#	- sourceforge outreach
+#	- windows portability (never!)
+#	- other wm support (maybe!)
+# ---- conclusion
+#	- archive and tag final
+#	- bugfixes or backports as needed
+#	- set up user-driven wiki/support
+#	- end-of-life to be either 1) end-of-life for i3, 2) superceeded by another that covers ALL features herein
+#	- license change to public domain after end-of-life
+#	- all user support ends after license change
+
+
+#zmodload zsh/mathfunc
+
+# i3status
+
+version='{"version":1}'
+header='['
+separator=','
+stats_fmt='[%s]'
+list_fmt='{"%s"}'
+text_fmt='{"name":"%s","instance":"%s","full_text":"%s","color":"#%06X"}'
+name_pfx="idnum_"
+name_fmt="$name_pfx%08x_$name_suf"
+name_sfx="_srng"
+
+makename()
+{
+	echo "$funcstack $functrace" > /dev/stderr
+	echo "mnargs=($#,[arg=${(j: arg=:)@}])"
+	if [[ $# -eq 0 ]]; then
+		echo "bad data: '$*'"
+		exit
+	fi
+	integer arglen="${argc}.0"
+	integer namelen="${#${(j::)argv}}.0"
+	integer avglen="$(( namelen / argc + 0.0 ))"
+	printf $name_fmt $arglen$avglen$namelen
+}
+
+textentry() { # textentry(name,value,[color])
+	name=${1-nil}
+	value=${2-nil}
+	color=${3-#808080}
+	#eval item='\"name\":\"item_$name\",\"instance\":\"$name\",\"full_text\":\"$value\",\"color\":\"$color\"'
+	#for reference(not updated so check above): text_fmt='{"name":"%s","instance":"%s","full_text":"%s","color":"#%06X"}'
+	echo "mn=$(makename some arguments are mistakes)"
+	printf $text_fmt $(makename $name) $name $value $color
+}
+makelist() {	# makelist n/v/c  n/v/c  n/v/c where n=label/name
+
+	items=( )
+	for n v c; do
+		items+="$(textentry $n $v $c)"
+	done
+	printf $list_fmt ${(j:,:)items}
+}
+getstatus() {
+
+	makelist "/" "$(df -h /)" "#ffeecc" \
+			 	"/src" "$(df -h /src)" "#ffeecc" \
+				"/b" "$(df -h /b)" "#ff00ff" \
+				"memory" "$(free)" "#00ffff" \
+
+
+}
+
+
+
+#status='[{"name":"disk_info","instance":"/","full_text":"136.0 MiB/29.2 GiB"},{"name":"ethernet","instance":"enp1s8","color":"#00FF00","full_text":"INET UP: 10.0.0.49 (100 Mbit/s)"},{"name":"load","full_text":"0.49@1/60th 0.15@1/10th  0.08@1/4th"},{"name":"tztime","full_text":"Friday March20, 2020    8:38 AM  EDT  47sec(s)"}]'
+interval=1.5
+runcount=0
+
+
+echo $version
+echo $header
+while sleep $interval; do
+	((runcount++ > 0)) && echo -ne ","
+	getstatus
+done

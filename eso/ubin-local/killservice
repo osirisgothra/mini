@@ -1,0 +1,25 @@
+#!/bin/zsh
+#killservice
+#kills service and any dependancy that it complains about (sockets, services)
+#kills any executables bearing the same name also
+cur=0
+tot=$#
+for x; do
+	let cur++
+	
+	echo "killing service $x [operation $cur of $tot]"
+	m=( $(systemctl stop "$x" |& grep '.*\.(socket|service)$' -Po ) )
+	if [[ ${#m} -gt 0 ]]; then
+		echo "there are $#m subservices/sockets to kill... doing it now..."
+		for n in $m; do
+			echo "stopping subservice/socket $n..."
+			systemctl stop $m
+		done
+	else
+		echo "service kills complete for $x"
+	fi
+	echo "killing processes named $x, if any..."
+	killall -KILL "$x"
+	echo "done with $x"
+done
+	

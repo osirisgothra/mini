@@ -1,0 +1,6 @@
+#!/bin/perl
+# JUST runs mym launcher, quietly, and thats it
+use warnings;
+use strict;
+use v5.20.2;
+system ("/usr/bin/java -jar /home/osirisgothra/.mineyourmind/launcher.jar 1>/dev/null 2>/dev/null") unless fork();

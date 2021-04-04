@@ -1,0 +1,66 @@
+#!/bin/zsh
+#  __________________________________________________________
+# | jku_gamelog                                              |
+# | please see jku(1) script header for author, license, and |
+# | other information and documentation                      |
+# |                                                          |
+#  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# dependencies: jku_gamdir
+setopt nullglob
+setopt extendedglob
+setopt errexit
+setopt interactivecomments
+
+# constants
+
+readonly err_false=1
+readonly err_true=0
+readonly err_ok=0
+readonly err_cc=127		# cant continue
+readonly gamedir=`jku_gamedir`
+
+# dynamic
+
+typeset -a logv1=( )
+typeset -a logv2=( )
+typeset -a logfiles=( )
+
+function readable()
+{
+	for x; do if ! [[ -r "$x" ]]; then
+		return $err_false
+	fi; done
+	return $err_true
+}
+
+if [[ -d $gamedir ]] && [[ -r $gamedir ]]; then
+	if [[ -r $gamedir/options.txt ]]; then
+		echo "verified game directory: $gamedir (found its settings file)"
+		logv1=( $gamedir/output-server.log $gamedir/output-client.log )
+		logv2=( $gamedir/logs/fml-client-latest.log )
+		if readable $logv1; then
+			echo "gamedir is type 1 (separate files in root)"
+			logfiles=( $logv1 )
+		elif readable $logv2; then
+			echo "gamedir is type 2 (under gamedir/log with single file)"
+			logfiles=( $logv2 )
+		else
+			echo "gamedir is invalid (neither type 1 or 2, cannot continue"
+			logfiles=( )
+			exit $err_cc
+		fi
+		echo "entering log follow mode at $(date +%c)..."
+		tail -f $logfiles
+		echo "terminating log follow mode per user break"
+		echo "log terminated at $(date +%c)"
+		echo "goodbye."
+		exit $err_ok
+	else
+		echo "game directory '$gamedir' is not a valid minecraft game directory\ncannot continue (STOP)"
+		exit $err_cc
+	fi
+else
+	echo "game directory '$gamedir' is not accessable by current user '$USER', please check the file location given by jku_gamedir(1) and try again"
+	exit $err_cc
+fi
+echo "invalid exit point, possible script corruption or a bug, in the latter case please report bug to script author(s) given in the VERSION or BUGREPORT documentation, otherwise notify the author given in the scripts header."

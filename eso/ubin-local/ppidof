@@ -1,0 +1,35 @@
+#!/bin/zsh
+
+declare -g pdepth=255
+declare -gi depth=-1
+
+getparents()
+{
+	let depth++
+	pad=""
+	for ((y=0;y<depth;y++)); do
+		pad+="."
+	done
+
+	for x; do
+		if [[ $x =~ [0-9]+ ]]; then
+			thispid=( $x )
+		else
+			thispid=( `pidof $x` )
+		fi
+		for p in $thispid; do			
+			ppid=$( ps -p $p -o ppid= | tr -d ' ')
+			echo "${pad}$ppid"
+			if [[ $depth -lt $pdepth ]]; then
+				if [[ $ppid -ge 1 ]]; then							
+					# will stop diverting once we hit topmost root (pid=0)
+					getparents $ppid
+				fi
+			fi
+		done
+	done
+	let depth--
+		
+}
+
+getparents "$@"

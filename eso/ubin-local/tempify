@@ -1,0 +1,5 @@
+#!/bin/zsh
+tmpdir=$(mktemp -u ~/stow/awayXX)
+echo "tempdir: $tmpdir"
+mkdir -f --parents "$tmpdir"
+cp "$1" "$tmpfile"

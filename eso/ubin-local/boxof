@@ -1,0 +1,5 @@
+#!/bin/zsh
+for x; do
+        echo "box of $x:"
+        calc -m1 "$x^3-(($x-2)^3)";
+done;

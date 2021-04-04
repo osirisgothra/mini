@@ -1,0 +1,19 @@
+#!/bin/zsh
+ setopt promptbang
+ setopt promptpercent
+ setopt promptsubst
+typeset -gx z_ver="0.1a"
+typeset -gx PROMPT_BANG=1
+typeset -gx PROMPT_SUBST=1
+typeset -gx PROMPT_PERCENT=1
+z_psa="%F{25}zs%F{35}sh $z_ver:$PS1"
+echo -ne ${(%%)z_psa}
+read -a z_cmd
+case ${#z_cmd}	in
+	"")	echo "";;
+	quit|exit|return|leave|bye|close) exit 1;;
+	*)	eval -- "${z_cmd[@]}";;
+esac
+while ((z_run)); do
+		run_test_shell
+done

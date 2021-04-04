@@ -1,0 +1,98 @@
+#!/usr/bin/perl
+
+use warnings;
+use v5.19;
+use strict;
+no strict "refs";
+no warnings "experimental";
+use English;
+use Data::Dumper;
+use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
+use Path::Tiny;
+
+
+my ($opt, $usage) = describe_options(
+        path($PROGRAM_NAME)->basename . ' %o <some-arg> [sitelist to use]',
+        [ 'atonce|a', "do it all at once" ],
+        [],
+        [ 'verbose|v',  "print extra stuff"            ],
+        [ 'help',       "print usage message and exit" ],
+      );
+
+sub vsay { CORE::say(@_) if $opt->verbose; }
+vsay("verbose mode enabled, printing extra stuff...");
+
+print($usage->text), exit if $opt->help;
+
+# associate a list with each server name prefix
+# add more here, planning to add a rcfile if needed
+my %sitelist = 
+	( 
+		"minewonderland" => [ 
+								"https://ftbservers.com/server/E88EGSYB/vote",
+  								"https://tekkitserverlist.com/server/UYblo0dB/vote",
+  								"http://minecraft-mp.com/server/179436/vote/",
+
+  							],
+		"mineyourmind" =>   [
+						 		"http://ftbservers.com/server/aKEAVmuV/vote", 
+		 						"http://minecraft-mp.com/server/57407/vote/", 
+		 						"http://minecraftservers.org/vote/389200", 
+		 						"https://tekkitserverlist.com/server/AT3L3JdS/vote", 
+		 						"https://servers.atlauncher.com/server/1510", 
+		 						"http://bteamserver.com/vote.html?id=23", 
+		 						"http://ftb-infinity-servers.com/server/2/mym-ftb-infinity-serve", 
+		 						"https://pixelmonlist.com/server/MineYourMind/vote",
+		 					],
+	);
+my $empty = "<allocated-but-uninitialized>";
+my $item = $empty;
+my $binary = "/usr/bin/chromium-browser";
+my $site = $empty;
+my $num = 0;
+my $atonce = $opt->atonce;
+
+vsay(%sitelist);
+
+
+unless ($#ARGV >= 0)
+{
+	say("no arguments provided, showing help and list...\n");
+	for $item (keys(%sitelist))
+	{
+		say("$item vote sites");
+		$num = 1;
+		for $site (@{$sitelist{$item}})
+		{
+			say("\t" . $num++ . ") $site");
+		}	
+	}
+	say "\nusage: vote [sitename] [executable]\n";
+}
+else
+{
+	$item = $ARGV[0] if $#ARGV >= 0;
+	$binary = $ARGV[1] if $#ARGV >= 1;
+	
+	print("\narguments given:\n\n\titem: $item\n\tbinary: $binary\n");
+	if ( $sitelist{$item} )
+	{
+		unless ($atonce) 
+		{
+			for $site ( @{$sitelist{$item}} )
+			{
+				system("/usr/bin/xtitle","trying to start $binary $site for $item");
+				system($binary,$site);
+			}
+		}
+		else
+		{
+			vsay($binary,@{$sitelist{$item}} );
+			system( $binary,@{$sitelist{$item}} );
+		}
+	}
+	else
+	{
+		say("cannot find site preset \"$item\" (type $PROGRAM_NAME by itself to get");
+	}	
+}

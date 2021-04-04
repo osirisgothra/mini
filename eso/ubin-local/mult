@@ -1,0 +1,23 @@
+#!/bin/bash
+#
+# NAME
+#
+# mult
+#
+# SYNOPSIS
+# 
+# use:   mult XPARTS -- YPARTS
+#  or:   mult XPARTS YPART    
+#  or:   mult (-[-]|/)([Hh]|?|help)?
+#	
+# DESCRIPTION
+#   
+#
+# pass XPARTS to YPARTS
+#
+SUBJ=$1
+shift
+#TODO: finish this
+for x; do
+	"$x" "$SUBJ"
+done

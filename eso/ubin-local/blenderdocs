@@ -1,0 +1,4 @@
+#!/bin/sh
+
+exec dillo /opt/blender-2.8-docs/index.html
+

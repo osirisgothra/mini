@@ -1,0 +1,51 @@
+#!/bin/bash
+#
+# home/bin/ps
+# helper stub for user-use of ps(1) process
+#
+
+# variables
+SELF=/bin/ps
+
+ERR_CHKSUM=127
+ERR_CHKSUM_MSG="possible corruption, check consistency of this file or report to your admin!"
+ERR_NP=128
+ERR_NP_MSG="no parameters were given so complete list cannot be possible, try again!"
+
+PARAM_HELP='--help'
+PARAM_HALL="$PARAM_HELP all"
+
+HELP_FAILBACK_PAGER="less"
+HELP_PAGER="${PAGER-$FAILBACK_PAGER}"
+
+# functions
+function ERREXIT()
+{
+	echo "$0($1): $2" > /dev/stderr
+	exit $1
+}
+
+#main code entry here -->
+case $# in
+	0) "$SELF" $PARAM_HALL | $HELP_PAGER
+		ERREXIT $ERR_NP $ERR_NP_MSG
+		;;
+	1) case $1 in
+		$PARAM_HELP)
+			"$SELF"	 $PARAM_HALL | $HELP_PAGER
+			exit $?
+			;;
+		*)
+			"$SELF" "$@"
+			exit $?
+			;;
+		esac
+		;;
+	*) "$SELF" "$@"
+		exit $?
+		;;
+esac
+#main code exits above
+
+#error return(s)
+ERREXIT "$ERR_CHKSUM_MSG" $ERR_CHKSUM

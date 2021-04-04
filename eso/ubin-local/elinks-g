@@ -1,0 +1,4 @@
+#!/bin/zsh
+# this version of elinks has no -g flag, links does however
+echo "passing false flag -g for elinks (does not understand -g) to links2 (which does) along with $# argument(s): [${(j:,:)@}]"
+exec /usr/bin/links2 -g "$@"

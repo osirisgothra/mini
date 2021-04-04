@@ -1,0 +1,200 @@
+#!/usr/bin/perl
+#
+#   file name: ptsa
+#        desc: terminal search aggregator (perl version)
+#     project: eso-bin
+#   proj desc: collection of esoteric projects, binaries, and scripts
+#
+#    Copyright (C) 1995-20?? Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#      Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#      This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#      This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#      You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  HISTORY
+#
+#	 <date>
+#            say hello to <fname>, <fdesc>!!
+#            osirisgothra@larnica initially created this file
+#            with the original name, <fname>. It was then
+#            added to the project, <pname>, a project that
+#            is described by <pdesc>.
+#
+#  NOTES
+#
+#    header creation
+#		  this header was created using the template generator by Gabriel T. Sharp)
+#    built-in names
+#       note first that this is a FAILSAFE, if these are used we are running in an erroneous state that
+#       should be recitified by the user in some way, in this state, the program does not guarentee it 
+#       will operate as specified. It is offered as an alternative to just spitting out an error message
+#       in times in which the program's operation may be needed by the user and can still be continued by
+#       the program. Since we cannot prepare for emergency situations, the best thing that can be done here
+#       is to run with the assumption that user may have one of the browsers installed in this hard list.
+#		These built-in names, in case update-alternatives is not found or empty for some reason,
+# 		shouldnt be relied on, user should have update-alternatives(1) installed on their system
+# 		for proper operation of this program! (it is standard with just about any linux distro except for
+# 		minimal or diagnostic builds which are not used for standard day-to-day internet browsing)
+# 		if this list appears incomplete, you may push updated list but please do not remove items from
+# 		the list (if a remove is required, you must submit it in writing not as a pull request!)
+#       Again the reasoning for not just spitting out an error is because software may be needed in some
+#		emergency situation where conditions or time may not be favorable, in which case we should try
+#       to run anyway (as best we can).
+#
+
+use warnings;
+#use v5.18;
+use strict;
+#use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
+#use English; 				   # used for PROGRAM_NAME and others
+#use Path::Tiny;
+#use File::Slurp;
+
+print("defunct: this program is officially inferiorized to tsa4, use that instead (2 second pause or ctrl+break)\n");
+sleep(2);
+
+#
+#my $name = path($PROGRAM_NAME);
+#
+#no warnings "experimental";
+#
+#my $prog = $PROGRAM_NAME // exit("could not determine program name $! $?");
+#
+#
+#my ($opt, $usage) = describe_options(
+#        '$PROGRAM_NAME %o <some-arg> search+terms | unseparated search terms',
+#        [ 'background|b', "run in background"                  ],
+#        [ 'quiet|q', "silent running, including programs called" ],
+#        [ 'stdin|s', "take terms from stdin" ],        
+#        [                                                      ],
+#        [ 'verbose|v',  "print extra stuff"                    ],
+#        [ 'help',       "print usage message and exit"         ],
+#      );
+#
+#print($usage->text), exit if $opt->help;
+#my @terms = @ARGV || die("\nno search terms provided!!! please see --help for details\n${!}\nreturning with code: $?\n\n");
+#
+## builtin names (any name with same char will be uppercased, then ignored (for now)
+## keep them in alphabetic order
+#my @names_builtin_g = qw( chromium-browser firefox google-chrome dillo konqueror midori opera rekonq safari xombrero );
+## by convention, UPPERcase names will refer to text, lowercase to gui, on consoles, no gui at all, but lowercase for terms
+#my @names_builtin_t = qw( elinks GET links links2 lynx wget );
+#
+## if we have update-alternatives and it has browsers configured, use those instead of the built-in names
+## the proper names list OR auto-assign the built-in names to each if not available
+#chomp ( my @names_g = `update-alternatives --list x-www-browser` // @names_builtin_g,
+#	    my @names_t = `update-alternatives --list www-browser` 	 // @names_builtin_t);
+#
+## create mappings using one of (first one to not have a dupe in @maps_[gx] will be used)
+## 1)	first character
+## 2)	first character, inverted case
+## 3)	first two chars
+## 4)	full name (letters only)
+## 5)	use list index number (as a last resort, plus warning)
+#my @maps_g= ();
+#my @maps_t= ();
+##sub assignmapping {
+##	my @srcvar = @_
+##;
+#
+#	
+#
+#
+#
+## home
+#my $home = path($ENV{HOME});
+#die "need home dir with write/read access!" unless -w -r -x -d $home;
+#
+## next this is our program meat
+## remain argument is always it
+#my $base =  $name->basename();
+#say "loading user configuration (if any)";
+#my @lines = 
+#
+#say "browsers (graphical):";
+#say for @names_g;
+#say "\nbrowsers (CLI or (n)curses):";
+#say for @names_t;
+#my $total = @names_t + @names_g;
+#say("this script (or link thereof) name is $base");
+#
+#use feature 'signatures';
+#
+#sub proc_running($name)
+#{
+#}
+#
+#my $g = "x-www-browser";	# set defaults for graphical browser
+#my $t = "www-browser";      # and text browser (see below)
+#my $mode = "undetermined";  # will be either text|graphical
+#my $prefix = "?";
+#my %debinfo = ( runtime => 0,
+#                lasturl => "?",
+#                lastuid => -1,
+#                lastgid => -1,
+#              );
+#              
+#
+#if ( -l $name ) {
+#	say("$base is a soft link to another file, interpreting as a magic link..");
+#	given ($name)
+#	{
+#	    # TODO: add text/gui diffs
+#	    when (/^[A-Z]/)             # upper case (means text mode (when running X only))
+#	    {
+#	        $mode = "text";
+#	    }
+#	    when (/^[a-z]/)
+#	    {
+#	    }
+#        die("Your link name, $name, has an invalid prefix, it must be a lower or uppercase letter.");	    
+#	}
+#	for my $target ( @names_g )
+#	# magic links work this way:
+#	#
+#	# BL[extradata]	
+#	# where:
+#	#	B		Browser significant name in the list, if two browsers have the same first letter, the next letter will be used, and so on
+#	#	L		The predefined 'URL' kind to use (built in ones are 'g'oogle 'd'uckduckgo 'y'ahoo )
+#	# extradata	Suffix to select a subtype
+#	#
+#	# the only subtype available for built-ins is 'l' or 'L' which means
+#	# to open the first search result instead of showing search results
+#	# (warning this could be dangerous and may expose explicit content, use at own risk)
+#	#
+#	# so, assuming firefox is installed:
+#	#	fgL or fgl would open firefox with google search, having it use the lucky search result and open the first website
+#	#
+#	# those familliar with tsa will see that it works the same way
+#	# the main difference is that perl is now the interpreter instead of bash
+#	# making it workable in other operating systems, including windows and
+#	# OSX. (Also, the bash version is depreciated and gets no more updates other
+#	# than bugfixes).
+#	#
+#
+#	
+#
+#} else {
+#	say("$base is a hard link to an inode, using default targets...");	
+#}
+

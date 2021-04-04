@@ -1,0 +1,39 @@
+#!/usr/bin/perl
+
+## VERSION 1.0 BEGIN (DEPRECIATED, CUT+PASTE TO A NEW FILE TO USE IT)
+##
+##
+## -------------_ CUT AFTER HERE, DONT INCLUDE FIRST 4 CHARS PER LINE! _-----------------------------------------------------------------------------------------------------------
+##  #!/bin/bash
+##  echo "WARNING: DEPRECIATED <5 sec pause>"
+##  sleep 5
+##  if [[ $# -eq 0 ]]; then
+##  	echo "usage: pastebin [put|get] [code] [filename]"
+##  	echo ""
+##          echo " note: code is only needed if you are"
+##          echo "       going to GET a pastebin, otherwise"
+##  	echo "       a code will be auto-generated for you."
+##  	echo "   no filename? it will go to con!"
+##  else
+##  	FILE="$3"
+##  	CODE="$2"
+##  	case $1 in
+##  		get)
+##  			touch $FILE
+##  			if [[ $FILE == "" ]]; then
+##  				$FILE=/dev/stdout
+##  			fi
+##  			GET http://pastebin.com/"$CODE" | perl -wne 'print if /\<textarea/ .. /\<\/textarea/' | perl -wpe 's/\<[\/]*textarea\>//g' &> $FILE
+##  			;;
+##  		put)
+##  			if [[ -r $FILE ]]; then
+##  				echo "delete the old one first"
+##  				exit 127
+##  			fi
+##  			touch $FILE || exit 127
+##  			pastebinit -i "$FILE" -d "$CODE"
+##  			;;
+##  		*) echo "unknown command: $1";;
+##  	esac
+##  fi
+## -------------------_ CUT BEFORE HERE, DONT INCLUDE FIRST 4 CHARS PER LINE!!! _--------------------------------------------------------------------------------------------------

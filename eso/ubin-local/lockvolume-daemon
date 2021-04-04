@@ -1,0 +1,39 @@
+#!/bin/bash
+
+if [[ $2 == DAEMONIZE ]]; then
+
+# syntax: lockvalue-daemon [second.tenths-of-a-second] '
+
+SNAPFILE=$(mktemp)
+SNAPSHOT=$(mktemp -p /dev/shm -d)/current.snap
+rm $SNAPSHOT $SNAPFILE # in case they existed from a previous session
+
+_normalize()
+{
+amixer -c 0 sset PCM,0 60
+amixer -c 0 sset Treble,0 100
+amixer -c 0 sset Bass,0 100
+amixer -c 0 sset Master,0 100
+amixer -c 0 sset "PCM Front",0 60
+amixer > $SNAPFILE
+}
+
+while true; do
+    amixer > $SNAPSHOT
+    if ! diff "$SNAPFILE" "$SNAPSHOT" --brief; then
+        echo "diff failed to match identical files. resetting volumes to default!"
+        _normalize
+    else
+        echo "re-synchronizing volumes not needed, values identical!"
+    fi
+    # this default value is for if user uses the DAEMONIZE value directly somehow
+    sleep ${1-7}
+done
+
+else
+    echo "daemonizing..."
+    "$BASH_SOURCE" "${1-7}" "DAEMONIZE" &
+    echo "disowning.."
+    disown %
+    echo "done (use 'killall lockvolume-daemon' to get rid of the process later."
+fi

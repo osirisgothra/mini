@@ -1,0 +1,13 @@
+#!/bin/bash
+# args: timekill [warntime] [killtime] [proc]
+shopt -s expand_aliases
+alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
+sleep 2h
+alert "Time Up in 30 minutes, one more warning will show 5 minutes before its time"
+sleep 25m
+alert "Warning Your Time Is Up Almost (5 minute Warning)"
+sleep 5m
+pkill -KILL java
+killall -KILL java
+
+

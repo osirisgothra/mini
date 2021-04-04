@@ -1,0 +1,22 @@
+#!/usr/bin/perl
+
+# ddif
+# short and sweet directory differences
+
+use warnings;
+use strict;
+use v5.20.2;
+use lib "/src/perl";
+use Term::Put;
+#use File::Find::Esoteric;       # currently in-dev (residing in findXXXX() functions in perlsh, in mini/eso/ubin-local!
+
+my $term = new Term::Put($ENV{TERM});
+
+
+die("This program takes exactly two arguments; they must be directories that exist (you gave ".@ARGV." argument(s), @ARGV)!") unless (( @ARGV == 2 ) && ( -d $ARGV[0]  && -d $ARGV[1] ));
+
+my @cmd = qw ( diff --brief --side-by-side );
+
+system(@cmd,@ARGV);
+
+

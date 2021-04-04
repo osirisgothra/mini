@@ -1,0 +1,152 @@
+#!/bin/zsh
+#
+#    qdmenu
+#    quick* dmenu creator (for those nights without coffee)
+#    mini/eso/ubin-local
+#    Esoteric Scripts and Small Projects
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Tue Jul  2 11:16:29 EDT 2019
+#            osirisgothra@larnica initially created this file
+#            with the original name, qdmenu
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+#
+# TARGET NOTES
+#
+#   none yet
+#
+# COMMAND HELP
+#
+# syntax: qdm <@title> <^varname|=filename> [ %exported_array | [item1[, ... ]]
+#         qdmenu < qdm arguments >
+#
+# frompipe				only needed when no conditional is used
+# @title				optionally excluded
+# :fdout				optional, with default as /dev/stdout
+# =filename				conditional\
+# %exported_array		conditional \   used when no pipeline exists
+# +[item1[, ... ]]		conditional  x> requires at least one of these
+# -command  			conditional /   options, unless frompipe is used
+# ^varname				conditional/
+# _run					<- run this on the list result
+# --help				anywhere triggers this help
+#
+# programmed by
+# Gabriel T. Sharp, ~2019 July 2 : lmt@11:17:18 fc@7-1-19;22:01:04
+# please see LICENSE within the source for full license details.
+#
+if [[ $* =~ --help ]]; then
+	# drop all our books and help
+	# obviously, if we change either the first or last lines of help
+	# we will have to change them here (the correct answer is: DONT!)
+	# also, the b[r]ackets y[o]u see everyw[h]ere are to disambiguate
+	# and prevent the next line from also being printed!
+	perl -wne "s/^#//g;print if /C[O]MMAND HELP/ .. /p[l]ease see L[I]CENSE/" "$0"
+	# the famous way of saying we did nothing useful:
+	exit 127
+	# yes i know, coreutils says return 0 on help, but i dont think thats
+	# right since many people write scripts that accidently trigger help
+	# and then they get a '0' back and think its all ok! (especially in
+	# blind redirection of items that run sparingly- i think this falls into
+	# that catagory!)
+fi
+typeset -i itemmode=0
+run="-"
+fdout="/dev/stdout"
+fname="-"
+vitems=( "-" )
+title="dmenu"
+fname="-"
+typeset -a items=( )
+
+for x; do
+	if [[ $itemmode == 1 ]]; then
+		items+=( "$x" )
+	else
+		pfx=${x: 0:1}
+		sfx=${x: 1}
+		case ${pfx} in
+			_)  # run
+				run="$sfx";;
+			-)	# command
+				items+=( $(eval $sfx) );;
+			^)  # varname
+				eval "items+=( \$$sfx )";;
+			@)	# prompt/title
+				title="$sfx";;
+			:)	# output device
+				fdout="$sfx";;
+			=)  # file
+				items+=( $(cat "$sfx") );;
+			%)	# array (from environment)
+				eval 'items+=( \"$sfx\" )';;
+			+)	# rest are items (ensures no more checking of prefixes)
+				itemmode=1;items+=( "$sfx" );;
+			*)	if [[ $itemmode == 1 ]]; then
+					items+=( "$sfx" )
+				else
+					items+=( "$x" )
+				fi
+				;;
+		esac
+	fi
+done
+# if we are reading from pipe (user specified 'frompipe')
+# read that in now
+# 'frompipe' is used because i hate programs that just sit there
+# like useless dumb shits when they dont get any input pipe and
+# actually expect the user to type it all in (are you listening, gencat?)
+# if you like this so much, you can always specify frompipe and not pipe
+# anything which makes more sense (at least zcat was smart enough for this)
+# but no confusing '....not read from a terminal' messages, sorry!
+if [[ $items == frompipe ]] && items=(); then
+	while read r; do
+		items+=( "$r" )
+	done
+fi
+
+if [[ ${#items[@]} == 0 ]]; then
+	echo "error: no items were added to this list, you must have something to list!"
+	#echo "list items not read from a terminal -- frompipe overrides this behavior"
+	#....just kidding! i'd never add that ugly thing!
+else
+	result=$( (for x in $items; do echo "$x"; done ) | dmenu -p "$title" )
+	if [[ $run != '-' ]]; then
+		$run $result > "$fdout"
+	else
+		echo "$result" > "$fdout"
+	fi
+fi
+
+
+
+

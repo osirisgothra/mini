@@ -1,0 +1,426 @@
+#!/bin/zsh
+#
+#    prun
+#    run a program with dmenu
+#    mini
+#    github/osirisgothra/mini.git/eso/ubin-local
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository:
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# 	 NOTES
+#
+#		declarations
+#			declaration of termpath=""
+#				sanitized here to prevent users from setting malicous binaries to it
+#
+#			declaration of -gi option items (like debugging, useterm, etc)
+#				Not a boolean, 0 means off, >0 means on, but higher than 1
+#				is reserved to mean alternate things. This is not yet implemented
+#				but will be used soon most likely. Doubling items on the CL
+#				will cause these to increment as shown in the case block.
+#
+#
+#	 INLINE COMMENTS
+#
+#		 m-1: template output/term select block
+#			Ln1: select term from alternatives list, using last-term
+#		   	Ln4: in case termpath is invalid or unset
+#		 	Ln6-8: terminals used here MUST adhere to the XDG standard that
+#					uses command line options for execution -e, any other terms
+#		    		that do not will need a translation script, which will then
+#			  		have to be added to /etc/alternatives (see update-alternatives(1))
+#		 m-2: case $curopt block and for-done block that follows
+#		 	L@curoptblock:
+#					handle --options and -o ptions here
+#		 	L@last "for-done" block:
+#					verify/handle non-option arguments
+#
+#    HISTORY
+#
+#	 Sun 20 Sep 2020 08:42:19 PM EDT
+#            osirisgothra@ initially created this file
+#            with the original name, prun
+#
+#  (this template+header was created using the template generator by Gabriel T. Sharp)
+#
+##########################################
+###################### MODE OF EMULATION #
+##########################################
+emulate zsh
+
+##########################################
+############################ ZSH OPTIONS #
+##########################################
+
+setopt extendedglob
+setopt globassign
+setopt globdots
+setopt globsubst
+setopt kshglob
+setopt nullglob
+setopt promptsubst
+
+###########################################
+################### DISABLED ZSH BUILTINS #
+###########################################
+
+disable wait
+
+###########################################
+############################ DECLARATIONS #
+###########################################
+
+
+declare  -g winId="none"
+declare  -g termpath=""
+declare  -g waitprompt="press any key to end"
+declare -gi wait=0
+declare -gi nowait=0
+declare -gi debugging=0
+declare -gi term=0
+declare  -g cachefile=~/.config/bincache
+declare -ga opts
+declare -gi quiet_level=0
+declare  -g version_text="$(tput setaf 124)prun$(tput sgr0) Version 1.0 (C)2020 Gabriel T. Sharp, Licensed under GNU LGPL3 at https://gpl.gnu.org/gpl3.html"
+declare -ga dmenu_args=( -l $(( ${LINES-25} / 2 )) )
+declare -g exactcase=""
+declare -gi noerrors=0
+declare -gi loadlow=0
+declare -g loadlowprog="/dev/zero"
+declare -gA err=(	NONE			0
+					PROGERR			123
+					BADSEL			124
+					NOSEL			125
+					SPECIAL			126
+					GENERIC			127
+					PROGERR_BASE	128
+					UNDEFINED		192 )
+
+########################################
+############################ HELP TEXT #
+########################################
+
+declare  -g help_text="
+  Runs a program or shell agent using dmenu
+  looks like a duck, quacks like a duck, it must be a dmenu...
+MAIN SYNTAX
+	prun [OPTIONS] ARGUMENTS
+OPTIONS
+    --noerrors   -N     never return a bad status (always attempts to return 0*)
+    --loadlow P  -L P   execute only if the system load   | 'P' must be executable
+    --window     -W     embed in active window
+    --help       -h     show this help text
+    --version    -v     display version information and exit (also shows license info)
+    --quiet      -q     increase quiet level by one (quiet level is always zero if left alone)
+    --debug      -d     enable debug messages
+    --wait       -w     wait for keypress then exit
+    --term       -t     run inside an X terminal
+    --exact-case -c     case is not ignored when searching in textbox
+    --never-wait -R     never wait automatically when detecting X11 programs (reverses --wait)
+ARGUMENT TYPES
+	FILENAME	A filename that must exist or be writable by the current user.
+	STRING      A value usally with printable characters or formatting marks.
+LEGEND
+    [P] Full path to an executable
+    [X] X11 Window Manager or Wayland-Derived Manpositor
+NOTES
+	When using FILENAME, be sure it is a plain text file. It will be used instead of $cachefile
+LICENSE
+	GNU LGPL3 is available in full at the GNU GPL website, or through the google voice command 'show me GNU LGPL VERSION 3'
+
+"
+
+########################################
+############################ FUNCTIONS #
+########################################
+
+zprintf() { zenity --info --title="${2-prun message}" --text="$1"; }
+printf()  { ((quiet_level)) && return 127 || builtin printf "$@"; }
+iprintf() { [[ `tty` == 'not a tty' ]] && zprintf "$*" || printf "$@"; }
+dprintf() { ((debugging)) && builtin printf "$@\n"; }
+dfatal()  { code=${1-192}; shift
+			case ${code-1} in
+				1)
+					printf "fatal: general failure, no description given (args were: $0[$@])\n";;
+				*)
+					printf "fatal($code): $*\n";;
+			esac;
+			exit $code;
+}
+
+
+#exec 1>/tmp/prun_stdout 2>/tmp/prun_stderr
+
+update_bincache()
+{
+	if [[ $* =~ '--help' ]] || [[ $# -gt 0 ]]; then
+		[[ $* =~ '--help' ]] || printf "function $0 error: no parameters should be given!\n"
+		printf "function syntax: update-bincache\n"
+		printf "creates $cachefile with all names of binaries, duplicates removed\n"
+		printf "from your system path (at this time, PATH=$path).\n"
+		printf "creates $cachefile.tmp for sorting and deduplicating\n"
+		printf "uses dependencies: rm, printf(i), echo(i), sort, uniq, and, zsh (shell and utilit(i)es)\n"
+		printf "note: (i) = some dependencies may have alternates within zsh\n"
+		printf "see LICENSE for details, and README.md supplied for the github/osirisgothra/mini.git/eso/ubin-local\n"
+		exit 127
+	fi
+	plural_count() {
+		[[ $1 -eq 1 ]] && s="" || s="s";
+		printf "$1 ${2}${s}\n"
+	}
+	item_count() {	plural_count $1 "item" }
+	file_count() {	plural_count $1 "file" }
+	rm -f $cachefile
+	rm -f $cachefile.tmp
+	for p ($path) {
+		if [[ -d $p ]] {
+			items=( $p/* )
+			printf "working in $p ($(item_count $#items))\n"
+			integer add=0 skip=0
+			for i ( "${(s: :)items[@]}" ) {
+				if [[ -x "$i" ]]; then
+					if [[ "$i" =~ "\[" ]]; then
+						i="["
+					else
+						i=$i(:t)
+					fi
+					printf "$i" >> $cachefile.tmp
+					let add++
+				else
+					let skip++
+				fi
+			}
+			printf "^\n"
+			printf "+- Added $(file_count $add) and skipped $(file_count $skip).\n"
+		}
+	}
+	printf "sorting index...\n"
+	cat $cachefile.tmp | sort | uniq > $cachefile && printf "index sorted" || printf "warning: got bad return code ($?), please check the error listed inside the bincache!\n"
+	printf "removing tempfile...\n"
+	rm -f $cachefile.tmp && "tempfile removed ok" || printf "failed to remove tempfile, please remove it yourself!\n"
+
+}
+
+########################################
+######################### MAIN PROGRAM #
+########################################
+
+if opts=( `getopt -n $0 -o a:s:UhvqdtwWcL:p: -l update,loadlow:,window,exact-case,prompt,agent,src,help,version,quiet,debug,term,wait -- "$@"` ); then
+	eval set -- "${opts[@]}"
+	while [[ $# -ge 0 ]]; do
+		curopt=$1
+		nextopt=${2-none}
+		shift						# see m-2
+		case $curopt in
+			--noerrors|-N)	let noerrors=1;;
+			--loadlow|-L)	if [[ -x $nextopt ]] {
+								loadlowprog=$nextopt
+								loadlow=1
+								shift
+							} else
+								printf "warning: loadlow program not found, it must be visible and executable\nno load checking will be done\n"
+								loadlow=0
+								shift
+							fi
+							;;
+			--never-wait|-R) 	let wait=0 nowait=1;;
+			--exact-case|-c)	exactcase=1;;
+			--window|-w) 	winId=${$(xprop -notype -root _NET_ACTIVE_WINDOW)[-1]};;
+			--src|-s) 		[[ -r $nextopt ]] && cachefile="$nextopt"; shift;;
+			--agent|-a) 	n=$(which $nextopt); [[ -x $n ]] && agent="$n"; shift;;
+			--wait|-W) 		let wait++;;
+			--term|-t) 		let term++;;
+			--prompt|-p) 	promptmsg=$nextopt; shift;;
+			--help|-h)		builtin echo "$help_text\n"; exit 127;;
+			--version|-v) 	builtin echo "$version_text\n"; exit 127;;
+			--quiet|-q) 	let quiet_level++;;
+			--debug|-d) 	let debugging++;;
+			--update|-U)    let update_bincache_now=1;;
+			--) 			dprintf "done with options"; break;;
+			*)				dprintf "handling option: $curopt (next:$nextopt)";;
+		esac
+	done
+	for arg; do
+		case $arg in
+			*)	dprintf "handling argument: $arg";;
+		esac
+	done
+else
+	dfatal $err[PROGERR] "error, code is $?, exiting with fail"
+fi
+printf "window id for attach: $winId, $winod\n"
+# attempt to attach to display forcefully (assumes single monitor system, multis should change it to :0.MONITORNUM)
+[[ $DISPLAY == "" ]] && { export DISPLAY=":0"; xhost +localhost }
+# if not embedded, use bottom of screen
+[[ $winId == "none" ]] && dmenu_args+=( "-b" )
+
+if ! [[ -r $cachefile ]] || ((update_bincache_now)); then
+	if ((debugging)); then
+		update_bincache
+	else
+		update_bincache &> /dev/null
+	fi
+fi
+declare -g histfile="$HOME/.cache/prun_vhist"
+
+if [[ -r $histfile ]]; then
+	echo "organizing history"
+	tmpfile=$(mktemp)
+	if sort $histfile | uniq > $tmpfile; then
+		if [[ -r $tmpfile ]]; then
+			if rm $histfile; then
+				if mv $tmpfile $histfile; then
+					echo "history cleanup successful!"
+				else
+					echo "failed to move $tmpfile back to $histfile (disk space full?)"
+				fi
+			else
+				echo "unable to remove $histfile -- check your permissions!"
+			fi
+		else
+			echo "unable to read $tmpfile (needed to safely clean up cache, check permissions!)"
+		fi
+	else
+		echo "unable to sort the history file (sort/uniq returned $pipestatus and $?)"
+	fi
+	if [[ -r $histfile ]]; then
+		echo "adding local history to cache"
+	else
+		echo "$histfile will not be added because it cannot be read anymore"
+	fi
+else
+	echo "creating a brand new history file and calling it $histfile!"
+	if touch $histfile && [[ -r $histfile ]]; then
+		echo "success! new history file $histfile is ready for use..."
+	else
+		echo "FAILURE: $histfile not created, please check disk space and permissions!"
+		histfile=""
+	fi
+fi
+
+
+[[ $exactcase == "" ]] && dmenu_args+=( '-i' )
+[[ $promptmsg == "" ]] || dmenu_args+=( '-p' "$promptmsg" )
+[[ $winId == "none" ]] || dmenu_args+=( '-w' "$winId" )
+result="$(cat $cachefile $histfile | dmenu $dmenu_args)"
+dprintf "result=[$result]"
+[[ "$result" == "[" ]] && dfatal 126 "special case: [ cannot be used in prun because it is a language element"
+[[ "$result" == "" ]] && [[ `tty` =~ dev ]] && dfatal 125 "exiting (no selection)"
+[[ "$result" == "" ]] && dfatal 0 "non-error no item selected (but is ok because we arent going from terminal)"
+[[ -x $agent ]] && result="$agent $result"
+dprintf "compiled result=[$result]"
+# split as if z command, we even support inline comments!
+declare -ga results=( ${(Z:C:)result} )
+
+# pretranslators, a 1:1 name:name this-for-that list
+# the items dont have to exist on either side, however
+# they will be treated as if they were $1 all along, and
+# no special attention will be granted to any term
+# NB: many 'this' names will most likely not want to exist
+#     and if they DO, you might want to make an alternate right
+#     below it (it wont be translated again).
+#     To illustrate what will and wont happen, this should
+#     be expected to GO LIKE...
+#       ...THIS: myitem -> youritem,  mynewitem -> myitem, proceeds on
+#   NOT THIS: myitem -> youritem, mynewitem -> myitem -> youritem, proceed on
+#   cyclic cannot happen because only one level of translation is allowed!
+#
+# Common use for end Users would be to add programs that you know do not
+# need a terminal to run (unless you want a debug window for stderr/out.
+# Simply put, you will want to add programs that cause an annoying terminal
+# window to be launched along with it.
+#
+# Reasons the program cannot see it runs in a window of its own could be:
+# 1) Program uses a startup script first and launches different programs depending on the command line arguments.
+# 2) Program is an executable, but forks or exec's to another (not a library, bypassing ldd detection)
+# 3) Same as #2 or #1, but launches a chain of programs or scripts to start the real program (like firefox or chrome)
+# 4) Uses a nonstandard library that accesses X in some other way.
+# 5) A regular script that makes use of some X bindings for that language (lang-specific)
+# 6) Program is not a graphical, instead its a caller program calling the system/session dbus which causes a gui window to be launched on an already loaded library.
+# 7) Program causes some event, which in turn causes something else to be launched elsewhere (client/server situations)
+
+ #        program name (no path
+declare -gA whitelistx=(    xterm   1
+                            uxterm  1
+                            localc  1
+                            lodraw  1
+                            google-chrome 1
+                            chromium-browser 1
+                            x-www-browser 1
+                            komodo 1
+                            komodoedit 1
+                            atom 1
+                            sublime 1
+                            sublimetext 1
+                            gvim 1
+                            dosbox 1
+                            gparted 1
+                            baobab 1
+                            terminology 1
+                            zenity 1
+                            gimp 1
+                            midori 1
+                            dillo 1
+                            surf 1
+                            netsurf 1
+                            KDiskFree 1
+                            konsole 1
+                            lo      1
+                            firefox
+                            ocp     1
+                            gvim    1
+                            java    1
+                            minetest 1
+                            jku     0
+                        )
+declare -gA pretranslators=( xterm  uxterm
+                                     vim    gvim
+                                     edit   mousepad
+                                     word   lowriter
+                                     excel  localc
+                                     pbrush lodraw
+                                     psp        gimp
+                                     photoshop  krita
+                                     3dsmax     blender
+                                     maya       modo
+                                     wmplayer   vlc
+                                     iexplore   midori
+                                     calc       mate-calc
+                                     charmap    gucharmap
+                                     play       ocp
+                                    )
+
+# TODO MOVE ME
+# do NOT loop this and try to make it recursive
+# this will cause races in feedback cycles if a user is careless...
+for x in ${(k)pretranslators}; do
+    y="${(v)pretranslators[$x]}"
+    if [[ "$results[1]" == "$x" ]]; then
+        print -P "%Bpretranslated $x to $y%b\n"
+        # discard arg1+replace with y
+        results[1]="$y"
+        # no need to continue 

@@ -1,0 +1,75 @@
+#!/usr/bin/perl
+
+#
+#    ps (shim)
+#    shim for ps so it can be used with bash completion's _longopt completer
+#    mini/eso-ubin-local
+#    local esoteric binaries and scripts
+#
+#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all of my projects can be
+#    obtained by visiting the repository: 
+#
+#    <https://github.com/osirisgothra>
+#
+#    Because of the global availability of github at this point, hosting
+#    any additional servers for public use no longer serves a purpose. All
+#    content is available 24/7 through github. (Thanks to GITHUB!).
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Tue Nov  6 12:45:53 EST 2018
+#            osirisgothra@larnica initially created this file
+#            with the original name, ps (shim)
+#
+#  (this header was created using the template generator by Gabriel T. Sharp)
+#
+#
+# TARGET NOTES
+#
+# target resides in /home/<currentuser>/bin ... no
+# target resides in /home/<currentuser>/bin ... no
+# target resides in /usr/local/sbin ... no
+# target resides in /usr/local/bin ... no
+# target resides in /usr/sbin ... no
+# target resides in /usr/bin ... no
+# target resides in /sbin ... no
+# target resides in /bin ... no
+# target resides in /usr/games ... no
+# target resides in /usr/local/games ... no
+# target resides in ~/bin ... no
+# target resides in /usr/local/gxdwm ... no
+# target resides in /home/<currentuser>/.fzf/bin ... no
+#
+
+
+use warnings;
+use strict;
+use v5.20;
+no warnings "experimental";
+
+if ( $#ARGV == 0 && $ARGV[0] eq "--help" )
+{
+	exec("/bin/ps","--help","all");
+}
+else
+{
+	exec("/bin/ps",@ARGV);
+}
+die("past point of entry, should not get here, notify author (and dont name this file /bin/ps!!");

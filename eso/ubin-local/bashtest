@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# bash script test program
+#
+# purpose of this program is to generically execute bash commands for testing verification purposes
+#
+
+# noninteractive tests
+
+function result()
+{
+	echo -ne "[\e[1m$(date +%X%x) \e[32mtest:\e[2m $* [0m-- "
+	local CC=$?
+	local CE=$1
+	shift
+	if [[ $CC -eq $CE ]]; then
+		echo -e "\e[0;36;1mOK"
+	else
+		echo -e "\e[0;31;1mFAILED"
+	fi
+	echo -ne "[0m"
+	return $CC
+}
+result 0 "function+basic syntax works"
+
+alias somealias='echo test'
+unalias somealias
+result 0 "un/alias working"
+
+(exit 12)
+result 12 "rooted exit to set \$? works"
+
+true
+str="str" #interactive
+result 0 "interactive comments are behaving"
+
+
+[[ $str == "str" ]]
+result 0 "string equality checks"
+
+
+cd $HOME
+result 0 "home directory traversing works"
+
+
+false
+result 1 "false boolean gives expected return code"
+
+
+[[ -r $BASH_SOURCE ]]
+result 0 "source variable for noninteractive script works"

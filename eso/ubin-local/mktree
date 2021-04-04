@@ -1,0 +1,152 @@
+#!/bin/zsh
+
+# mktree
+# quick dirty script to make a tree
+
+# use: mktree /path/to/[dirname] [rootcount] [maxsibperleaf] [maxdepthpersib]
+#
+# be careful, mktree dir 20 5 5 looks small could make up to 500 directories!
+# hard $limit should not be disabled for this reason!
+# parent is created after checking limits, so mktemp is dry-run without creation
+
+# TODO: add catches for this to be true:
+# fails if parent cant be made
+# fails if ([rootcount]*[maxsubperleaf])*[maxdepthpersib] > limit
+# fails if any ^ of these are zero
+# all arguments are optional, dirname set default if none given, to /tmp/XXXXXXX.XXX
+# all other numerical arguments are '3' to keep things small by default (max 27 entries)
+# uses resource strings 'msg' because i may port this program to another language
+# NB: RESOURCE STRINGS WONT BE USED FOR DEBUGGING!!
+
+# NOTE since this is a unofficial 'work in progress' its not even close to done!!!
+
+# update: it does work, like i said though, be careful!
+
+case $# in
+    0)  declare -g parent="$(mktemp -u -d)";;    
+    *)  declare -g parent="${1}";;
+esac
+
+# strings
+
+declare -g S=`tput sc`
+declare -g R=`tput rc`
+declare -g C=`tput el`
+
+# hashes
+
+declare -gA msg=(   err_ge       "Generic error encountered, no further description available."
+                    err_zero     "One or more parameters were zero, this is not allowed!"
+                    err_nb       "executed makechild and there was no branch name given"
+                    err_nocc     "makechild was invoked but child count not specified"
+                    err_nord     "called function makechild, however a running count must be passed and was not"
+                    err_limit    "The parameters given would exceed the limit of entries to be created, try lowering some values, especially the depth value."
+                    err_md       "Failed to create directory tree(s)"
+                    msg_md      "${S}Creating directories (%s, %d percent complete)...$C$U"
+                    msg_su      "mktree v1.0 - final alpha <osirisgothra@hotmail.com> by Gabriel Sharp, T."
+                    msg_lic     "license GNU GPL >=3"
+                )
+# integers
+
+declare -gi limit=1024
+declare -gi parents=${2-3}
+declare -gi kids=${3-3}
+declare -gi depth=${4-3}
+
+# subs
+
+function err()
+{
+    # err <code> message
+    print -P "%F{1}error(${1-127}):%F{9} ${@[2,-1]:-$msg[generic_error]}"
+    exit ${1-127}
+}
+xsizes=( 10 5 5 "*" "*" 10 )
+szcnt="$#xsizes"
+scnt="${#xsizes:#[^*]*}"
+ncnt="${#xsizes:#\*}"
+if (( (scnt+ncnt) != szcnt )); then
+    echo "error: xsizes values are invalid"
+    exit 127
+fi
+declare -ga sizes=( )
+twid=`tput cols`
+for x in $xsizes; do
+    if [[ $x != "*" ]]; then
+        po=$(( ($twid * $x) / 100 ))
+        sizes+=$po
+    else
+        sizes+="*" 
+    fi
+done
+y=0
+ntot=$(for x in $sizes; do [[ $x != "*" ]] && let y+=$x; done; echo $y)
+left=$(( twid - ntot ))
+# left == amt of screen left
+# if ntot were 20, fe, then left would be 60 if screen is 80 chars wide
+# distribute evenly among the stars
+stot=$(( left / scnt ))
+if (( DEBUGGING_MKTREE )); then
+echo "sizes: $sizes : total=$szcnt stars=$scnt nums=$ncnt"
+echo "the $ncnt integers will get: $ntot of $twid columns"
+echo "the $scnt stars will each get $stot chars per star, in the remaining $left columns"
+echo "the calculated total/real total width: $(( left+ntot )) / $twid"
+echo "$ntot -- $twid"
+fi
+declare -ga nsizes=( )
+# final pass, add in star values
+for s in $sizes; do
+    if [[ $s == "*" ]]; then
+        nsizes+="$stot"
+    else
+        nsizes+="$s"
+    fi
+done
+
+fstr="%-${nsizes[1]}s %-${nsizes[2]}s %-${nsizes[3]}s %-${nsizes[4]}s\n"
+bstr="$(repeat `tput cols` { printf '-' })\n"
+
+printf -- "$fstr" CMD PARENTS KIDS DEPTH
+printf -- "$bstr"
+printf -- "$fstr" mktree $parents $kids $depth
+printf -- "$bstr"
+declare -gi grand=1
+#akepaths( parent childcount depthcount )
+makepaths()
+{
+    # important, MUST be local or will not recall-safe (ntm thread safe)
+    local parent=$1
+    local childcount=$2
+    local depthcount=$3
+    local x=0;
+    [[ $depthcount -lt 1 ]] && return
+    for ((x=0;x<childcount;x++)); do
+        local next=$RANDOM
+        mkdir $next
+        let grand++
+        if [[ $grand -ge $limit ]]; then
+            echo "hard limit reached, exiting."
+            exit 127
+        fi
+        chdir $next
+        makepaths $parent $childcount $(( depthcount - 1 ))
+        chdir ..
+    done
+}
+echo "parent=$parent kids=$kids depth=$depth parents=$parents"
+mkdir $parent
+chdir $parent
+
+for ((p=0;p<parents;p++)); do
+    nextparent=$RANDOM
+    mkdir $nextparent
+    chdir $nextparent
+    makepaths $parent $kids $depth
+    cd ..
+done
+
+cd ..
+
+
+
+

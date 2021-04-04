@@ -1,0 +1,20 @@
+#!/usr/bin/perl
+
+use warnings;
+use v5.18;
+use strict;
+use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
+
+
+my ($opt, $usage) = describe_options(
+        '$0 %o <some-arg> file',
+        [ 'no-dialog', "dont use dialog to show log", { required => 1  } ],
+        [ 'no-follow',   "do not follow the log, just show it",   { default  => 79 } ],
+        [],
+        [ 'verbose|v',  "print extra stuff"            ],
+        [ 'help',       "print usage message and exit" ],
+      );
+
+print($usage->text), exit if $opt->help;
+
+

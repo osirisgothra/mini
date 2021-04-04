@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# override verbose+debug info
+DEBUG=1
+
+# verbose optional [ -v ]
+[[ $* =~ -v ]] && VERBOSE=1 || VERBOSE=0
+
+# actual override for debug info/verbose info
+((DEBUG)) && VERBOSE=1
+LIST=( * )
+LP=0
+LMX=${#LIST[@]}
+#
+# LP*100 /	LMX*1		PC=%		LP100/LMX=PC
+echo -s "[s"
+function echo()
+{
+	builtin echo -ne "[u[s[K"
+	for xx; do printf "$xx \n"; done
+}
+
+
+for x in "${LIST[@]}"; do
+	let LP++
+
+	PC=$(( ( ($LP*100) / $LMX) ))
+	echo "[32;1m[B$PC percent complete...[0m"
+	if file "$x" | grep -qP '(script|executable|interpreter)'; then
+		if [[ -x "$x" ]]; then
+			((VERBOSE)) && echo "ignoring $x (is already executable)"
+		else
+			((VERBOSE)) && echo "$x detected executable without exec permissions, setting executable..."
+			if chmod a+x "$x"; then
+				echo "user-set executable on $x ok"
+			else
+				echo "user-set on $x failed, trying admin-set.."
+				if sudo chmod a+x "$x"; then
+					echo "admin-set executable on $x ok"
+				else
+					echo "failed --- executive permissions NOT set for $x -- check your rights!"
+				fi
+			fi
+		fi
+	else
+		((VERBOSE)) && echo "skipping $x - magic reports that it is not executable"
+	fi
+done
+

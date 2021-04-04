@@ -1,0 +1,51 @@
+#!/bin/bash
+# thresh [threshold value in ] [under-prog] [over-eq-prog]
+#
+# examples:
+#   thresh 5 calc xcalc
+#
+
+# code notes beyond here
+# [this is line 1]
+# - line 4: "never" must be used to invalidate the case when $# is below argument level 
+# -         but must be at exactly 3 in any other case so we can pass the program's command line with it later
+#           since "never" can NEVER be a number! :)
+warn()
+{
+    printf "\e[1;31mwarning: %${COLUMNS}s\e[0m\n" "$@"
+}
+never=8675309
+case $# in
+$(($#>2?$#:never)))
+    declare -ix T=$1
+    G=$1
+    if [[ $1 == "" ]]; then 
+        unset G
+    fi
+    [[ $T != $1 ]] && warn "converted threshold argument from ${G-nothing} to $T"
+    declare -Ax THRESHOLD_TARGETS=( ["HI"]="${2}" ["LO"]="${3}" )
+    { printf "info: ";declare -p THRESHOLD_TARGETS | sed -r 's/=/ assigned to /g;s/declare -A/entity/g;s/\(/table with /g;s/\" \[/\", and [/g;s/(\[|\])/\"/g;s/.{3}$/.../g' | tr -d "'"; } | perl -wpe 's/(\b[A-Z"]{2,})/\e[0;34m$1\e[0m/g;s/(\b[a-z]+\b)/[0;36m$1/g;s/(\"[^\"]+)(\")/[35;1m$1$2[0m/g' | sed 's/"/[0;37;1m'"'"'[0m/g'
+    echo "[0;33musing threshold of [0;1m${T}[0;33m to map [0;34m${THRESHOLD_TARGETS["HI"]}[0;33m (above) thru [0;34m${THRESHOLD_TARGETS["LO"]}[0;33m (below)"
+    HILO=`free -b | sed -n '2p' | awk '{ u=$4;r=int(u/1024/1024/10.24);if (r < '$T') print("LO"); else print("HI"); endif;}'`
+    case $HILO in
+      HI) XX="at least";;
+      LO) XX="at most";;
+      *)
+        echo "warn: HILO is of bad value, defaulting to the LOW values ($3)"
+        HILO=LO
+        XX="which is probably completely invalid/incorrect!"
+        ;;
+    esac
+    # remove the 3 start params leaving arguments for the thresh program
+    shift 3
+    TGT=${THRESHOLD_TARGETS[$HILO]}
+    echo "target resolved: $TGT"
+    echo "executing with cmdline($#): $@"
+    echo "(pretending to be $BASH_SOURCE unaware, exec called on $TGT)"
+    echo "notice: estimating that you have $T bytes free $XX"
+    echo "finished/branching off... *click*"
+    exec $TGT "$@"
+    ;;
+
+esac
+

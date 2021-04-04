@@ -1,0 +1,37 @@
+#!/usr/bin/perl -wn
+
+# per line action script (using warnings and strict via perl shebang)
+
+use v5.20;
+use feature 'switch';
+no warnings 'experimental';
+
+
+
+my @words=split(' ',$_);
+
+print "start of line\n";
+for my $word (@words) 
+{
+	print("word: [${word}]\n");
+	# word evaluation point
+	given($word)
+	{	
+		default
+		{
+			for (my $i=0; $i < length($word); $i++)
+			{
+				my $char = substr($word,$i,1);		
+				# character evaluation point
+				given($char) 
+				{
+					when(/\n/) { print("END OF LINE($char)"); }
+					default    { print("\tchar: $char\n"); }
+				} # end given($c..r)
+			} # end: for (my $i....++)		
+		} # end: def..lt	
+	} # end: give..ord)
+} # end: for my $w...ds)
+# end: of current input line
+print "end of line\n";
+

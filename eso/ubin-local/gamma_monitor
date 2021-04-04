@@ -1,0 +1,4 @@
+#!/usr/bin/lua
+
+myv = os.execute("gamma","-gamma")
+term.write(myv)

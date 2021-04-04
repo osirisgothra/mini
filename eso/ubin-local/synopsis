@@ -1,0 +1,5 @@
+#!/bin/zsh
+
+
+
+perldoc -u "$@" |  perl -wne 'if (/^=head1 SYNOPSIS/ ... /^=head1/) { s/^=head1.*//g; print;}'

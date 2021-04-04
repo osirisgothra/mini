@@ -1,0 +1,9 @@
+#!/bin/bash
+case $- in *i*) chmod a+x "$BASH_SOURCE";; esac
+if [[ -r /tmp/ptog ]]; then
+	rm /tmp/ptog
+	pplay
+else
+	touch /tmp/ptog
+	ppause &> /dev/null
+fi
