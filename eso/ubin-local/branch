@@ -1,0 +1,47 @@
+#!/bin/zsh
+#0
+#2
+git status -s 2> /dev/null 1> /dev/null
+if [[ $? -eq 0 ]]; then
+    
+    tmpfile_pwd="/tmp/brach.pwd.$USERNAME"
+    tmpfile_output="/tmp/branch.output.$USERNAME"
+    if [[ $1 == reset ]]; then
+        rm $tmpfile_output $tmpfile_pwd --verbose
+        echo "reset complete"
+        exit
+    fi
+
+    #3
+    if [[ -r $tmpfile_pwd ]]; then
+        lastpwd=$(<$tmpfile_pwd)
+    else
+        lastpwd=""
+    fi
+    #4
+    if [[ $lastpwd != $PWD ]]; then    
+        #1
+        git branch --verbose --color=never | grep -Po '^.*(?=\])\]' --color=never | hi -S ${1-91} '[0-9][0-9a-f]*' '([^]\[|\])' '*' ahead behind push pull master slave client 'a?waiting' 'commit' '\*' '\?' &> $tmpfile_output
+        echo "$PWD" &> $tmpfile_pwd
+    fi
+    cat $tmpfile_output
+
+fi
+
+
+#cs21k
+
+#0 usage 
+#     syntax: branch [colorseed]
+#     use same colorseed to use same random colors each time
+#     this allows you to find color combinations without having
+#     to actually enter them in (note that if no seed is given,
+#     the default of 91 will be used)
+#1  TODO: add more git vocabulary if needed
+#2  check and output nothing for non-git directories
+#3  checks for cached directory name, if present, otherwise setting it
+#   to nothing will force a cache/pwd update, this is probably where
+#   I should put in the commit-change code, once needs are clear
+#4  recreate cache for this directory if it changed, so we dont have to keep
+#   re-running 'git branch' from the same directory (unless commit has been
+#   run, then you will need to reset-TODO: deal with this special case)

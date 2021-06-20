@@ -1,0 +1,16 @@
+#!/bin/zsh
+
+if [[ $TTY =~ 'not a tty' ]]; then
+    # recursion protection
+    [[ $BADTIMER -eq 122 ]] && exit 122
+    #start in another window shell no tty
+    export BADTIMER=122
+    xterm -e $0 "$@" &> /dev/null &!
+else
+    clear
+    echo "user mode: $USER $GID $UID system $(uname -a)"
+    echo "preparing this window for minetest console mode"
+    echo "starting minetest $(date)"
+    xtitle "Minetest Console"
+    exec /bin/minetest "$@"
+fi

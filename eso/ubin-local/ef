@@ -1,14 +1,11 @@
 #!/usr/bin/perl
-# vim: mls=2:ft=perl:fdl=9:fdm=indent:fen:fcl=all:fdo=all:cc=3,79:sw=2:ts=2:bs=2
-# vim: noet:more:prompt:ls=2:ru:mls=5:gfn=Mono\ 18:nowrap
-#
 #
 #    ef
 #    smarter frontend for nano, vim, gvim, etc
 #    mini
 #    eso-ubin-local (projects that are esoteric in nature)
 #
-#    Copyright (C) 1995-2019 Gabriel Thomas Sharp
+#    Copyright (C) 1995-2021 Gabriel Thomas Sharp
 #
 #    Written by Gabriel T. Sharp <21shariria@gmail.com>
 #    Latest versions of this and all of my projects can be
@@ -34,35 +31,519 @@
 #    with this program; if not, write to the Free Software Foundation, Inc.,
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
-#   SUMMARY OF VIM SETTINGS
-#
-#    this file is configured to allow for a column stop at 80, shift and tab 
-#    stops (unexpanded) are set to 2. GUI Fonts are setup to be any monospaced
-#    font at a size of 18 to allow adequate viewing at resolutions from 1mp
-#    and higher. Adding any more modelines will need to adjust the mls to a 
-#    higher number. Indent-based folding with auto close/open, at level 9 and
-#    beyond. More and confirm prompts are ON. A GUI tab label is provided.
-#
 #   HISTORY
-#
+#    04/03/2021 09:03:20 PM EDT (Saturday)
+#       End-of life update, last version where code was made CSCS compliant
+#       and any remaining bugs patched up. This project code is out of date
+#       and is being replaced by 'efe' instead. All long comments are moved
+#       to the end of the file, in the POD text. (There will be no more updates)
 #	 04/28/2019 12:59:01 PM (Sunday)
 #            osirisgothra@larnica initially created this file
 #            with the original name, fenano (links to ~/bin/<n>, <n>=nano,vim,gvim,vi,edit,mousepad,etc
 #            and renamed it ~/bin/nano (moved original ~/bin/nano to ~/bin/nano.bin)
-#  06/12/2019 11:56:38 AM (Wednesday)
+#    06/12/2019 11:56:38 AM (Wednesday)
 #            osirisgothra@larnica renamed the file and related files
 #            with the original name part or whole, from "fenano" to "ef"
 #            includes internal symbols, config files, option texts, +more.
 #            (moved ~/bin/nano.bin back to just ~/bin/nano, then later
 #            removed in favor of system's installed copy of nano).
 #
-#             
+#  NO PULL REQUESTS WILL BE ACCEPTED
+#  YOU MUST FORK THIS PROJECT TO MODIFY IT
+#  FROZEN WHEN ON AUTHORS MACHINE AS IT IS DEPRECIATED
 #
 #  (this header was created using the template generator by Gabriel T. Sharp)
-#
-#
-# TARGET NOTES
 # 
+#
+
+###########               #
+###########  Perl         #
+###########  Settings     #
+###########               #
+
+use v5.20;		
+use warnings;
+use strict;
+use Path::Tiny;
+use File::MimeInfo::Magic;
+use Cwd;
+use subs qw{ };
+use vars qw{ };
+use constant TRUE => 1, FALSE => 0, true => 1, false => 0, sok => 0, serror => 1;
+no warnings 'experimental';
+
+###########               #
+###########  Default      #
+###########  Settings     #
+###########               #
+
+
+my $diagnostic_mode = 0; 
+my $verbose = 0;
+my $condense_path_whitespace = 1;
+my $nanopath =  path('/src/fork/nano-2.4.2/src/nano');		
+my $vimpath = path('/usr/local/bin/gvim');
+my $hexeditpath = path('hexeditorm');
+   $nanopath = path("/bin/nano") unless $nanopath->exists();
+   $vimpath =  path("/bin/vim") unless $vimpath->exists();
+   $hexeditpath =  path("/bin/hexdump") unless $hexeditpath->exists();
+my $defaultpath = $nanopath;
+my $execpath = $nanopath;								
+my $cfg = path("$ENV{HOME}")->child(".efrc");
+my @paths = split(":",$ENV{"PATH"});
+my @targets = ();
+
+###########                 #
+###########  Configuration  #
+###########  Subroutines    #
+###########                 #
+
+# depreciation code begin
+if ( path("/home/osirisgothra/.iamosirisgothra")->exists() ) {
+    die("\n\e[31;1m\tThis is a depreciated project, that is disabled on the author's machine to prevent mixups with other, simmilar named projects or supersceders\e[0m\n");
+}
+# depreciation code ends
+
+sub cfg_file {
+	return undef unless $cfg->exists;
+	return ( grep { !/#|\A\s*\z/ } $cfg->lines );
+}
+sub cfg_setting {
+	my ($action,$section,$setting) = 
+	( 
+		shift // die("must supply action and setting to get/set : $? $!"),
+		shift // die("no section specified!"),
+		shift // die("no setting specified!")
+	);
+	
+	given($action)
+	{
+		split(",",cfg_data($section,$setting)) when /getlist/;
+		int(cfg_data($section,$setting)) when /getnum/;
+		bool(cfg_data($section,$setting)) when /getbool/;
+		path(cfg_data($section,$setting))->realpath() when /getpath/;
+		default { return cfg_data($section,$setting); }
+	}	
+}
+
+
+###########               #
+###########  Symbols      #
+###########               #
+
+my $newfilepresets = {
+		default => cwd(),
+};
+
+my $resolvers = {
+				
+					"nano" => $nanopath,
+					"vim" => $vimpath,
+					"hexedit" => $hexeditpath,
+					"default" => $defaultpath
+				};
+
+my $mimes = 	{   "application/x-shellscript" => "nano",
+					"application/x-perl" => "vim",
+					"application/x-python" => "vim",
+					"application/x-executable" => "hexedit",
+					"text/x-python" => "vim",
+					"application/x-sharedlib" => "vim",
+					"application/x-executable" => "hexedit",				
+					"application/octet-stream" => "hexedit",
+					"text/plain" => "nano",
+					"default" => "nano",
+				};
+my $scores = { 	nano => 0, 
+				vim => 0, 
+				default => 0, 
+				hexedit => 0 
+			};
+
+###########               #
+###########  Subroutines  #
+###########               #
+
+sub getmimetype {
+	my $retv = File::MimeInfo::Magic::mimetype(shift) // "nil";
+	return $retv;
+}
+sub mime2prog {	
+	my $file = path(shift)->realpath() // "nil";
+	my $mtype = getmimetype("$file");
+	return "default" if $mtype eq "nil";
+	for (keys(%{$mimes})) {
+		return $$mimes{$_} if /\A$mtype\z/;
+	}	
+	return "default";
+}
+
+sub getmoredirs {
+	if ( -r $cfg ) {
+		my $section = "global";
+		chomp ( my @lines = $cfg->lines() );
+		for (@lines) {
+			s/^\s*|\s*$//g;
+			s/\s+/ /g if $condense_path_whitespace;
+			given($_) {
+				when (/^(\s*\[)([a-z]+)(\]\s*)$/) {
+					say("traversing from $section -> $2") if $verbose;
+					$section = $2;
+				}
+				default {
+					given($_) {
+						when (/^\s*$/) {
+							say ("skipping empty line") if $verbose;
+						}
+						default {
+							my $data = $_;
+							given ($section) {
+								when (/dirs/) {
+									say("adding directory $data to paths (maybe)") if $verbose;
+									unshift(@paths,$data) if ( -d $data );									
+								}								
+								when (/global/) { "nop"; } 
+								when (/newfilepresets/) {
+
+									if ($data =~ /\A([^=]+)=([^=]+)\z/g) {
+										my ( $newname, $newdata ) = ( $1, $2 );
+										say("recognizing preset '$newname' which will point to '$newdata', use -p${newname} to use it");
+										$$newfilepresets{$newname} = $newdata;
+									}
+								}
+								default {
+									say("WARNING: section \"$section\" present in file, with line $_, which will be ignored!");
+								}
+							}
+							say ("section $section - $_") if $verbose;
+						}
+					}
+				}
+			}
+		}		
+	}
+}
+sub score_files {
+	my @files = @_;
+	for my $file (@files) 
+	{
+		if ( -r $file ) 
+		{
+			
+			say("checking score for $file (".getmimetype("$file").")...");
+			my $sentry = mime2prog("$file");
+			$$scores{$sentry}++;
+			say("Scoring as " . mime2prog("$file") . ".");
+			
+		}
+	}
+	say("score results:");
+	say("prog $_ -> score = " . $$scores{$_} ) for keys(%{$scores});
+	my $highest = "default";
+	for (keys(%{$scores})) {
+		$highest = $_ if ($$scores{$_} >= $$scores{$highest});		
+	}	
+	say("winner: $highest");
+	say("resolving $highest to it's native form...");
+	my $native = $$resolvers{$highest};
+	say("resolved to $native ... plase wait!");
+	$execpath = $native;
+	return $native;
+};
+sub find {
+	my $file = shift // $_;
+	$_ = $file // $_ // die("must pass SOMETHING other than undef, or leave something in \$_");
+	return $file if ( -w $_ );
+	return $file if m/[\/\\]/g; 
+	for my $path (@paths) {
+		my $p = path("$path")->child("$file");
+		return $p if $p->is_file() && ( -w $p );
+	}
+	
+	return $file;
+}
+
+sub normalmode() {
+    die("default and exec path are neither found") unless ( $defaultpath->exists() and $execpath->exists() );
+    warn("hexedit path is not valid, hexeediting will not work") unless $hexeditpath->exists();    
+	getmoredirs();
+	@targets = grep { $_ = find } @ARGV;
+	say for @targets;
+	score_files(@targets);
+	print("editing/creating/viewing...\n");
+	system($execpath,@targets);
+	for (@targets) {
+		given("$_")	{
+			when (-r -w) {
+				say "performing post-op on $_...\n";
+				my $target = path("$_");
+				given (getmimetype("$_")) {
+					when (/application/) {
+						print("$_ (application) making executable...");								
+						if ($target->exists()) {						
+							print("exists=ok! ... chmod a+x=");
+							if ($target->chmod("a+x")) {
+								say "all ok!";
+							} else {
+								say "chmod failed (check your permissions!)";
+							}
+						} else {
+							say("cannot stat $target anymore, ugo+r permissions may have JUST changed!!")
+
+						}
+					}
+				}
+			}
+		}
+	}
+}
+sub echo { 
+	printf @_;
+	printf("%s","\n")
+}
+
+sub diagnostics() {
+
+	echo("entering diagnostics mode... (with args=@ARGV)");
+	my $keepgoing=1;
+    use Term::ReadLine;
+	use Term::ANSIColor;
+    my $term = Term::ReadLine->new('diagnostics-mode');
+	my $prompt = "ef-diag>  ";
+    my $OUT = $term->OUT || \*STDOUT;
+	my $histfile = path("$ENV{HOME}")->child(".efhist");
+	$histfile->touch unless $histfile->exists;	
+	die("cant create history in homedir!! $! $?") unless $histfile->exists;
+	my @hist = $histfile->lines;	
+	$term->addhistory($_) for @hist;
+
+	D_MAIN:while ($keepgoing) 
+	{
+	    D_PROMPT:while ( defined ($_ = $term->readline($prompt)) ) 
+		{
+			given($_) {
+				when (/exit/) {
+					last D_PROMPT;
+				}
+				default {
+	    			my $res = eval($_);
+	    			warn $@ if $@;
+	    	    	print $OUT $res, "\n" unless $@;
+    	    		$term->addhistory($_) if /\S/;
+					unshift(@hist,$_);
+				}
+			}
+		}
+		my $yn="?";
+		YN:while(1) { $yn = $term->readline("really exit? [y/n]"); $_ = $yn; last YN if /\A[YyNn]\z/; };
+		$_ = $yn;
+		$keepgoing = 0 if /[Yy]/;
+	
+	}
+}
+given($diagnostic_mode) {
+	diagnostics when 1;
+	normalmode when 0;
+	default { normalmode; }
+}
+
+
+__END__
+
+=pod
+
+# CSCS
+
+#
+# Main Program Subs (nb: the empty param list preventing use of arguments as they are forbidden)
+#
+# types section removed until used:
+#when (/types/) {
+#	# TODO: add code
+#}
+#when (/scores/) {
+#	# TODO: add code
+#}
+#when (/paths/) {
+#	# TODO: add code
+#}
+#when (/general/) {
+#	# TODO: add code
+#}
+#when (/filters/) {
+#	# TODO: add code
+#}
+# [ getmimetype ]
+# description
+#  gets best possible mime-type string describing program, script or file. 
+#  this also works for not-yet-created files by their extension, when possible
+#  for files that are impossible to type, 'nil' is their type.
+# argument
+#  count/desc: 1 / 1=scalar,filename (blessed Path::Tiny)
+# return 
+#  type/value: scalar / string representing mimetype of file or 'nil' if none was found
+# notes
+#  makes sure the proper mimetype function is called (in case of use in other programs or project forks)
+#  allows for intervention and re-interpretation, which can be added in future releases of the program
+#
+# [ mime2prog ]
+# description
+# 	converts mimetype to program name used for scoring
+# argument
+#	count/desc: 1 / 1=scalar,filename (blessed P::T)
+# return 
+#	type/value: scalar / program name that type is scored under
+# notes
+#  *  guarentees existence in the $scores hash value list
+#  *  if no other match is found, it returns the 'default' entry
+#  *  all are dereferenced before they are checked to avoid inode/symlink types
+#     the inode/symlink type can be pretty much anything so it must be disambiguated
+#  *  broken links are treated the same as nonexistent files however editing of such
+#     files may prove futile
+#
+# [ getmoredirs ]
+# description
+#  grabs more directories included in the config file and places them into the main
+#  searchpath list
+# argument
+#  count/desc: 0/none
+# return 
+#  type/value: 0/none
+# notes
+#  * this is sequential procedure, and it is independant not needing variables 
+#  * no meaningful return values are given since it is not required to define more dirs
+#
+# [ normalmode ]
+# description
+#  program's main entry point when running normally (not in the nonuser diagnostics mode)
+# argument
+#  count/desc: 0/none (argument list is intentionally locked out using () locks)
+# return 
+#  type/value: -1/see notes
+# notes
+#  * this sub does NOT return, it exits to the calling process directly passing the
+#    winner's exit code along. as long as winner runs, this program never gives its
+#    own status codes, those are found only in diagnostics mode. (the user does not
+#    need this anyhow and would probably make life miserable).
+#  * permissions, this function may change unexecutable scripts to make them
+#    executable (ie, newly created files this is especially useful), you can
+#    disable or restrict this behavior, read the notes below and in the header
+#    for further details.
+# [ diagnostics ]
+# description
+# 	runs diagnostic mode for debugging (programmer use only)
+# argument
+#  count/desc: 0/none (args intentionally locked out)
+# return 
+#  type/value: 0/none
+# notes
+#  * allows programmers direct access to all subs and vars, able to call/dump/manip
+#    program as they need for testing purposes, set the diagnostics flag at the
+#    beginning of the program to turn this on (it is hard coded to prevent accidental
+#    entry by the users of the program).
+#
+# [ echo ]
+# description
+#   the 'say' version of 'printf'
+# argument
+#  count/desc: */list of scalars to join together (with a space separator) and print, following a newline
+# return 
+#  type/value: whatever printf spits back out
+# notes
+#  * use caution with multiple values, dont forget to format your strings
+#  * a newline is always written at the end of all the strings, but not inbetween
+#  * to print out multiple lines, you will want to make sure your FIRST argument is joined properly!
+#
+# [ find ]
+# description
+#   locate file in system paths
+# argument
+#  count/desc: 1/filename
+# return 
+#  type/value: scalar/path+file resolved or same if not found
+# notes
+#  * gives back same value if already resolved or not found
+# footnotes
+# NB: see P::T note 1		
+# BUGFIX: replaced ->exists with ->is_file, we dont want to edit directories
+#   NOTE: you may or may not care to check write permissions, usually people who edit files want to be able to save their edits -- it is best to have this check stay in place
+#   NOTE: assumes read-if-write, if this doesnt work for you, you can add -r as well (has not been an issue so far)
+# did not find anything, leave as-is (we might be creating something new)
+# spit filename back out as it was
+#
+#
+# [ cfg_file ]
+# description
+#	read entire configuration into memory
+# argument
+#  count/desc: 0/none
+# return 
+#  type/value: 0/none
+# notes
+#   * unless an exception is thrown this always succeeds
+#   * configuration file is not required, and syntax errors in the file
+#     are not fatal -- their lines are disregarded. 
+#   * no comments or non-data/blank lines are read into memory since they
+#     are meaningless to the program's state
+#
+# [ cfg_setting ]
+# description
+# argument
+#  count/desc: 3/ action, section, setting (all scalar strings)
+#              action: can be one of: getlist, getnum, getbool, getpath, get(default)
+#                    get(item) / meaning
+#  list / returns csv data split into subsettings     path / returns blessed P::T path
+#  bool / returns 0 or 1 based on text or number in data (ie, 'true' resolves to 1, 'NO' resolves to '0')
+#   int / returns integer value based on the data otherwise 0
+# return 
+#  type/value:
+# notes
+#
+#
+# [ score_files ]
+# description
+#	descipher a list of files, find their mimetype via magic, mime, or inode lookup, and
+#   add a point to it's linked score in the score list which is in turn a key in the list
+#   of programs, and which is a key in the list of resolved files (aka 'resolvers').
+# argument
+#  count/type(s)/desc: 1+/scalar(s)/one or more filenames to process
+# return 
+#  type/value: 0/none
+# notes
+#  makes modification to global variables
+# modifies
+#  $execpath - changed to program resolved using resolver pointed to by the score list
+# data stack/processing tree (followed by an example value)# 
+#  files				(/bin/ls,/usr/bin/autoreconf,autokey) <- note last is in system PATH so it will get resolved to /usr/bin/autokey if thats the only entry in the PATH, parsed in original PATH list order (first VALID entry found gets used!)
+#    +-> mimetypes             <- one at a time, used to make list (application/x-executable, application/x-perl, text/x-python, application/x-perl) in its caller
+#           +->scorelist	   /|-- each type above is evaluated against the list of mimes
+#                 +->mimes     \|-- in $mimes, which is used as a key to increment it's entry in the score list
+#                         +->execpath <- the highest entry in score list is translated into a binary executable
+#                                        by using the highest entry as the key for resolvers or "default" if no
+#                                        highest was found. if there is a tie between multiple resolvers, the 
+#                                        very LAST matching entry in the score->resolver list gets the priority.
+#                                        at this time, the order of the list is ambiguous per perl specification
+#										 in later versions sorting and order control may be available or via command line
+#
+# executables are searched bottom-up*
+#
+#    mimes are checked top-down* (if sorting is available and enabled!)
+#    otherwise the order of searching is random (this affects only the executable selection)
+#
+# declaration of resolvers mimes scores types
+#
+#    name-to-target mappings
+#       resolves basic names for scoring into actual binaries
+#       mimetypes commonly used, relied on by 
+#    File::MimeInfo::Magic
+#       defaults for files unidentifiable beyond text or data relied on by
+#    File::MimeInfo
+#       scoring used to select a resolver
+#       done by scoring the mimetype and/or the magic database
+#       freedesktop may also influence this a bit
+#
+# TARGET NOTES (moved from header, please move to separate file later, or to pod text)
+#
 #   * target name 'nano' in user's bin (~/bin/nano)
 #   * target alternate multi-user name would be 'ef' in either /usr/bin (autoinstall/host binaries) or /usr/local/bin (machine compiled binaries)
 #   * target can also exist as a 'helper' in which case it could be named '/bin/nano' as long as the helper is listed
@@ -98,496 +579,49 @@
 #		   instead of $mypathobj->child("dir\sub"), since that would undermine portability.
 #          this applies to you unix users as well (though P::T may catch those paths more eloquently, but lets avoid it shall we?)
 #
-
-###########               #
-###########  Perl         #
-###########  Settings     #
-###########               #
-
-use v5.20;		
-# WARNING!! important warnings about versioning compatibility:  WARNING!!
-# program uses some features that may still be experimental
-# however to reduce noise, the line 'no warnings 'experimental'' is added 
-# below.
+# $newfilepresets
 #
-# The notes below are added by specification of documentation to avoid possible confusion
-# when debugging this code in a foriegn environment.
+#    presets could be added here but should rather be added in the .efrc settings file
+#    under [newfilepresets]		
+#    items here are 'preset-name=directory'
+#    preset-name is used with the '-p' flag (ie, ef -p default)
+#    if name is missing, default is assumed, but pointless :)
+#    
+# diagnostic_mode ( or, via EV -> $ENV{"EFRC_DIAGNOSTICS_MODE"} // 0; )
+#   
+#    validated: nanopath vimpath hexeditpath
+#    a typo thing, if you cant trust yourself=1   need multispaced paths(!?)=0
 #
-# version-specific notes for other programmers:
-# >= 5.010 allow filetest stacking to work (-r -w for example)
-# >= 5.014 allow signatures, switch, for-given-when to work (experimental!)
-# >= 5.014 so keys/values/each work on scalars (experimental!) used with hashrefs below
+#    IMPORTANT:
+#         editors must accept multiple files as arguments
+#         single-editors will need a shim script and you must
+#         supply the info for that.
 #
-use warnings;
-use strict;
-use Path::Tiny;
-use File::MimeInfo::Magic;
-use Cwd;
-use subs qw{ };
-use vars qw{ };
-use constant TRUE => 1, FALSE => 0, true => 1, false => 0, sok => 0, serror => 1;
-no warnings 'experimental';
-
-###########               #
-###########  Default      #
-###########  Settings     #
-###########               #
-
-
-my $diagnostic_mode = 0; # or, via EV -> $ENV{"EFRC_DIAGNOSTICS_MODE"} // 0;
-my $verbose = 0;
-my $condense_path_whitespace = 1; # a typo thing, if you cant trust yourself=1   need multispaced paths(!?)=0
-# IMPORTANT:
-#  editors must accept multiple files as arguments
-#  single-editors will need a shim script and you must
-#  supply the info for that.
-my $nanopath =  path('/src/fork/nano-2.4.2/src/nano');		# nano=xxx
-my $vimpath = path('/usr/local/bin/gvim');
-my $hexeditpath = path('hexeditorm');
-my $defaultpath = $nanopath;
-my $execpath = $nanopath;								# default=xxx
-my $cfg = path("$ENV{HOME}")->child(".efrc");
-my @paths = split(":",$ENV{"PATH"});
-my @targets = ();
-
-###########                 #
-###########  Configuration  #
-###########  Subroutines    #
-###########                 #
-
-# [ cfg_file ]
-# description
-#	read entire configuration into memory
-# argument
-#  count/desc: 0/none
-# return 
-#  type/value: 0/none
-# notes
-#   * unless an exception is thrown this always succeeds
-#   * configuration file is not required, and syntax errors in the file
-#     are not fatal -- their lines are disregarded. 
-#   * no comments or non-data/blank lines are read into memory since they
-#     are meaningless to the program's state
+# WARNING!! 
 #
-sub cfg_file {
-	return undef unless $cfg->exists;
-	return ( grep { !/#|\A\s*\z/ } $cfg->lines );
-}
-
-# [ cfg_setting ]
-# description
-# argument
-#  count/desc: 3/ action, section, setting (all scalar strings)
-#              action: can be one of: getlist, getnum, getbool, getpath, get(default)
-#                    get(item) / meaning
-#  list / returns csv data split into subsettings     path / returns blessed P::T path
-#  bool / returns 0 or 1 based on text or number in data (ie, 'true' resolves to 1, 'NO' resolves to '0')
-#   int / returns integer value based on the data otherwise 0
-# return 
-#  type/value:
-# notes
+#  important warnings about versioning compatibility:  WARNING!!
 #
-sub cfg_setting {
-	my ($action,$section,$setting) = 
-	( 
-		shift // die("must supply action and setting to get/set : $? $!"),
-		shift // die("no section specified!"),
-		shift // die("no setting specified!")
-	);
-	
-	given($action)
-	{
-		split(",",cfg_data($section,$setting)) when /getlist/;
-		int(cfg_data($section,$setting)) when /getnum/;
-		bool(cfg_data($section,$setting)) when /getbool/;
-		path(cfg_data($section,$setting))->realpath() when /getpath/;
-		default { return cfg_data($section,$setting); }
-	}	
-}
-
-
-###########               #
-###########  Symbols      #
-###########               #
-
-my $newfilepresets = {
-		default => cwd(),
-
-		# presets could be added here but should rather be added in the .efrc settings file
-		# under [newfilepresets]		
-		# items here are 'preset-name=directory'
-		# preset-name is used with the '-p' flag (ie, ef -p default)
-		# if name is missing, default is assumed, but pointless :)
-};
-
-my $resolvers = {
-				# name-to-target mappings
-				# resolves basic names for scoring into actual binaries
-					"nano" => $nanopath,
-					"vim" => $vimpath,
-					"hexedit" => $hexeditpath,
-					"default" => $defaultpath
-				};
-
-my $mimes = 	{
-				# mimetypes commonly used, relied on by 
-				# File::MimeInfo::Magic
-					"application/x-shellscript" => "nano",
-					"application/x-perl" => "vim",
-					"application/x-python" => "vim",
-					"application/x-executable" => "hexedit",
-					"text/x-python" => "vim",
-					"application/x-sharedlib" => "vim",
-					"application/x-executable" => "hexedit",
-				# defaults for files unidentifiable beyond text or data relied on by
-				# File::MimeInfo
-					"application/octet-stream" => "hexedit",
-					"text/plain" => "nano",
-					"default" => "nano",
-				};
-my $scores = { 
-				# scoring used to select a resolver
-				# done by scoring the mimetype and/or the magic database
-				# freedesktop may also influence this a bit
-				nano => 0, 
-				vim => 0, 
-				default => 0, 
-				hexedit => 0 
-			};
-
-###########               #
-###########  Subroutines  #
-###########               #
-
-# [ getmimetype ]
-# description
-#  gets best possible mime-type string describing program, script or file. 
-#  this also works for not-yet-created files by their extension, when possible
-#  for files that are impossible to type, 'nil' is their type.
-# argument
-#  count/desc: 1 / 1=scalar,filename (blessed Path::Tiny)
-# return 
-#  type/value: scalar / string representing mimetype of file or 'nil' if none was found
-# notes
-#  makes sure the proper mimetype function is called (in case of use in other programs or project forks)
-#  allows for intervention and re-interpretation, which can be added in future releases of the program
-sub getmimetype {
-	my $retv = File::MimeInfo::Magic::mimetype(shift) // "nil";
-	# intervention could be done here
-	# reinterpretation could be done here
-	return $retv;
-}
-
-# [ mime2prog ]
-# description
-# 	converts mimetype to program name used for scoring
-# argument
-#	count/desc: 1 / 1=scalar,filename (blessed P::T)
-# return 
-#	type/value: scalar / program name that type is scored under
-# notes
-#  *  guarentees existence in the $scores hash value list
-#  *  if no other match is found, it returns the 'default' entry
-#  *  all are dereferenced before they are checked to avoid inode/symlink types
-#     the inode/symlink type can be pretty much anything so it must be disambiguated
-#  *  broken links are treated the same as nonexistent files however editing of such
-#     files may prove futile
-sub mime2prog {	
-	my $file = path(shift)->realpath() // "nil";
-	my $mtype = getmimetype("$file");
-	return "default" if $mtype eq "nil";
-	for (keys($mimes)) {
-		return $$mimes{$_} if /\A$mtype\z/;
-	}	
-	# was never found, fall back to default
-	return "default";
-}
-
-# [ getmoredirs ]
-# description
-#  grabs more directories included in the config file and places them into the main
-#  searchpath list
-# argument
-#  count/desc: 0/none
-# return 
-#  type/value: 0/none
-# notes
-#  * this is sequential procedure, and it is independant not needing variables 
-#  * no meaningful return values are given since it is not required to define more dirs
+#    program uses some features that may still be experimental
+#    however to reduce noise, the line 'no warnings 'experimental'' is added 
+#    below.
+#   
+#    The notes below are added by specification of documentation to avoid possible confusion
+#    when debugging this code in a foriegn environment.
+#   
+#    version-specific notes for other programmers:
+#    >= 5.010 allow filetest stacking to work (-r -w for example)
+#    >= 5.014 allow signatures, switch, for-given-when to work (experimental!)
+#    >= 5.014 so keys/values/each work on scalars (experimental!) used with hashrefs below
 #
-sub getmoredirs {
-	if ( -r $cfg ) {
-		my $section = "global";
-		chomp ( my @lines = $cfg->lines() );
-		for (@lines) {
-			s/^\s*|\s*$//g; # remove whitespace
-			s/\s+/ /g if $condense_path_whitespace;  # see above			
-			given($_) {
-				when (/^(\s*\[)([a-z]+)(\]\s*)$/) {
-					say("traversing from $section -> $2") if $verbose;
-					$section = $2;
-				}
-				default {
-					given($_) {
-						when (/^\s*$/) {
-							say ("skipping empty line") if $verbose;
-						}
-						default {
-							my $data = $_;
-							given ($section) {
-								when (/dirs/) {
-									say("adding directory $data to paths (maybe)") if $verbose;
-									unshift(@paths,$data) if ( -d $data );									
-								}
-								when (/types/) {
-									# TODO: add code
-								}
-								when (/scores/) {
-									# TODO: add code
-								}
-								when (/paths/) {
-									# TODO: add code
-								}
-								when (/general/) {
-									# TODO: add code
-								}
-								when (/filters/) {
-									# TODO: add code
-								}
-								when (/global/) {
-									# dont do anything, reserved for comments + starting point of file
-								}
-								when (/newfilepresets/) {
-
-									if ($data =~ /\A([^=]+)=([^=]+)\z/g) {
-										my ( $newname, $newdata ) = ( $1, $2 );
-										say("recognizing preset '$newname' which will point to '$newdata', use -p${newname} to use it");
-										$$newfilepresets{$newname} = $newdata;
-									}
-								}
-								default {
-									# who put this section without asking?
-									say("WARNING: section \"$section\" present in file, with line $_, which will be ignored!");
-								}
-							}
-							say ("section $section - $_") if $verbose;
-						}
-					}
-				}
-			}
-		}		
-	}
-}
-
-# [ score_files ]
-# description
-#	descipher a list of files, find their mimetype via magic, mime, or inode lookup, and
-#   add a point to it's linked score in the score list which is in turn a key in the list
-#   of programs, and which is a key in the list of resolved files (aka 'resolvers').
-# argument
-#  count/type(s)/desc: 1+/scalar(s)/one or more filenames to process
-# return 
-#  type/value: 0/none
-# notes
-#  makes modification to global variables
-# modifies
-#  $execpath - changed to program resolved using resolver pointed to by the score list
-# data stack/processing tree (followed by an example value)# 
-#  files				(/bin/ls,/usr/bin/autoreconf,autokey) <- note last is in system PATH so it will get resolved to /usr/bin/autokey if thats the only entry in the PATH, parsed in original PATH list order (first VALID entry found gets used!)
-#    +-> mimetypes             <- one at a time, used to make list (application/x-executable, application/x-perl, text/x-python, application/x-perl) in its caller
-#           +->scorelist	   /|-- each type above is evaluated against the list of mimes
-#                 +->mimes     \|-- in $mimes, which is used as a key to increment it's entry in the score list
-#                         +->execpath <- the highest entry in score list is translated into a binary executable
-#                                        by using the highest entry as the key for resolvers or "default" if no
-#                                        highest was found. if there is a tie between multiple resolvers, the 
-#                                        very LAST matching entry in the score->resolver list gets the priority.
-#                                        at this time, the order of the list is ambiguous per perl specification
-#										 in later versions sorting and order control may be available or via command line
-# executables are searched bottom-up*
-# mimes are checked top-down* (if sorting is available and enabled!)
-# otherwise the order of searching is random (this affects only the executable selection)
+#    SUMMARY OF VIM SETTINGS
 #
-sub score_files {
-	my @files = @_;
-	for my $file (@files) 
-	{
-		if ( -r $file ) 
-		{
-			
-			say("checking score for $file (".getmimetype("$file").")...");
-			my $sentry = mime2prog("$file");
-			$$scores{$sentry}++;
-			say("Scoring as " . mime2prog("$file") . ".");
-			
-		}
-	}
-	say("score results:");
-	say("prog $_ -> score = " . $$scores{$_} ) for keys($scores);
-	my $highest = "default";
-	for (keys($scores)) {
-		$highest = $_ if ($$scores{$_} >= $$scores{$highest});		
-	}	
-	say("winner: $highest");
-	say("resolving $highest to it's native form...");
-	my $native = $$resolvers{$highest};
-	say("resolved to $native ... plase wait!");
-	#die("testing this function");
-	$execpath = $native;
-	return $native;
-};
-
-# [ find ]
-# description
-#   locate file in system paths
-# argument
-#  count/desc: 1/filename
-# return 
-#  type/value: scalar/path+file resolved or same if not found
-# notes
-#  * gives back same value if already resolved or not found
+#    this file is configured to allow for a column stop at 80, shift and tab 
+#    stops (unexpanded) are set to 2. GUI Fonts are setup to be any monospaced
+#    font at a size of 18 to allow adequate viewing at resolutions from 1mp
+#    and higher. Adding any more modelines will need to adjust the mls to a 
+#    higher number. Indent-based folding with auto close/open, at level 9 and
+#    beyond. More and confirm prompts are ON. A GUI tab label is provided.
 #
-sub find {
-	my $file = shift // $_;
-	$_ = $file // $_ // die("must pass SOMETHING other than undef, or leave something in \$_");
-	return $file if ( -w $_ ); # already good
-	return $file if m/[\/\\]/g; # already bad
-	# not bad but not good ...
-	for my $path (@paths) {
-		my $p = path("$path")->child("$file");	# NB: see P::T note 1		
-		# BUGFIX: replaced ->exists with ->is_file, we dont want to edit directories
-		#   NOTE: you may or may not care to check write permissions, usually people who edit files want to be able to save their edits -- it is best to have this check stay in place
-		#   NOTE: assumes read-if-write, if this doesnt work for you, you can add -r as well (has not been an issue so far)
-		return $p if $p->is_file() && ( -w $p );
-	}
-	# did not find anything, leave as-is (we might be creating something new)
-	# spit filename back out as it was
-	return $file;
-}
-### Main Program Subs (nb: the empty param list preventing use of arguments as they are forbidden)
-
-# [ normalmode ]
-# description
-#  program's main entry point when running normally (not in the nonuser diagnostics mode)
-# argument
-#  count/desc: 0/none (argument list is intentionally locked out using () locks)
-# return 
-#  type/value: -1/see notes
-# notes
-#  * this sub does NOT return, it exits to the calling process directly passing the
-#    winner's exit code along. as long as winner runs, this program never gives its
-#    own status codes, those are found only in diagnostics mode. (the user does not
-#    need this anyhow and would probably make life miserable).
-#  * permissions, this function may change unexecutable scripts to make them
-#    executable (ie, newly created files this is especially useful), you can
-#    disable or restrict this behavior, read the notes below and in the header
-#    for further details.
-sub normalmode() {
-	getmoredirs();
-	@targets = grep { $_ = find } @ARGV;
-	say for @targets;
-	score_files(@targets);		# this will set $execpath based on file's internal data / mimetype and/or filenames
-	print("editing/creating/viewing...\n");
-	system($execpath,@targets);
-	for (@targets) {
-		given("$_")	{
-			when (-r -w) {
-				say "performing post-op on $_...\n";
-				my $target = path("$_");
-				given (getmimetype("$_")) {
-					# NB: executable state check for applications
-					when (/application/) {
-						print("$_ (application) making executable...");								
-						if ($target->exists()) {						
-							print("exists=ok! ... chmod a+x=");
-							if ($target->chmod("a+x")) {
-								say "all ok!";
-							} else {
-								say "chmod failed (check your permissions!)";
-							}
-						} else {
-							say("cannot stat $target anymore, ugo+r permissions may have JUST changed!!")
-
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-# [ echo ]
-# description
-#   the 'say' version of 'printf'
-# argument
-#  count/desc: */list of scalars to join together (with a space separator) and print, following a newline
-# return 
-#  type/value: whatever printf spits back out
-# notes
-#  * use caution with multiple values, dont forget to format your strings
-#  * a newline is always written at the end of all the strings, but not inbetween
-#  * to print out multiple lines, you will want to make sure your FIRST argument is joined properly!
-#
-sub echo { 
-	printf @_;
-	printf("%s","\n")
-}
-
-# [ diagnostics ]
-# description
-# 	runs diagnostic mode for debugging (programmer use only)
-# argument
-#  count/desc: 0/none (args intentionally locked out)
-# return 
-#  type/value: 0/none
-# notes
-#  * allows programmers direct access to all subs and vars, able to call/dump/manip
-#    program as they need for testing purposes, set the diagnostics flag at the
-#    beginning of the program to turn this on (it is hard coded to prevent accidental
-#    entry by the users of the program).
-#
-sub diagnostics() {
-
-	echo("entering diagnostics mode... (with args=@ARGV)");
-	my $keepgoing=1;
-    use Term::ReadLine;		# loaded when needed only, these modules
-	use Term::ANSIColor;
-    my $term = Term::ReadLine->new('diagnostics-mode');
-	my $prompt = "ef-diag>  ";
-    my $OUT = $term->OUT || \*STDOUT;
-	my $histfile = path("$ENV{HOME}")->child(".efhist");
-	$histfile->touch unless $histfile->exists;	# create it if its not there
-	die("cant create history in homedir!! $! $?") unless $histfile->exists;
-	my @hist = $histfile->lines;	# read in lines
-	$term->addhistory($_) for @hist;
-
-	D_MAIN:while ($keepgoing) 
-	{
-	    D_PROMPT:while ( defined ($_ = $term->readline($prompt)) ) 
-		{
-			given($_) {
-				when (/exit/) {
-					last D_PROMPT;
-				}
-				default {
-	    			my $res = eval($_);
-	    			warn $@ if $@;
-	    	    	print $OUT $res, "\n" unless $@;
-    	    		$term->addhistory($_) if /\S/;
-					unshift(@hist,$_);
-				}
-			}
-		}
-		my $yn="?";
-		YN:while(1) { $yn = $term->readline("really exit? [y/n]"); $_ = $yn; last YN if /\A[YyNn]\z/; };
-		$_ = $yn;
-		$keepgoing = 0 if /[Yy]/;
-	
-	}
-}
-given($diagnostic_mode) {
-	diagnostics when 1;
-	normalmode when 0;
-	default { normalmode; }
-}
-
-
+# vim: mls=3:ft=perl:fdl=9:fdm=indent:fen:fcl=all:fdo=all:cc=3,79:sw=2:ts=2:bs=2
+# vim: noet:more:prompt:ls=2:ru:mls=5:gfn=Mono\ 18:nowrap
+=cut

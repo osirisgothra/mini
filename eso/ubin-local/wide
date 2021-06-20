@@ -1,0 +1,42 @@
+#!/usr/bin/perl
+use warnings;
+use strict;
+use v5.20.2;
+use feature 'signatures';
+no warnings 'experimental';
+use Path::Tiny;
+use Cwd;
+use Getopt::Long::Descriptive;
+my %colorindexes = ();
+
+my $line = 0;
+for (<>) {
+    $line++;
+    chomp;
+    printf("line %04d---.",$line);
+    my $x = "";
+    my @x =  split(/	/,$_);
+    
+    say("	            |- item=[$_]") for (@x);
+    say("               |_ total " . @x . " lines");
+}
+#
+#
+#  my ($opt, $usage) = describe_options(
+#    path($0)->basename() . ' %o TERMS',
+#    [ 'verbose|v',  "print extra stuff"            ],
+#    [ 'help',       "print usage message and exit", { shortcircuit => 1 } ],
+#  );
+#
+#print($usage->text), exit if $opt->help;
+#
+#
+#my @terms = map {  / / ?  '"' . $_ . '"' : $_; } @ARGV;
+#my $site = "https://www.google.com/search?q=%s";
+#my $urlstr = join("+",@terms);
+#my $url = sprintf($site,$urlstr);
+#
+#system("www-browser",$url)
+#
+#
+#

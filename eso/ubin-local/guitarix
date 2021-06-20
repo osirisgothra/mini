@@ -1,0 +1,21 @@
+#!/bin/zsh
+audioapp="/bin/guitarix"
+if [[ $1 != forked ]]; then
+    echo "self-forking"
+    qfork "$0" forked "$@"
+else
+    shift
+    if pgrep jack; then
+        echo "jack running already, not starting it"
+        stopjack=0
+    else
+        echo "starting/stopping jack automatically"
+        stopjack=1
+        jackon
+    fi
+    $audioapp "$@"
+    if ((stopjack)); then
+        echo "stop jack"
+        jackoff
+    fi
+fi   

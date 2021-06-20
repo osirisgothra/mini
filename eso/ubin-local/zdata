@@ -1,0 +1,28 @@
+#!/bin/zsh
+
+
+doit()
+{
+    for x in ${(k)parameters}; do item=${(P)x};len=${#item}; print -Pn "%F{237}(%F{12}$parameters[$x]%F{239}) %B%F{82}$x %F{195}"; [[ ${parameters[$x]} =~ (assoc|scalar|float|integer) && $x != TIMEFMT && $len -lt 80 ]] && print -P "= ${(P)x}%f%b" || print -P "%f(data, $len bytes)%b%k^[[0m"; done | sort | less -raw
+}
+case $- in
+*i*)    
+    alias zdata="source zdata"
+    if [[ $1 != --install-alias-only ]]; then
+        echo "getting items, please wait a few sec"; sleep 0.5
+        doit
+    fi
+    return
+    ;;
+*)  
+    echo "you must source this program using the 'source' keyword or '.' from zsh"
+    echo "(you wont have to do it, however, the next time as it will install an alias for you--"
+    echo " this can be avoided by installing the alias yourself into the zshrc startup script)"
+    echo "YOU WILL BE SEEING A SANDBOXED ENVIRONMENT..."; sleep 0.5;
+    doit
+    exit
+esac
+
+# add this line to your .zshrc script to always have it:
+
+alias zdata="source zdata"

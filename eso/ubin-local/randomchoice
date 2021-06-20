@@ -1,11 +1,93 @@
 #!/usr/bin/perl
+#
+# FILE
+#    randomchoice
+#      randomly picks an argument fed in from the command line
+#      and the index of that argument is fed to the exit value
+#
+# PROJECT
+#    randomchoice-proj
+#	 project randomchoice-proj: container for randomchoice
+#
+# AUTHOR / COPYRIGHT
+#
+#    Copyright (C) 2021, 
+#
+#    Written by  osirisgothra@larnica.(none)
+#    Latest versions of this and all of 's projects can be
+#    obtained from:
+#
+#     <<projbranch>>
+#
+#    Documentation Available At:
+#
+#     <http://www.github.com/osirisgothra/randomchoice-proj.git>
+#
+# LICENSE
+#
+#    randomchoice-proj/randomchoice  is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  NOTES
+#
+#     * TODO: move 'use' statements to top if you want to keep them**
+#    ** this feature will be added to the next version of perltemplate (hopefully)
+#   *** warnings are disabled for experimental and once because they are pretty
+#       annoying here, you might want to re-enable them for your own program
+#       to do this during testing and development.
+#
+#  CSCS2021 COMPLIANCE
+#
+#   The Author has verfied that the file adheres to the '2020 Columnized Strict Commenting Scheme' which is
+#   also known as the "2020/CSCS". This scheme requires that 1) all comments are in the form of footnotes
+#   with only a refnum in the far right column. This is in an effort to join the massive need for commenting
+#   your code reformation goin on all over the world, 2) footnotes are at the END of the file, beyond any
+#   executable code or other footnotes. Are easy to read and spot. 3) Do not count for more than 20% of the file's size.
+#   3-CODE Status: PASS PASS PASS (all 100/100/85=95%) A score of 80% or better is required to be 2020CSCS compliant.
+#
+#  HISTORY
+#
+#	Mon Jun 14 13:31:14 2021
+#         osirisgothra@larnica.(none) created this file using the template generator 'perltemplate'
+#         and named it randomchoice for the project '<projname'.
+#
+#
+# (created with perltemplate by Gabriel T. Sharp <osirisgothra@hotmail.com>)
+#
 
 use warnings;
 use strict;
 use v5.20.2;
-
 no warnings 'experimental';
-no warnings 'experimental::signatures';
-
 use feature 'signatures';
 
+
+my $quiet = 1 if @ARGV && $ARGV[0] eq "-q";
+shift(@ARGV) if $quiet;
+(say("\nrandomchoice [-q] CHOICE1 ...\n\n\t-q       do not return selected value on console\n  -h --help     show help message\n\nLICENSE: GNU GPL3 (author Gabriel T. Sharp, osirisgothra on github)\n\n"), exit(0)) if @ARGV && ( $ARGV[0] eq "--help" || $ARGV[0] eq "-h" ); 
+(say("\nno arguments\nuse -h or --help to see arguments\n"),exit(0)) unless @ARGV > 0;                                   #2
+exit(1) if @ARGV == 1;                                      #1
+my $choice = ( int( rand() * (@ARGV) ) + 1 );               #3
+my $choice_value = $ARGV[$choice-1];                        #4
+say($choice_value) unless $quiet;
+exit($choice);
+
+
+#cs21k  score 95%, target = 92-98% (acquired!)
+
+#1
+#2   zero(0) has undefined imaginary behavior and shouldnt be used
+#    negative numbers have no place as they are fanatical numbers
+#3   all other positives
+#4   indexes are zero-based, but return values are one-based

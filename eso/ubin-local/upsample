@@ -1,0 +1,125 @@
+#!/usr/bin/perl
+#
+# FILE
+#    upsample
+#    up-sample an image, or down if named downsample
+#
+# PROJECT
+#    mini
+#	 esoteric projects and scripts
+#
+# AUTHOR / COPYRIGHT
+#
+#    Copyright (C) osirisgothra@hotmail.com, Gabriel Sharp, T.
+#
+#    Written by Gabriel Sharp, T. osirisgothra@larnica.(none)
+#    Latest versions of this and all of Gabriel Sharp, T.'s projects can be
+#    obtained from:
+#
+#     <<projbranch>>
+#
+#    Documentation Available At:
+#
+#     <May 5 2021>
+#
+# LICENSE
+#
+#    mini/upsample  is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  NOTES
+#
+#     * TODO: move 'use' statements to top if you want to keep them**
+#    ** this feature will be added to the next version of perltemplate (hopefully)
+#   *** warnings are disabled for experimental and once because they are pretty
+#       annoying here, you might want to re-enable them for your own program
+#       to do this during testing and development.
+#
+#  HISTORY
+#
+#	2021
+#         larnica@osirisgothra/mini.git created this file using the template generator 'perltemplate'
+#         and named it upsample for the project '<projname'.
+#
+#
+# (created with perltemplate by Gabriel T. Sharp <osirisgothra@hotmail.com>)
+#
+
+use warnings;
+use v5.18;
+use strict;
+no warnings "experimental";			# 	allow given/when/default and smartmatching without their warnings***
+no warnings "once";					# 	allow variables to be used just once without warning***
+use feature "signatures";
+use Cwd;
+use Path::Tiny;
+use Getopt::Long::Descriptive;
+use vars qw[ $opt $usage $term ];
+use Term::Put;
+
+# SUBS
+
+sub setup_options() {
+  describe_options ( 
+    'my-program %o FILE(s)',
+    [ 'backup',     "create backup files" ],
+    [ 'help',       "print usage message and exit", { shortcircuit => 1 } ],
+  );                                     
+}
+sub convert($filename,$w=64,$h=64) {
+    qx[ cp $filename ${filename}.bak ] if $opt->backup;
+    qx[ convert-im6 $filename -strip -intent perceptual -resize ${w}x${h} -colorspace sRGB PNG32:$filename ];
+    return ( $? == 0 ? 1 : undef );
+}
+sub cprintf {
+    printf($term->colorize( sprintf( shift, @_ ) ));
+}
+sub csay(@items) {
+   
+    return unless @items;
+    my $str = "";
+    $str .= $_ for @items;
+    $str = $term->colorize($str);
+    return say($str);    
+}
+
+# SCALARS
+
+($opt, $usage) = setup_options;
+$term = new Term::Put();
+
+# LISTS
+
+my @files = ();
+
+# PROGRAM
+
+print($usage->text), exit if $opt->help;
+for (@ARGV) {
+        $_ = path($_)->absolute();
+        die("fatal: $_ cannot be accessed (read/write)")
+            unless -r -w;            
+        push(@files, $_);
+}
+cprintf("~12files~23%s~7\n","test");
+for (@files) {
+    cprintf("~15converting~32%s~8...",$_);
+    cprintf( "%s\n",convert($_)?"~2ok~7":"~1failed~8,~1 skipping~7");
+}
+
+
+
+
+
+

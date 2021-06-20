@@ -20,14 +20,24 @@ sub CORE::say($str,@more) {
     return 
 }
 
-die("needs superuser to run..") unless ( POSIX::geteuid() == 0 );
+unless ( POSIX::geteuid() == 0 )
+{
+    if (@ARGV) { die("reparsing as superuser failed") if $ARGV[0] eq "DONOTREPARSE"; }
+    say("attempting run as superuser...");
+    system("sudo",$0,"DONOTREPARSE",@ARGV);
+    exit($?);    
+}
+else
+{
+    if (@ARGV) { shift(@ARGV) if $ARGV[0] eq "DONOTREPARSE"; }
+}
 
 my %version=( major => 1, minor => 1, revision => 0 );
 my $banner_padding=1;   # applies to beginning and end (1 means 2 total lines of pad, use NUM/2 if you want to specify NUM as the total number of padding, if it is an odd number, the top will get the extra space(s))
 my $banner="\"QPK\"\n ($0, pid=$$)\n Quick Process Killer\n Version $version{major}.$version{minor}r$version{revision}\n Written by Gabriel T. Sharp, Jan 2021\n This program is licensed under the GNU GPL (version 3.0)\n Please see the GNU website at www.gnu.org for more details and a copy of this license.\n";
 my $padtext="\n";
 my $clear_before_use = 0;   # set to 1 to make more secure
-my $term = Term::ReadLine->new('Process Killer Quickly');
+my $reader = Term::ReadLine->new('Process Killer Quickly');
 my $prompt = "#MODE# qpk> ";
 my $intused=0;
   
@@ -61,18 +71,17 @@ if ( $clear_before_use ) {
     clear;
 }
 
-# use Term::Put;
-# my $term_iface = new Term::Put();
-# my $lines = $term->lines;             # will be added once Term::Put is official
-# my $cols = $term->cols;
-
+use Term::Put;
+my $term = new Term::Put();
+my $lines = $term->lines;             # will be added once Term::Put is official
+my $cols = $term->cols;
+say("\nterminal size: $lines x $cols\n");
+`sync`;
 print($padtext x ceil($banner_padding), $banner, $padtext x floor($banner_padding));
 
 my $baseprogname = path($0)->basename();
-my $lines = `tput lines`; # todo add Term::Put support
-my $cols = `tput cols`;
-die("cannot determine terminal height") if ( $lines =~ /^[0-9]+\z/ );
-die("cannot determine terminal width") if ( $cols =~ /^[0-9]+\z/ );
+die("cannot determine terminal height") unless ( $lines =~ /^[0-9]+\z/ );
+die("cannot determine terminal width") unless ( $cols =~ /^[0-9]+\z/ );
                                     
 my $isinvalid = 1;
 my $hascontent = 0;
@@ -99,7 +108,7 @@ while(1) {
 	my $fmtprompt = $prompt;
 	$fmtprompt = formatprompt($prompt);
 	
-    my $r = $term->readline($fmtprompt);    
+    my $r = $reader->readline($fmtprompt);    
     my @cmds=$r ? split(/ /,$r) : ();
     $hascontent=$r ? 1 : 0;
     my $argc=@cmds;
@@ -128,6 +137,18 @@ Check out the GNU website for more info and details on the license GNU GPL3+.
 				");
 				$isinvalid=0;
 			}
+		when (/stop (.*)|stop/) {
+	        my $items = $1;
+		    if ($items) {
+                my @servicelist = split(" ",$items);
+		        say("going to try to stop (items=$items): ");
+		        say("service $_") for @servicelist;
+		    } else {
+		        say("syntax: stop [service(s)] ...");
+	        }
+	        $isinvalid = 0 ;
+		    
+		}
 		when (/chsig .*/)   {
 								my $newsig=$r;
 								$newsig =~ s/^chsig\s+//g;
@@ -214,7 +235,7 @@ Check out the GNU website for more info and details on the license GNU GPL3+.
         when (/exit|quit/)  {
                                 my $answer="";                                
                                 GETANSWER:while(1) {
-                                    $answer=$term->readline("do you really want to exit qpk [y/[n]]?");
+                                    $answer=$reader->readline("do you really want to exit qpk [y/[n]]?");
                                     $answer="n" if $answer eq "";
                                     chomp($answer);                                    
                                     last GETANSWER if $answer =~ /\A[yn]\z/;
@@ -277,7 +298,7 @@ Check out the GNU website for more info and details on the license GNU GPL3+.
 	                            }
                             }
     }
-    $term->addhistory($r) if $r =~ /\S/;
+    $reader->addhistory($r) if $r =~ /\S/;
 }
 continue
 {

@@ -1,47 +1,193 @@
-#!/bin/zsh
-declare -gA s_msg=(	nolaststop "no last stop file, make one using args for stop first (see --help for details)"
-					helptext "syntax: stop [service] [service] [...]\nor: stop --help    or: stop <no args, uses last args used, if any>\nor: stop --revert\n\nif they were not --help (prior to last reboot), reuse does not replace."
-					revert "atempting to revert..."
-					reinstate_ok "reinstated item ok"
-					reinstate_fail "failed to reinstate items"
-					stopping		"requesting systemd to stop service:"
-				  )
-msg() { echo -ne $s_msg[$1]; if [[ $# -eq 2 ]]; then eval "exit err_$2"; fi; }
-err_help=125
-err_ok=126
-err_error=127
-err_fatal=128
-err_critical=129
+#!/usr/bin/perl
+#
+# FILE
+#    stop
+#    stop it
+#
+# PROJECT
+#    mini
+#	 eso
+#
+# AUTHOR / COPYRIGHT
+#
+#    Copyright (C) 2021, 
+#
+#    Written by  osirisgothra@larnica.(none)
+#    Latest versions of this and all of 's projects can be
+#    obtained from:
+#
+#     <<projbranch>>
+#
+#    Documentation Available At:
+#
+#     <http://www.github.com/osirisgothra/mini.git>
+#
+# LICENSE
+#
+#    mini/stop  is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  NOTES
+#
+#     * TODO: move 'use' statements to top if you want to keep them**
+#    ** this feature will be added to the next version of perltemplate (hopefully)
+#   *** warnings are disabled for experimental and once because they are pretty
+#       annoying here, you might want to re-enable them for your own program
+#       to do this during testing and development.
+#
+#  HISTORY
+#
+#	Mon Apr 19 19:58:11 2021
+#         osirisgothra@larnica.(none) created this file using the template generator 'perltemplate'
+#         and named it stop for the project '<projname'.
+#
+#
+# (created with perltemplate by Gabriel T. Sharp <osirisgothra@hotmail.com>)
+#
 
-case $# in
-	0)	if [[ -r /tmp/laststop ]]; then
-		cat /tmp/laststop | while read r; do
-			sudo systemctl stop "$x"
-		done
-		else
-			msg nolaststop fatal
-		fi
-		;;
-	*)	[[ $* =~ --help ]] && {
-			msg helptext help
-		}
-		[[ $* =~ --revert ]] && {
-			msg revert
-			if [[ -r /tmp/laststop ]]; then
-				{ while read item; do
-					echo -ne $item
-					start $item && msg reinstate_ok || msg reinstate_fail
-				done } < /tmp/laststop
-			else
-				msg nolaststop fatal
-			fi
-		} || {
-		[[ -r /tmp/laststop ]] && rm /tmp/laststop -f
-		for x; do
-			msg stopping
-			echo " $x"
-			sudo systemctl stop "$x"
-			echo "$x" >> /tmp/laststop
-		done }
-		;;
-esac
+use warnings;
+use v5.18;
+use strict;
+no warnings "experimental";			# 	allow given/when/default and smartmatching without their warnings***
+no warnings "once";					# 	allow variables to be used just once without warning***
+use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
+use Path::Tiny;
+use Term::Put;
+use IO::Proc;
+use vars qw( $extrahelp );
+print("\n");
+
+my @u_files =  ( path("$ENV{HOME}/.config/.stop_usualsrc"),
+                 path("$ENV{HOME}/.stopitrc"),
+                 path("/etc/stopitrc.config"),
+               );        
+my @usuals = ();
+
+
+
+
+my ($opt, $usage) = describe_options(
+    path($0)->basename() . ' %o TARGET ...',
+    [],
+    [ 'dry|d',      "perform operations but echo instead of execute" ],
+    [ 'record|U',   "record these TARGET(s) to the usuals list" ],
+    [ 'usuals|u',   "also kill usuals (see -U and extra help)" ],
+    [ 'verbose|v',  "print extra stuff"            ],
+    [ 'help|h',       "print usage message and exit" ],
+    [ 'help-all|H', "show --help and include extra help also" ],
+);
+
+for my $u_file (@u_files) {
+
+    say("processing $u_file");
+    my @l = ( -r $u_file ? $u_file->lines() : () );
+    if (@l) {
+        say(scalar(@l) . " entries in $u_file");                    
+        for my $line ( grep 
+                       { 
+                            /^[^# 	\s]+$/ 
+                       } 
+                       @l 
+                     )
+        {
+            chomp $line;            
+            push(@usuals,$line);
+            say("added $line to usuals (from $u_file)") if $opt->verbose;
+        }                           
+    } else {
+        say("no entries in $u_file");
+    }        
+    
+}
+
+
+$extrahelp = $opt->help_all ? "
+    Extra Help
+
+    TARGET
+    
+        Each non-option will be taken as a TARGET name, which
+        will be killed by either systemctl(1) or killall(1).
+
+    PID
+
+        Numeric targets will be considered process ID numbers (pid)
+
+    USUALS
+
+        When -u is used, any stop that was recorded with -U will be
+        done at once. Usuals are stored in the each user-context file
+        in which exists and contains valid single words. Read on to
+        see which filenames are tested.
+
+    USUAL FILENAMES
+
+        These files are tested for existence on each use of -U and
+        can be one or more of the following:
+
+        \"~/.config/.stop_usualsrc\"           For new linux users, to follow new semantics.
+        \"~/.stopitrc\"                        Older linux users may like this better*.
+        \"/etc/stopitrc.config\"               A system-wide list, system owner usually writes this.
+
+        * Also best used for cross-platform, though it is unlikely to
+        be much use to non unix-like platforms such as Windows.   
+
+":"";
+(print($usage . "\n" . $extrahelp),exit) if ( $opt->help || $opt->help_all );
+my @exts = qw( path socket timer service );
+my $term = new Term::Put();
+use feature 'signatures';
+no warnings 'experimental';
+
+if ($opt->usuals) {
+    if ( @usuals ) {
+        say("including ".@usuals." usual(s) in the kill list");
+        say for @usuals;
+        unshift(@ARGV,$_) for @usuals;               
+    } else {
+        say("no usuals configured, see --help-all for details.");
+    }
+}
+
+
+sub sstop($x,$y) {
+    `sudo /bin/systemctl stop ${x}.${y} 2>&1`;        
+}
+sub killall($x)
+{
+    `sudo /bin/killall -KILL $x 2>&1`;
+}
+sub sync()
+{
+    `sudo /bin/sync 2>&1`;
+}
+for my $x (@ARGV) {
+    $term->printf("~2killing any forms of $x~8..");
+    my $j=25;
+    for my $y (@exts) {
+        $j+=6;
+        $term->printf("~$j$y ");
+        sstop($x,$y);
+    }
+    sync();    
+    if (IO::Proc::exists($x)) {
+        $term->printf("~6kill~8->");            
+        killall($x);
+        $term->csay("~5killed.");            
+    }
+    else
+    {
+        $term->csay("~13alldead");
+    }
+}   

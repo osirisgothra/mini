@@ -1,0 +1,34 @@
+#!/bin/zsh
+zoomin() { zoominw $1; zoominh $1; }
+zoomout() { zoomoutw $1; zoomouth $1; }
+zoomoutw()
+{
+    i3-msg resize shrink width $1 px
+    i3-msg move right $(( $1 / 2 )) px
+}        
+zoominw()
+{
+    i3-msg resize grow width $1 px
+    i3-msg move left $(( $1 / 2 )) px
+}        
+zoomouth()
+{
+    i3-msg resize shrink height $1 px
+    i3-msg move down $(( $1 / 2 )) px
+}        
+zoominh()
+{
+    i3-msg resize grow height $1 px
+    i3-msg move up $(( $1 / 2 )) px
+}       
+case $# in
+    0)  echo "syntax: i3move [zoom[[in|out]<[w|h]>]]";;
+    *)  case $1 in
+            zoom*)  ${1} ${2-64};;
+            *)      echo "$1 not understood";;
+        esac
+esac
+    
+ 
+    
+        

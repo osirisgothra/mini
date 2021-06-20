@@ -62,7 +62,7 @@ use feature "signatures";
 use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
 use Curses::UI;
 use Path::Tiny;
-
+use Curses;
 
 sub sy3($target,@args)
 {    
@@ -117,7 +117,11 @@ my $cui;  # Main Program Object, it must be global so accessor/menu/etc subs can
 # -|     FUNC B    +    B     |-> tries to access var, and can because its global
 #  +---------------+----------+
 
+my $menu = undef;
+my $edwin = undef;
+my $editor = undef;
 my $file = undef;
+my $edtext = "";
 my $statusbar_showing = 0;
 my $statusbar_text = "I am some status text";
 sub exit_dialog()
@@ -133,8 +137,13 @@ sub curses_prog()
     say("curses: entering setting");
 
     my $debug = 0;  #1=yes 0=no
-    $cui = Curses::UI->new( -color_support => 1, -clear_on_exit => 1, -debug => $debug, ); # this is where we gloss over setting up all the widgets and data structures + start the event loop
-
+    $cui = Curses::UI->new( 
+        -color_support => 1, 
+        -clear_on_exit => 1, 
+        -debug => $debug, 
+        -mouse_support => 1, 
+    ); 
+    
     # menu subs
 
     sub help_contents_act
@@ -184,7 +193,34 @@ sub curses_prog()
     }
     sub undo_act
     {
-        # todo: undo something
+
+        use Term::Put;
+        my $t = new Term::Put;
+        my ($w, $h) = ( $t->cols, $t->lines);
+        
+    my ($p1, $p2) = (2,4);
+ #   use Curses::UI;
+#    my $cui = new Curses::UI;
+     $edwin = $cui->add('editwindow_00' . int(rand()*15), 'Window',
+        -x => $p1, 
+        -y => $p1,
+        -border => 1,
+        -width => $w-$p2, 
+        -height => $h-$p2,
+        -titlefullwidth => 1,
+        -title => "Source Editor",
+     );
+     $editor = $edwin->add(
+        
+        'myeditor', 'TextEditor',
+        -vscrollbar => 1,
+        -wrapping   => 1,
+        
+    );
+
+    $editor->focus();
+    $edtext = $editor->get();
+
     }
     sub redo_act
     {
@@ -253,7 +289,11 @@ sub curses_prog()
                 },
 
                 );
-    $cui->add( 'menu','Menubar', -menu => \@menu, -fg => "blue",);
+    $menu = $cui->add( 'menu','Menubar', -menu => \@menu, -fg => "blue",);
+    $cui->set_binding(sub {$menu->focus()}, KEY_F(10));
+    $cui->set_binding(sub {$menu->focus()}, "\x1b");
+    
+
     $cui->mainloop;
 }    
 curses_prog();

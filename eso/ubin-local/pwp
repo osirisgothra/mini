@@ -5,7 +5,7 @@
 #    github/osirisgothra/mini[dev]/eso/ubin-local
 #    small insignificant esoteric projects, usually only consisting of a single file
 #
-#    Copyright (C) 1995-2018 Gabriel Thomas Sharp
+#    Copyright (C) 2018-2021 Gabriel Thomas Sharp
 #
 #    Written by Gabriel T. Sharp <21shariria@gmail.com>
 #    Latest versions of this and all of my projects can be
@@ -39,6 +39,13 @@
 #	one so far that can be setup here without breaching restrictive protocol.
 #	I wrote this script for dwm, tinywm, evilwm, i3, icewm, blackbox, and a
 #	slew of other small window managers including my own personal gxdwm.
+#  +2019 Update: added some XFCE support, will add some others if i can get my hands
+#   on a better PC because dealing with dbus is a pain on my slow pc :(
+#  +2021 Update: planned update will be moving the entire project to perl, and probably
+#   to its own project folder (it is exceeding the limits of a 'mini' project
+#   and has more than just a single file now, these plans have no set date
+#   but are mentioned here for informational purposes for those who wish to know
+#   the project's future).
 #
 # ANNOTATIONS
 #
@@ -61,7 +68,15 @@
 #			is a restricted mode program, nothing like that is done here.
 #
 # HISTORY
-#
+#    Thu Oct 18 14:12:11 EDT 2018
+#          osirisgothra@larnica created this file, adding the header
+#          with the name 'pick-wallpaper', which would later be changed
+#          to 'pwp' to save millions of not-needed keystrokes! the language
+#          was originally sh (via rsh) and then bash (rbash), both in restricted
+#          mode, intended for high-security areas of use. The project originally
+#          was using xsetroot instead of hsetroot, had very very basic stuff, 
+#          however this annotation was added later (header and license)
+#          original license was public domain in 2018, changed to GPL3 in 2019
 #    Sat Aug 17 08:15:17 EDT 2019
 # 			osirisgothra@larnica fixed some things:
 #				- last of old redirection code is fixed (not allowed in rzsh!)
@@ -92,6 +107,9 @@
 #
 #   WARNING -- WRITTEN FOR RESTRICTED SHELL MODE#
 #	read about  restricted (rzsh) shell modes in your zsh(1) or zshall(1)
+#   +update: as of 2019 no longer restricted (not needed), if you wish
+#    to have restrictions on pwp, please add a security profile to your
+#    security management system (PAM, SELINUX, etc).
 #	man pages
 #
 #  (this header was created using the template generator by Gabriel T. Sharp)
@@ -334,6 +352,12 @@ declare -gx pwp_icewm_binary="icewmbg"
 declare -gx pwp_pgrep_binary="pgrep"
 declare -gx pwp_icewmbg_pid="$(command $pwp_pgrep_binary -x${icewmbg_process_age: 0:1} icewmbg || echo '-1')"
 declare -gx pwp_images=( )
+# you can add your own, of course
+# or replace them entirely, just use the usual web format
+# first entry is the color's name (for the command line use)
+# or you can just use the index, which is starting at 0 (as shown below v)
+# the color value is webrgb (NOT webargb! this might get added later when
+# image layering is added in)
 declare -gA pwp_presets=(
 	'Havelock Blue' '#3399FF'										# 0
 	'Havelock Blue' '#65B2FF'          								# 1

@@ -37,6 +37,9 @@ esac
 
 
 echo -ne "loading help..."
+
+echo "entering mode: short search (autodetecting search)"
+
 # TODO: compile a class cache if possible
 if [[ $1 =~ [A-Za-z_][_A-Za-z0-9]*::[_A-Za-z][_A-Za-z0-9]* ]] || [[ $* =~ perl ]]; then
 	echo "appears to be a perl classname or doc fastrunning result to perldoc"
@@ -55,20 +58,35 @@ if [[ $1 =~ [A-Za-z_][_A-Za-z0-9]*::[_A-Za-z][_A-Za-z0-9]* ]] || [[ $* =~ perl ]
 		echo "reader reports: ok"
 		exit 0
 	else
-		echo "reader reports: failed :( "
-		echo -ne "...continuing the search..."
+		echo "reader could not open as autodetect"
+		echo "attempting have perldoc open module directly..."
+		if perldoc -m "$1"; then
+		    echo "read ok"
+		    exit 0
+		else
+		    echo "reader could not open as a module directly (code: $?)"
+		fi
 	fi
 fi
+
+
 goodcount=0
+
 arg=( -v -f -q -- -a )
+modes=( "Variable" "Function" "FAQ Entry" "Perldoc Detect" "Perl API"
+curmode=1
 for x in $arg; do
-	echo -ne '..'
+    echo "entering mode: perldoc/${modes[$curmode]}"
+    let curmode++
 	files=`perldoc -l $x "$@" 2>/dev/null`
 	if [[ $? -eq 0 ]]; then
 		perldoc $x "$@" && let goodcount++
 	fi
 done
+
+
 if [[ $goodcount -lt 1 ]]; then
+    echo "entering mode: manpage/sectional search (when formatted text(section))"
 	echo -ne '..'
 	item="$*"
 	case $item in
@@ -85,10 +103,18 @@ if [[ $goodcount -lt 1 ]]; then
 	esac
 fi
 if [[ $goodcount -lt 1 ]]; then
+    echo "enter mode: info (texinfo) search"
 	echo -ne '..'
 	info "$@" && let goodcount++
 fi
 if [[ $goodcount -lt 1 ]]; then
-	echo -ne '..'
-	nano /usr/share/doc/$*/^*.gz
+    echo "entering mode: documents in /usr/share/doc (if any are present, and not compressed)"
+	nano /usr/share/doc/$*/^*.gz && let goodcount++
 fi
+if [[ $goodcount -lt 1 ]]; then
+    echo "no help could be found, exhaused ALL methods, using a text web search to point you in the right direction (hopefully)"
+    if www-browser "https://www.google.com/search?q=perl+$*"; then
+        echo "sorry, browser method failed, try praying to gods!"
+    else
+        echo "exiting perlhelp..."
+    fi

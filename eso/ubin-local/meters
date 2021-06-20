@@ -1,0 +1,85 @@
+#!/usr/bin/perl
+#
+# FILE
+#    meters
+#    meters
+#
+# PROJECT
+#    mini.git
+#	 eso/ubin-local
+#
+# AUTHOR / COPYRIGHT
+#
+#    Copyright (C) 2021, 
+#
+#    Written by  osirisgothra@larnica.(none)
+#    Latest versions of this and all of 's projects can be
+#    obtained from:
+#
+#     <<projbranch>>
+#
+#    Documentation Available At:
+#
+#     <http://www.github.com/osirisgothra/mini.git.git>
+#
+# LICENSE
+#
+#    mini.git/meters  is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  NOTES
+#
+#     * TODO: move 'use' statements to top if you want to keep them**
+#    ** this feature will be added to the next version of perltemplate (hopefully)
+#   *** warnings are disabled for experimental and once because they are pretty
+#       annoying here, you might want to re-enable them for your own program
+#       to do this during testing and development.
+#
+#  HISTORY
+#
+#	Sun Apr 11 14:19:30 2021
+#         osirisgothra@larnica.(none) created this file using the template generator 'perltemplate'
+#         and named it meters for the project '<projname'.
+#
+#
+# (created with perltemplate by Gabriel T. Sharp <osirisgothra@hotmail.com>)
+# probably the last program to use perltemplate, unitemplate will be replacing template, perltemplate,gtkperltemplate
+# 
+
+use warnings;
+use v5.18;
+use strict;
+no warnings "experimental";			# 	allow given/when/default and smartmatching without their warnings***
+no warnings "once";					# 	allow variables to be used just once without warning***
+use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
+
+my ($opt, $usage) = describe_options(
+    '$0 %o <some-arg> file',
+    [ 'no-dialog', "dont use dialog to show log",  ],
+    [ 'no-follow',   "do not follow the log, just show it",   { default  => 79 } ],
+    [],
+    [ 'verbose|v',  "print extra stuff"            ],
+    [ 'help',       "print usage message and exit" ],
+);
+
+say($usage->text), exit if $opt->help;
+
+say for @ports;
+unless (fork()) {
+  exec("meterbridge","-t","vu",@ports)
+}
+
+
+
+

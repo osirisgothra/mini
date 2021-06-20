@@ -1,9 +1,10 @@
 #!/usr/bin/perl
 #
-#   qv
-#   quick and dirty image viewer
-#   requires Gtk2 bindings
-#   does not require Webkit, however
+#   qv - a quick & dirty image viewer
+#   requires the perl Gtk2 bindings
+#   written by Gabriel T. Sharp
+#   <osirisgothra@hotmail.com>
+#   GNU GPL 3.0
 #
 
 use v5.20.2;
@@ -12,26 +13,70 @@ use strict;
 use Path::Tiny qw(path);
 use Gtk2 -init;
 use Getopt::Long::Descriptive;
-use File::MimeInfo;                 # no magic
-# make local copies of (these get changed by G::L::Descriptive)
-my $argc = $#ARGV;
+#use File::MimeInfo;                 #4
+use feature 'signatures';
+no warnings 'experimental';
+
+my $argc = $#ARGV;                  #10
 my @argv = @ARGV;
+my $cache_done = 0;
+my %cache;
 
-  use Getopt::Long::Descriptive;
+sub cache_mimes {
 
-  my ($opt, $usage) = describe_options(
-    'qv %o <image1 ...>\nqv %o <text1 ...>',
-    [],
-    [ 'man|m', "manpage mode" ],
-    [ 'verbose|v',  "print extra stuff"            ],
-    [ 'help',       "print usage message and exit", { shortcircuit => 1 } ],
-  );
+    warn("cache_mimes called when cache is already done, this should not happen!") if $cache_done;
+    say("caching file data...");
+    my @mimes = split("\n",`file --mime-type -n @ARGV`);
+    for (@mimes) {
+        my ($filename, $type) =  split(": ",$_);
+        $cache{$filename} = $type;
+    }
+    $cache_done=1;       
+    say("loading files...");    #12
+}
+sub mimetype($filename)
+{    
+    cache_mimes() unless $cache_done;    
+    if ( $cache{$filename} ) {
+        return $cache{$filename};
+    } else {       
+        return "text/plain";    #11
+    }
+       
+}
+my ($opt, $usage) = describe_options(
+'qv %o <image1 ...>\nqv %o <text1 ...>',
+[],
+[ 'man|m', "manpage mode" ],
+[ 'verbose|v',  "print extra stuff"            ],
+[ 'help',       "print usage message and exit", { shortcircuit => 1 } ],
+[ 'debug|d',    "print debug messages and stderr" ],
+[ 'fork|b',     "run in background/fork after gui opens, will have the side effect of making the chunking limit feature delegate to multiple windows at once instead of waiting for the next one to end" ],
+);
 
-  print($usage->text), exit if $opt->help;
+
+close STDERR unless $opt->debug;
+print($usage->text), exit if $opt->help;
+if ($argc > 100) {
+    
+    say("more than 100 files, an interface will be used to show in groups of 100, close the window to show the next group
+WARNING: background/fork mode will show ALL windows at once!");
+    while (@ARGV) {
+        my @grpitems = splice(@ARGV,0,100);
+        say("showing next group of " . scalar(@grpitems));
+        system($0,@grpitems);
+    }
+    exit();
+}
+#13
+use Data::Dumper;
+
 
 my $w=new Gtk2::Window( "GTK_WINDOW_TOPLEVEL" );
 $w->set_title('Quick Viewer ' . $argc . ' Items Opened');
-$w->signal_connect('delete_event' => sub { Gtk2->main_quit; });
+$w->signal_connect('delete_event' => sub($widget,$event) { Gtk2->main_quit; });
+#9
+
 $w->set_border_width(3);
 $w->set_position('center_always');
 
@@ -39,6 +84,7 @@ my $v=new Gtk2::VBox();
 my $s=new Gtk2::ScrolledWindow();
 my $i=undef;
 my $n=undef;
+
 for $n (@ARGV)
 {
     $n = path($n);
@@ -48,31 +94,20 @@ for $n (@ARGV)
         if ( -r $n )  
         {
         
-            given(mimetype($n))
+            given(mimetype($n)) #8
             {
-                # wrap images into an HBox that has
-                # a label with some markup in it, and the image itself next door to it (to the left like file managers do)
                 when (/image/) {
                     my $l = new Gtk2::Label();
-                    my $h = new Gtk2::HBox();                   
-                    $h->set_size_request(16,16);                    
-                    $l->set_use_markup(1); # switch to pseudo-ml (pango) format in text
+                    my $h = new Gtk2::VBox();                   
+                   
+                    $h->set_size_request(64,64);                    
+                    $l->set_use_markup(1); #7
                     $l->set_markup
-
-
-
-                    ("<a href=\"".$n->realpath()."\">" . $n->basename() . "</a>");  
-                    # anchor a URL so user can access the whole link
-                    # note: pango defaults to not letting clicks happen, and we only want the copy link function
-                    # (because I hate programs that open a browser and so on, id rather it copy the link, thats what
-                    # happens here, right click the link and you get a menu and choose it from there, as it should be)
-                    
-                    
-                                        
+                    ("<a href=\"file://".$n->realpath()."\">" . $n->basename() . "</a>");   #6                                      
                     $i= new Gtk2::Image();
                     $i->set_from_file($n);    
-                    $h->add($i);        # add image
-                    $h->add($l);        # add text describing image
+                    $h->add($i);        #5
+                    $h->add($l);        #5
                     $v->add($h);
                 }
                 default {
@@ -102,9 +137,35 @@ for $n (@ARGV)
 }    
 $s->add_with_viewport($v);
 $w->add($s);
-# this determines the size of the entire window only
-$w->set_default_size(640,480);
+$w->set_default_size(640,480); #1
 $w->show_all();
+if ($opt->fork) {
+    say("forking...");
+    exit(0) if fork();
+}
 Gtk2->main();
 
-
+#1 this determines the size of the entire window only
+#2 remove filename from 'filename: mimetype'
+#4 for some reason this incorrectly id's the files without extensions due to
+#  no magic (removed in favor of system-based mimetype command)
+#  update: no longer using the mimetype script, it is quite slow, instead using
+#          the unbuffered 'file' program, and sending ALL filenames at once to
+#          remove the choke point during file parsing, status messages are also
+#           reduced to just 1 per operational chunk.
+#5 add image# add text describing image
+#6 anchor a URL so user can access the whole link
+#  note: pango defaults to not letting clicks happen, and we only want the copy link function
+#  (because I hate programs that open a browser and so on, id rather it copy the link, thats what
+#  happens here, right click the link and you get a menu and choose it from there, as it should be)
+#7 switch to pseudo-ml (pango) format in text                    
+#8 wrap images into an HBox that has
+#  a label with some markup in it, and the image itself next door to it (to the left like file managers do)                      
+#9 removed:
+#  note: use 'for (@_) { if (($ref))' to see what
+#  $w->signal_connect('key_press_event' => sub($w,$e,$k) { say($e->keysym); });
+#
+#10 make local copies of (these get changed by G::L::Descriptive)
+#11 failed to cache file during cache_mimes, return the fallback of text/plain (its just the data in the raw)
+#12 always happens after cache, best place to put this message per the rules 
+#13 dumper not needed before here, saves some time when using stuff like --help, or to prevent loading extra moduels when in batch mode

@@ -1,0 +1,23 @@
+#!/bin/zsh
+# makeid3vars
+# creates variables (when evaluated, like resize  does)
+# for id3 tags, and a tag called numfiles which holds the count
+# usage: makeid3vars [dir]
+#        source makeid3vars [dir]
+#        . makeid3vars [dir]
+[[ $# -gt 1 ]] && echo "too many (#$ instead of 0 or 1) ignoring extra commands (first command only used)"
+case $- in
+    *r*)    echo "cannot run in restricted mode, aborting";;
+    *i*)    eval `"$0" "$@"`;;
+    *)      [[ -d "$1" ]] && pushd $1 && needpop=1 && shift
+            y=0
+            for x in *.mp3; do
+                let y++
+                echo "declare -gA file$y=( "
+                id3 -R -l $x | perl -wne 'if (/.+/) { s/: / "/g;s/\s*\n/"\n/g; print "\t$_";  };'
+                echo " ); "
+            done
+            echo "declare -gi filecount=\"$y\""
+            [[ $needpop == 1 ]] && popd
+            ;;
+esac

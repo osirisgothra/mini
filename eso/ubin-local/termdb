@@ -61,6 +61,7 @@ use strict;
 use v5.20.2;
 use Getopt::Long::Descriptive;
 use Path::Tiny;
+use POSIX           qw( ceil floor );
 use Term::Put;
 no warnings "experimental";
 use constant { FALLBACK_GUI_TERM => "xterm", FALLBACK_CLI_TERM => "linux" };   
@@ -559,15 +560,23 @@ my $shortfmt="%17s %42s %7s %10s %s";
 
 sub elide	
 {
-    my $str = shift;
-    my $maxlen = shift;
-    if (length($str) >= $maxlen)
-    {
-    	return(substr($str,1,$maxlen));
-    }
-    else
-    {
-    	return $str;
+    my $s = shift;  my $l = length($s); my $p = chr(32);
+    my $m = shift;  my $r = $m - $l;
+    $m=$m-1 if ($m % 2 != 0);    
+    if ($l >= $m)    {
+        if ($m > 4) {
+            my $sl = (floor($m/2));
+            my $ls = substr($s, 0, $sl);
+            my $rs = substr($s, 1-$sl, $sl);
+            my $fa = ($ls . ($opt->ascii ? ".." : "←→") . $rs);
+            my $fal = length($fa);
+            return $fa;
+        } else {
+    	    return(substr($s,0,$m));
+	    }
+    } else {
+    	my $rstr = $s . ( $p x $r );
+    	return $rstr;
 	}
 }
 
@@ -579,6 +588,7 @@ sub parse_commandline($progname) {
         ###########################################################################################################################################################################################################################################################################################################################
         [ 'verbose|v', "print extra information" ],
         [],
+        [ 'ascii|a', "use ascii instead of unicode characters (for older terminals, safe mode, etc)" ],
         [ 'scope|s=s@', "specify scope of search, one ore more of: terminfo termcap kind text(default) all(special meta value which represents all three) This argument can be specified more than once", { default => [ "text" ] } ],
         [ 'list|l',   "list codes only one per line, you can use -L to specify either terminfo or termcap (termcap is default when -l option is used)", ],
         [ 'list-type|L=s',  "specify the type of items to list when used with and only makes sense when -l is in effect", { default => "termcap" }, ],
@@ -654,35 +664,46 @@ given($opt->format) {
     when (/auto/)   { $mode = (@founds > 3) ? "short" : "long"; }
     default         { $mode = $opt->format; }
 }    
+sub say(@s) {
+    $term->csay(@s);
+}
 
 # Display Results
+sub showitem($fmt, $n,$d,$c,$i,$k) {
+	given($fmt) 
+	{
+	    my @f = map { "~" . $_ } qw ( 22 24 26 28 30 );
+	    my @wp =                 qw ( 25 50 10 10 5 );
+	    my @w = ();
+	    for my $cp (@wp) {
+	        my $res = ceil($term->cols * ( $cp / 100 ));
+	        
+	        push(@w, $res-1);
+	    }
+    	die("format $fmt is not supported") unless /long|short/;
+		when (/long/)
+		{			
+			say("	  friendly_name:" . $f[0] . " $n");
+    		say("		description:" . $f[1] . " $d");
+     		say("		 termcap_id:" . $f[2] . " $c");
+    		say("	    terminfo_id:" . $f[3] . " $i");
+     		say("		 value_kind:" . $f[4] . " $k");
+     	}
+     	when (/short/) {
+     	    $n = $f[0] . elide($n,$w[0]-1);    # @15
+     	    $d = $f[1] . elide($d,$w[1]-1);    # @40
+     	    $c = $f[2] . elide($c,$w[2]-1);    # @5 
+     	    $i = $f[3] . elide($i,$w[3]-1);    # @10
+     	    $k = $f[4] . elide($k,$w[4]-1);
+			$term->csay(sprintf("%s %s %s %s %s",$n,$d,$c,$i,$k));			
+		}
+	}
+}
 
 for my $k (@founds)
 {		
 	my %hr = %{$termdb{$k}};
-	my ($tc, $ti, $kind, $desc) = ( $hr{termcap}, $hr{terminfo}, $hr{kind}, $hr{label} );
-	no warnings 'experimental';
-	given($mode) 
-	{
-		when (/long/)
-		{			
-			say("	  friendly_name: $k");
-    		say("		description: $desc");
-     		say("		 termcap_id: $tc");
-    		say("	    terminfo_id: $ti");
-     		say("		 value_kind: $kind");
-     	}
-     	when (/short/)
-     	{   # 15/40/5/10/* TODO: softcode and get elide-ints from $shortfmt[x,y]
-     	    # -=-- re-TODO: instead use Text::Elider from my othe project along with Term::Put and File::Config::RCINI/INI for config, terminal and formatter
-			say(sprintf($shortfmt,elide($k,15),elide($desc,40),elide($tc,5),elide($ti,10),$kind));
-		}
-		default 
-		{ 
-			printf("houston, we have a problem -- format $mode is not supported!");
-			exit(127);
-		}
-	}
+    showitem($mode, $k, $hr{label}, $hr{termcap}, $hr{terminfo}, $hr{kind});
 
 }
 

@@ -1,0 +1,136 @@
+#!/usr/bin/perl
+#
+#   perlgtk-template
+#   sample template for perltemplate
+#   
+#    perlgtk.template
+#    template for gtk2 programs, example for perltemplate(3pm)
+#    mini
+#    esoteric projects, small projects (but not private or proprietary projects)
+#
+#    Copyright (C) 1995-2021 Gabriel T. Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all projects can be
+#    obtained by visiting the repository at:
+#
+#    <https://github.com/osirisgothra>
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Sat 27 Feb 2021 10:41:03 AM EST
+#            osirisgothra@ initially created this file
+#            with the original name, perlgtk.template
+#
+#
+#
+#  This template and header was created using the template generator by Gabriel T. Sharp
+#  You can download the latest version at: <https://www.github.com/osirisgothra/mini.git/eso/ubin-local/template>
+#  (the url is subject to changes on github's behalf, please submit a pull request to fix or request a fix on any url changes)
+#
+
+
+
+use v5.20.2;                        
+use warnings;                      
+use strict;                         
+use feature "signatures";
+
+use Path::Tiny qw(path);            # portable path handling
+use Gtk2 -init;                     # gtk2 core lib and init it
+use Glib qw/TRUE FALSE/;
+use Gtk2::Gdk::Keysyms;
+use Getopt::Long::Descriptive;      # magic for CL options
+use File::MimeInfo;                 # no magic
+use Try::Tiny;                      # exception handling
+use Data::Dumper;
+no warnings "experimental";
+
+my $argc = $#ARGV;              
+my @argv = @ARGV;
+my $prog_path = path($0);
+my $prog_name = $prog_path->basename();
+
+
+  use Getopt::Long::Descriptive;
+
+  my ($opt, $usage) = describe_options(
+    'perlgtk-template %o CAPTION RUNNER [CONTAINER] [FMTSTRING]',
+    [],
+    [ 'verbose|v',  "print extra stuff"            ],
+    [ 'help',       "print usage message and exit", { shortcircuit => 1 } ],
+  );
+my $initial="";
+  print($usage->text), exit if $opt->help;
+my $caption=shift(@ARGV) // "Type the name of a program, folder, document, or Internet resource, and Ubuntu will open it for you.";
+my $winmain=new Gtk2::Window( "GTK_WINDOW_TOPLEVEL" );
+my $scrollbox=new Gtk2::ScrolledWindow();
+my $label=new Gtk2::Label();
+my $entry=new Gtk2::Entry();
+$entry->set_text("$initial");
+$label->set_text("$caption");
+my $vbox=new Gtk2::VBox(0,1);
+my $hbox_t = new Gtk2::HBox();
+my $hbox_b = new Gtk2::HBox();
+my $icon = Gtk2::Image->new_from_icon_name("application-running","large-toolbar");
+my $openlabel = new Gtk2::Label();
+$openlabel->set_text("Open:");
+$hbox_b->add($openlabel);
+$hbox_t->add($icon);
+
+$hbox_t->add($label);
+$hbox_b->add($entry);
+$vbox->add($hbox_t);
+$vbox->add($hbox_b);
+$winmain->set_title('Run');
+$winmain->signal_connect('delete_event' => sub { Gtk2->main_quit; });
+$winmain->signal_connect('check-resize' => sub { `i3-msg floating enable`; });
+$winmain->set_border_width(3);
+$winmain->set_position('center_always');
+#$scrollbox->add_with_viewport($vbox);
+#$winmain->add($scrollbox);
+$winmain->add($vbox);
+$winmain->set_default_size(10,150);
+$winmain->show_all();
+$winmain->signal_connect('key-press-event' => \&signal_keypress);
+$winmain->signal_connect (destroy => sub { Gtk2->main_quit });
+Gtk2->main();
+
+sub signal_keypress($widget=undef,$event=undef,$parameter=undef)
+{
+    my $k = $event->keyval();
+    if ($k == $Gtk2::Gdk::Keysyms{"Return"} ||
+        $k == $Gtk2::Gdk::Keysyms{"KP_Enter"} ) {   
+        exec($entry->get_text()) unless fork;
+        $winmain->destroy();
+        exit(0);
+    }
+    if ($k == $Gtk2::Gdk::Keysyms{"Escape"})
+    {
+        $winmain->destroy();
+        exit(1);                    # < cancel status
+    }
+   
+
+    
+   
+    return FALSE;
+}
+
+
+
+

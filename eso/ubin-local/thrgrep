@@ -70,6 +70,15 @@ use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or 
 my ($opt, $usage) = describe_options(
     $0 . ' %o <some-arg> file',
     [],
+
+    [ 'nice|n=i',  "niceness (-20 to 19) default is 0", { default => 0 }            ],
+    [ 'ionice|i=s',  "ioniceness class (realtime, best-effort, idle, or none (default)", { default => "none" }      ],
+    [ 'level|l=s',  "ioniceness level (default is 5)", { default => 5 }      ],
+
+# tbi:    
+#    [ 'class|c=s',  "ionice class"            ],
+#    [ 'level|l=i',  "ionice level (0-7)"            ],
+#    [ 'processor|p=s',  "CPU to use, 0=auto, or a bitfield of which CPUs to use"            ],
     [ 'verbose|v',  "print extra stuff"            ],
     [ 'help',       "print usage message and exit" ],
 );
@@ -77,7 +86,18 @@ my ($opt, $usage) = describe_options(
 say($usage->text), exit if $opt->help;
 say("getopt: arguments processed: $#ARGV");
 
-
 # init process i/o object (with our PID as the owner)
 
 my $proc = new IO::Proc($$);
+
+say("we are ". $proc->name . " and ".$proc->pid);
+say("arguments: @ARGV (" . (scalar(@ARGV)) . ")");
+
+for (@ARGV) {
+
+    my $acton = IO::Proc::fromname($_);
+    say("acting on " . $acton->name . " and ".$acton->pid);
+    say `echo renice -n $opt->nice -p $acton->pid`;
+    say `echo ionice -n $opt->class -c $opt->level -p $acton->pid`;
+    
+}

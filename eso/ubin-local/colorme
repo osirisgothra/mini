@@ -5,8 +5,23 @@ use strict;
 use v5.20;
 use Path::Tiny;
 use Getopt::Long::Descriptive;
-use File::Slurp;
-use Curses::UI;
+use Term::Put;
+
+my $term=new Term::Put();
+
+;
+for (<>) {
+    # strip ansi codes first
+    s/\x1b\[[0-9;]*[a-zA-Z]//g;
+    my @words = split(/\s/,$_);
+    for my $word (@words)
+    {
+        $term->csay("~11","$word");
+    }
+    
+}
+exit();
+
 
 
 # example of a complete output segment

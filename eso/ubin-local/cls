@@ -1,0 +1,111 @@
+#!/usr/bin/env perl
+use warnings;
+use strict;
+use Cwd;
+
+
+use feature 'signatures';
+no warnings 'experimental';
+@ARGV = @ARGV < 1 ? cwd() : @ARGV;
+my $cc=-1;
+sub getsize($size)
+{
+            my $c = 17;
+                given($size) {
+                    $c = 17 when $_ == 0;                   # empty
+                    $c = 18 when $_ < 64 ;                  # 64b
+                    $c = 19 when $_ < 256;                  # 256b
+                    $c = 53 when $_ < 1024;                 # 1k
+                    $c = 89 when $_ < 65535;                # 64k
+                    $c = 125 when $_ < 1024**2;             # 1MB
+                    $c = 161 when $_ < ((1024**2) * 50);    # 50MB
+                    $c = 197 when $_ < ((1024**2) * 250);   # 0.25GB
+                    $c = 245 when $_ >= ((1024**2) * 250);  # >= 0.25GB
+                    $c = 255 when $_ >= (1024**3);           # >= 1GB
+
+                }      
+        return $c;           
+}
+sub pl()
+{
+    my %sr = (  "aEmpty" => 0,
+                "b< 64b" => 63,
+                "c< 256b" => 255,
+                "d< 1k" => 1023,
+                "e< 64k" => 65534,
+                "f< 1MB" => 1024**2,
+                "g< 50MB" => ((1024**2)*50)-1,
+                "h< 250MB" => ((1024**2) *250)-1,
+                "i>=250MB" => ((1024**2) *250)+1,
+                "j>1GB" => ((1024**3)+1),
+            );
+    for (sort(keys(%sr))) {
+        my $c = getsize($sr{$_});
+        printf("[38;5;${c}m%10s[0m ",substr($_,1));
+    }
+}
+$_="";
+say;pl;say;say;
+
+for (@ARGV) {
+    if (-d) {
+         
+        chdir($_);   
+        my $width = $ENV{COLUMNS} // `tput cols` // 80;
+        my $cols = $width > 32 ? $width / 32 : 1;
+        my $colw=($width/$cols)-2;
+        
+        my $spacer = "|" unless $cc <= 0;
+        $spacer = "" if $cc <= 0;
+        printf("[1D$spacer[38;5;22m[48;5;120m[2m[%" .( $colw - 2 )."s][0m ",$_);
+        $cc++ if $cc >= -1;       
+        $cc=1 if $cc <= 0;
+        printf("\n") if $cc % $cols == 0;            
+        my $hdir;
+        opendir($hdir,cwd());
+        my @n = sort { $a =~ /([^.]*)$/; my $c=$1;  $b =~ /([^.]*)$/;my $d=$1;  $c cmp $d } readdir($hdir);
+        closedir($hdir);
+        my $dots=4;
+        for (@n) {
+            $cc++;
+            my $out = "";
+            sub sf($z) { print "[38;5;" . $z . "m"; ""; }
+            sub sb($z) { print "[48;5;" . $z . "m"; ""; }
+            sub ssb($z) { "[48;5;" . $z . "m"; }
+            sub rs() { print "[0m"; }
+            sb(232) if -d;
+            sb(252) if -l;    
+            sb(166) unless ( -r );
+               
+            
+                my @x = stat($_);
+                my $s = $x[7] // 0;
+                my $c = getsize($s);
+                                
+                sf($c);        
+            
+
+               if ( -d $_ ) {  }
+            elsif ( -l $_ ) { print "[34;1m"; }
+
+            if (length($_) <= $colw) {
+                $out = sprintf("%-${colw}s" . ssb(0) . " ",$_);
+            }else{
+                $out = substr($_,0,($colw-($dots))/2) . 
+                              ($dots ? ( "." x ($dots) ) : "") .
+                       substr($_,0-($colw-($dots))/2,($colw-($dots))/2) .
+                         ssb(0) . " ";
+            }
+            #die("bad length") if length($_) != $colw;
+            print("$out");
+            printf("\n") if $cc % $cols == 0;            
+            rs;
+        }
+    } else {
+        printf("dont know what to do with $_\n");
+    }
+    
+}
+
+
+exit;

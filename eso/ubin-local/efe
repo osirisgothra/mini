@@ -1,0 +1,149 @@
+#!/usr/bin/perl
+#
+# FILE
+#    efe
+#    editors frontend
+#
+# PROJECT
+#    mini
+#	 esoteric projects
+#
+# AUTHOR / COPYRIGHT
+#
+#    Copyright (C) osirisgothra@homail.com, Gabriel Sharp
+#
+#    Written by Gabriel Sharp osirisgothra@larnica.(none)
+#    Latest versions of this and all of Gabriel Sharp's projects can be
+#    obtained from:
+#
+#     <<projbranch>>
+#
+#    Documentation Available At:
+#
+#     <Sat 03 Apr 2021 08:03:09 PM EDT>
+#
+# LICENSE
+#
+#    mini/efe  is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  NOTES
+#
+#     * TODO: move 'use' statements to top if you want to keep them**
+#    ** this feature will be added to the next version of perltemplate (hopefully)
+#   *** warnings are disabled for experimental and once because they are pretty
+#       annoying here, you might want to re-enable them for your own program
+#       to do this during testing and development.
+#
+#  HISTORY
+#
+#	2021
+#         larnica@paradisim.net@mini created this file using the template generator 'perltemplate'
+#         and named it efe for the project '<projname'.
+#
+#
+# (created with perltemplate by Gabriel T. Sharp <osirisgothra@hotmail.com>)
+#
+
+use warnings;
+use v5.18;
+use strict;
+no warnings "experimental";			# 	allow given/when/default and smartmatching without their warnings***
+no warnings "once";					# 	allow variables to be used just once without warning***
+use Path::Tiny;
+use Getopt::Long::Descriptive;
+use Data::Dumper qw(Dumper);
+use UUID qw(uuid);
+use feature 'signatures';
+use constant NO_COPY => uuid();
+
+
+my %err = (   help => 127,    ok => 0,
+             fatal => 2,    quit => 1,  );
+my $H = path($ENV{"HOME"} // "");            
+    die("cannot determine home directory") unless $H->is_dir();
+my ($opt, $usage) = describe_options(
+    path($0)->basename() . ' %o filename(s) ...',
+    [],    
+    [ 'gui|g', "gui mode forced" ],
+    [ 'con|c', "console mode forced" ],
+    [ 'prs|p=s', "preset to use (defaults to nano)", { default => "nano" } ],
+    [ 'nolook|n', "do not look" ],
+    [ 'forcelook|l', "force look" ],
+    [ 'verbose|v',  "print extra stuff"            ],
+    [ 'help',       "print usage message and exit" ],
+);
+my %editors = ( nano => {   targets =>  { con => "/bin/nano", gui => "/bin/nano" },   
+                            configs =>  { con => $H->child(".nanorc-console"),
+                                          gui => $H->child(".nanorc-x"),
+                                          dst => $H->child(".nanorc"),
+                                        },
+                        },
+                vim =>  {   targets =>  { con => "/usr/bin/vim", gui => "/usr/bin/gvim" },
+                            configs =>  { con => $H->child(".vimrc"),
+                                          gui => $H->child(".gvimrc"),
+                                          dst => NO_COPY
+                                        },
+                        },
+               );
+
+
+say($usage->text), exit if $opt->help;
+sub getmoo() {
+    if ( $ENV{DISPLAY} =~ /:[0-9]+(\.[0-9]+)?/ ) {    
+        return "gui";
+    } else {
+        return "con";
+    }
+}
+sub validate_configs($preset,$mode)
+{
+    if ( $editors{$preset}->{configs}->{dst} eq NO_COPY ) {
+        say("no copy required, skipping copy");        
+    } else {
+        my $src = path( $editors{$preset}->{configs}->{$mode} );
+        my $dst = path( $editors{$preset}->{configs}->{dst} );
+        say("copying $src to $dst configuration");
+        my $data=$src->slurp();
+        $dst->spew($data);
+    }
+    
+    return 0;
+}
+sub main($argc = @ARGV,$argv = \@ARGV,$envp = \%ENV) {
+    say("using preset: " . $opt->prs );
+    if ($argc) {
+        my $mode = getmoo();
+        validate_configs($opt->prs,$mode);
+        my $bin = $editors{$opt->prs}->{targets}->{$mode};
+        system($bin,@$argv);
+    } else {
+        $opt->help;
+        exit($err{help});        
+        die("insufficient arguments\n");
+    }
+    
+    
+}
+main;
+
+
+
+
+
+
+
+
+
+

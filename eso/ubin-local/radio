@@ -1,0 +1,37 @@
+#!/bin/zsh
+# radio - very esoteric radio, aimed at icecast
+#         
+# by gabriel sharp, 2021 March Tues 24, DMHD
+# paradisim, NCG
+# in repo: http://github.com/osirisgothra/mini, subdir: /eso/ubin-local
+# this file's license is public domain, or, GPL3 if public domain is not available in your region (dont use WTFPL, ever, its very sketchy)
+# assumes you generated a list with VLC (see how below) or made your own with each line an #EXTINFxxx,Title
+# and then the next line a URL to the stream, preferrable that they have extensions, but not required
+# if they have extensions all, then remove the -t flag as mentioned just below here.
+# expects your Music folder to have a WebRadio folder in it
+# expects the WebRadio folder filled with m3u files (prefer single files, but multi ok too)
+# expects the streams to be in mpeg layer-3 format, remove '-t mp3' if you want autodetect, but that requires a header, something mp3 streams rarely have
+# expects you have sox linked to a 'play' link in your PATH (usually core on desktops or workstations but not servers)
+# expects you have zsh installed
+# expects you have dialog (usually core) installed
+# expects you have (duh) a sound device
+# to generate such things you will want to use VLC and save each icecast entry separately OR split a single list on the command line
+# heres the command I used, provided as an example:   
+#    tail -n+1 webradio-spring-2021.m3u > webradio.m3u
+#    IFS=$'\n';for a b in $(<webradio.m3u); do echo "#M3UEXT\n$b" > ${${(s:,:)a}: 1}.m3u; done
+# this takes each entry and names the file according to the EXTINF data, make sure you remove the M3UEXT header first!
+# warning: some lines might get skipped so check the file to be sure VLC wrote an EXTINF line for EVERY file in the list (its a bug in VLC but since EXTINF isnt required, it never got fixed)
+# you can alter the default dir here:
+cd ~/Music/WebRadio
+while true; do 
+# TODO, change to input menu with rename support, if wanted bad enough!
+    r=$(eval dialog --output-fd 1 --no-tags --menu "Play" 0 0 25 $(for x in *; do echo ${(qq)x} ${(qq)x}; done);)
+    # stop any playback
+    killall -KILL play &> /dev/null
+    # break and exit if no file readable (means usually that cancel or break was pressed, or no response chosen
+    [[ -r $r ]] || break
+    # play in background and return to dialog
+    play -q -t mp3 "$r" &
+    # clear response for next loop
+    unset r
+done

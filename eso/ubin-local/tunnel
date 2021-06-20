@@ -1,0 +1,3 @@
+#!/bin/zsh
+# file mode, private info contained in it (authentication stuff)
+exec ~/tunnel

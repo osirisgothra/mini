@@ -1,0 +1,116 @@
+#!/usr/bin/perl
+#
+# FILE
+#    xfork
+#    xforks a command line, with a (zsh) shell
+#
+# PROJECT
+#    xfork-proj
+#	 project xfork-proj: container for xfork
+#
+# AUTHOR / COPYRIGHT
+#
+#    Copyright (C) 2021, 
+#
+#    Written by  osirisgothra@larnica.(none)
+#    Latest versions of this and all of 's projects can be
+#    obtained from:
+#
+#     <<projbranch>>
+#
+#    Documentation Available At:
+#
+#     <http://www.github.com/osirisgothra/xfork-proj.git>
+#
+# LICENSE
+#
+#    xfork-proj/xfork  is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  NOTES
+#
+#     * TODO: move 'use' statements to top if you want to keep them**
+#    ** this feature will be added to the next version of perltemplate (hopefully)
+#   *** warnings are disabled for experimental and once because they are pretty
+#       annoying here, you might want to re-enable them for your own program
+#       to do this during testing and development.
+#
+#  HISTORY
+#
+#	Sat Jun  5 20:14:30 2021
+#         osirisgothra@larnica.(none) created this file using the template generator 'perltemplate'
+#         and named it xfork for the project '<projname'.
+#
+#
+# (created with perltemplate by Gabriel T. Sharp <osirisgothra@hotmail.com>)
+#
+
+use warnings;
+use v5.18;
+use strict;
+no warnings "experimental";			# 	allow given/when/default and smartmatching without their warnings***
+no warnings "once";					# 	allow variables to be used just once without warning***
+use feature 'signatures';
+
+use Getopt::Long::Descriptive;
+
+sub getshell($uid)
+{
+    return "/bin/zsh";  
+
+#2
+
+#
+#    unless ( -r "/etc/passwd" ) {
+#        say("cannot read user settings file, defaulting to sh as your shell");
+#        return "/bin/sh" if -x "/bin/sh";
+#        say("warning: /bin/sh un-executable, just returning plain sh hope its in your path!");
+#        return "sh";
+#    }           
+#    my @passwd = path("/etc/passwd")->lines();
+#    die("fatal: empty passwd file, check your passwd file! (corrupt filesystem/out of disk space?") unless @passwd;
+         
+    
+}
+
+my $user_shell = getshell($ENV{UID} // "1000");
+
+my ($opt, $usage) = describe_options( 
+            "syntax: xfork %o program-arguments",
+            [   "help", "shows this help" ],
+            );
+
+if ($opt->help) {
+    say($usage); exit(127);
+}
+
+unless (fork()) {
+    close STDOUT;
+    close STDERR;
+    close STDIN;
+    
+    exec( "xterm", "-e", "$user_shell", "-c", @ARGV ) if @ARGV; #1
+    exec( "xterm", ) unless @ARGV;
+    die("exec failed!");
+}    
+
+
+# cs21k comments
+
+#1  using a zsh shell here because if you suspend whatever app you started
+#   you will want a shell (otherwise you cant get back into the app!)
+#2  unfinished, but end of work day
+#   next problem: also, think about why #1 did not work, suspend still
+#   causes a freeze POSSIBLY: interactive mode without rc needed?
+    

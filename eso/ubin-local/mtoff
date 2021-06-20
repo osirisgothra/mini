@@ -1,0 +1,7 @@
+#!/bin/sh
+. ~/bin/common.sh
+__killrunning mtrun
+__killrunning minetest
+__ifrunning i3 mode default 2> /dev/null 1> /dev/null
+__isrunning minetest && echo "warning: minetest did not die" || exit 0
+exit 127

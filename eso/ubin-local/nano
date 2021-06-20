@@ -1,6 +1,47 @@
 #!/bin/zsh
-# ^  in case this doesnt work or gets changed somehow linked to sh
-# v- check to make sure we are running zsh and not sh
+#
+#    fenano
+#    front end for nano, yet again
+#    mini
+#    eso/ubin-local
+#
+#    Copyright (C) 1995-2021 Gabriel T. Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all projects can be
+#    obtained by visiting the repository at:
+#
+#    <https://github.com/osirisgothra>
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.        for x in
+
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Fri 26 Mar 2021 09:05:39 PM EDT
+#            osirisgothra@ initially created this file
+#            with the original name, fenano
+#
+#
+#
+#  This template and header was created using the template generator by Gabriel T. Sharp
+#  You can download the latest version at: <https://www.github.com/osirisgothra/mini.git/eso/ubin-local/template>
+#  (the url is subject to changes on github's behalf, please submit a pull request to fix or request a fix on any url changes)
+#
+
+# non-zsh shell checks
 
 emulate sh
 printf "checking shell\n"
@@ -9,18 +50,22 @@ if test "x${ZSH_VERSION}" = "x";  then
 	exit 127
 fi
 printf "checking version\n"
-# v- by this point here, ZSH_VERSION is set, $0 contains /path/to/zsh
+
+# zsh version checks
+
 if test ${ZSH_VERSION%%.*} -lt 3; then
 	printf "This zsh version $ZSH_VERSION is too old, script requires zsh => 3.0 in order to run correctly!\n"
 	exit 126
+else
+    printf "$ZSH_VERSION detected\n"
 fi
-printf "setting mode of operation\n"
 
-# v- by this point, zsh is running, and its either v3.0 or newer, safe to end sh emulation
+# init
 
 emulate zsh
-
 declare -ga created=( )
+
+# cleanup routine(s)
 
 cleanup()
 {
@@ -38,40 +83,39 @@ cleanup()
 }
 trap -- cleanup HUP INT EXIT QUIT KILL
 
-# autoexpand locations (look-for-here-locations) (NEVER put system paths in here!!!)
+# subroutines
 
+
+hr() 
+{  
+    repeat ${COLUMNS-15} { printf "-" } 
+}
 debug_pollargs()
-{
+{   #1
     echo -n "main::$0: args=${(j:,:)@}"
     echo -n " ($# argument"
     [[ $# -ne 1 ]] && print -P 's)' || print -P ')'
 }
 
-#debug_pollargs $@
+# options
 
-# lfhls: look for file here list
-# format: any zsh-expandable string (ie, ~ is same as /home/yourname or $HOME)
-#         prefix with a '@' to include entire directory tree underneath*
-#
-# * dangerous if misused (like '/' is a VERY bad idea and is blacklisted but others exist, cough*/usr*cough)
-# discern if we need to look
+setopt aliases
+setopt interactivecomments
 
-# rules at this time:   rule                if true then need_to_look equals...
-# 1                     files all exist     0
-# 2                     user is not root    1
-# 3                     load averages > 2.4 0
-# 4                     memory < 50MB       0
-# 5                     user can read tmp   mask 1**
-# 6                     --help is the only arg (special: bypasses all)
-# **set to 1 if already 1, 0 otherwise
-# *** TODO: some of this is still not implemented!
-setopt aliases; alias array='declare -ga' dict='declare -gA' global='declare -g'
+# aliases
 
+alias array='declare -ga' dict='declare -gA' global='declare -g'
+
+# declarations
+
+integer -g use_priority_paths=1
+integer -g use_home=1
+integer -g use_fsroot=0
 integer -g need_to_look=0
 integer -g load_is_high=0
 integer -g mem_is_low=0
 float   -g load_level=1
-array   -g lfhls=(  ~/bin ~/www @/tmp/recur @/src/perl )
+array   -g checkfirst_paths=(  ~/bin ~/www @/tmp/recur @/src/perl )
 float   -g loadlimit=2.5
 float   -g load_level="${$(</proc/loadavg)[1]}"
 integer -g mem_limit_mb=50
@@ -79,54 +123,107 @@ integer -g mbfree=$(( $(awk '{ if (/mF/) print $2; }' /proc/meminfo) / 1024 ))
 array   -g cml=( )
 array   -g nano_nonexec=( '.txt' '.md' 'README' '.html' '.htm' '.ini' 'rc' '.cnf' '.conf' 'tab' '(more to come, add  them here)' )
 global     pts_assume_gui=1
+array   -g filenames_blacklist=( "README.md" )
+array   -g prefixes_blacklist=( "/tmp" )
+array   -g extension_blacklist=( ".tmp" ".nfo" ".txt" )
 global     gui_term="xterm-256color"
 array   -g ignore_terms=( stterm st fbterm ansi vt100 vt350 )
 global     con_term="linux"
 global     nano_target="/bin/nano"
+global     notty_target="/usr/bin/gvim"
+global     notty=0
 global     gui_file=~/.nanorc-x
 global     con_file=~/.nanorc-console
 global     rc_file=~/.nanorc
+array   -g priority_paths=( )
 
 
+# rule 0 - check for a blind terminal, and supply one if none are found (except in cases of no current X session attached)
 
-# AUTONANO_NOPERLINC            0/undefined=use perl paths from @INC  
-#                               1=disable all perl paths
-# AUTONANO_PERLINC_NORECURSE    0/undefined=when using paths for perl, recurse into subdirs prefix is added (see later for what that does)
-#                               1=only use top-level paths from @INC
+if [[ -r `tty` ]]; then
+    echo "running in nano mode, defaulty"
+else 
+    notty=1
+    echo "running in gvim mode because there is no tty"
+    nano_target=$notty_target
+fi
 
-# rule 6 done first because it short circuits the program altogether:
+# rule 6 - done first because it short circuits the program altogether:
+
 if [[ $# -eq 1 ]] && [[ $1 == --help ]]; then
     exec $nano_target --help
 fi
-# rule 1, files all exist
-for x; do
-    # stays zero unless a missing file is found
-    # no zero check because its the first rule and not stateful
-    # if file exists [nothing] else [need to look=1]
-    [[ -f $x ]] || {
-        let need_to_look=1
-        # no need to check the rest, it wont change anything -- found or not
-        break
-    }
-    
-done
-if [[ $need_to_look == 0 ]]; then
-      print -P "%O%F{10}INFO: command line FILENAMES are explicit existing filenames, ($@), no further searching will be done!!%f%b"
+
+# rule 8 - priority paths, when enabled
+
+if [[ $use_priority_paths == 1 ]]; then
+    echo "using priority paths, if any"        
+    tmpfile=$(mktemp)
+    touch $tmpfile          
+    # for cleanup
+    created+=$tmpfile
+    for x in ${use_home+$HOME} ${use_fsroot+/} $(<$tmpfile); do
+        if [[ -d $x ]]; then
+            # @ signifies NOT recursive, 'AT path only'
+            priority_paths+="@$x"
+            echo "added $x to priority paths"
+        fi
+    done
 fi
+
+# rule 7 population: skip looks when + is the first argument (+ is then removed, beware: ignored if you use +NUMBER, that is entirely different and is used by nano to jump to the specified line number!)
+
+if [[ $1 == "+" ]]; then
+    shift
+    skip_all_looks=1 #3
+    if [[ ${$(</proc/loadavg)[1]} < 1.25 ]]; then
+        hr
+        print -P "%F{3}The%f%F{6} + %f%F{3}argument was specified, all looking will be skipped%f"
+        hr
+        sleep 0.85
+    fi
+else
+    skip_all_looks=0
+fi
+
+# rule 1, files all exist, in line with rule 7, no skipping rule - unless found all files
+
+if ((skip_all_looks == 0)) {
+    for x; do
+        # stays zero unless a missing file is found
+        # no zero check because its the first rule and not stateful
+        # if file exists [nothing] else [need to look=1]
+        [[ -f $x ]] || {
+            let need_to_look=1
+            # no need to check the rest, it wont change anything -- found or not
+            break
+        }
+        
+    done
+} else {
+    need_to_look=0
+}
+[[ $need_to_look == 0 ]] && print -P "%O%F{10}INFO: command line FILENAMES are explicit existing filenames, ($@), no further searching will be done!!%f%b"
+      
+
 # rule 2, user is not root
+
 if [[ $UID -eq 0 ]]; then
     need_to_look=0
     print -P "%B%F{1}WARNING: USER is root, some functions will be bypassed!%f%b"
 
 fi
+
 # rules 3, load average > 2.5
-# 2.53 2.73 2.95 5/365 120328 <- example 1/5/15 min, active/sleeping, lastpid
+
 if [[ $load_level -gt $loadlimit ]]; then
     need_to_look=0
     load_is_high=1
     print -P "%F{1}WARNING: SYSLOAD is very high, some functions will be bypassed!%f"
 fi
+
 # rule 4, mem < 50mb
+
 if [[ $mbfree -lt $mem_limit_mb ]]; then
     need_to_look=0
     load_is_high=1
@@ -134,7 +231,9 @@ if [[ $mbfree -lt $mem_limit_mb ]]; then
     print -P "%F{1}WARNING: FREEMEM is very low, some functions will be bypassed!%f"
 
 fi
+
 # rule 5, user can read tmp
+
 if [[ ! -w /tmp ]]; then
     print -P "%F{1}WARNING: user $UID cannot manipulate /tmp, some functions will be bypassed!%f"
     # from program's point of view, /tmp IS memory so...
@@ -144,13 +243,56 @@ if [[ ! -w /tmp ]]; then
     # so dont...
     need_to_look=0
 fi
-# test case: disable when path elements are used anywhere in command line (may be removed later)
+
+# rule 9: disable when path elements are used anywhere in command line (may be removed later)
+
 if [[ $* =~ '/' ]]; then
     need_to_look=0
 fi
 
-# had an argument
+# rule 10: check blacklists
+#array   -g filenames_blacklist=( "README.md" )
+#array   -g prefixes_blacklist=( "/tmp" )
+#array   -g extension_blacklist=( ".tmp" ".nfo" ".txt" )
+
+repeat 1; { if (( skip_all_looks == 0 )); then
+    items=( $@ )
+    for f in $filenames_blacklist; do
+        echo "scan $f filename in $items"
+        eval "remain=\${#\${(@)items:#${f}}}"
+        if ((remain == 0)); then
+            echo "match on $f in cml: $items"
+            need_to_look=0
+            break;
+        fi
+     done
+     [[ $need_to_look == 0 ]] && break
+     for p in $prefixes_blacklist; do
+         echo "scan $p prefixpath in $items"
+         eval "remain=\${#\${(@)items:#${p}*}}"
+         if ((remain == 0)); then
+            echo "match on $f in cml: $items"
+            need_to_look=0
+            break;
+         fi
+     done
+     [[ $need_to_look == 0 ]] && break
+     for e in $extension_blacklist; do
+         echo "scan $e extension in $items"
+         eval "remain=\${#\${(@)items:#*${e}}}"
+         if ((remain == 0)); then
+             echo "match on $f in cml: $items"
+             need_to_look=0
+             break;
+         fi
+     done
+fi }
+
+# resolve filenames to existing files when possible
+
 if [[ $need_to_look -eq 1 ]]; then
+
+    # check perl @INC if configured to do so
 
     if [[ $AUTONANO_NOPERLINC -ne 1 ]]; then
         if [[ $AUTONANO_PERLINC_NORECURSE -eq 1 ]]; then
@@ -169,33 +311,39 @@ if [[ $need_to_look -eq 1 ]]; then
                 extrapaths+=$pyp
             done
         fi
-        for incpath in $path $extrapaths $fpath; do
-            if [[ -d $incpath ]]; then
-                lfhls+="$pfx$incpath"
-                echo "added $incpath to list of paths, in recursive mode"
+        for incpath in $priority_paths $path $extrapaths $fpath; do
+            if [[ $incpath =~ ^@ ]]; then
+                echo "adding ${incpath##@} to list of paths, in single mode"
+                checkfirst_paths+="${incpath##@}"
+            elif [[ -d $incpath ]]; then
+                checkfirst_paths+="$pfx$incpath"
+                echo "added $pfx$incpath to list of paths, in recursive mode"
             fi
-         done
-         # no errors wanted
+         done                  
          unset pfx perlinc_path &> /dev/null
     fi
-    # fixup command line (first pass)
+
+    # check each checkfirst_paths, including the ones that
+    # were added above
+    
     print -P "checking pre-expansions..."
     for x; do
         if [[ -f "$x" ]]; then
             echo "not expanding $x because $x exists as a file!"
         else
+            declare -ga p=( )
             print "x=$x "
-            for z in $lfhls; do
+            for z in $checkfirst_paths; do
                 if [[ $z =~ '^@' ]]; then
-                    declare -ga p=( $(find ${z#@} -type d) )
+                    p=( $(find ${z#@} -type d) )
                 else
-                    declare -g p="$z"
+                    p=( "$z" )
                 fi
                 for yy in $p; do
                     # remove any trailing path-sep elements
                     y=${yy:P}
                     print -Pn "${y}/${x}..."
-                    if [[ -f $y/$x ]]; then
+                    if [[ -r $y/$x ]]; then
                         print -P "%F{2}found!%f"
                         x=$y/$x
                     else
@@ -206,31 +354,42 @@ if [[ $need_to_look -eq 1 ]]; then
         fi
         cml+=$x
     done
-    #debug_pollargs $@
-
     set -- $cml
-    # no longer needed
-    #debug_pollargs $@
-
     unset cml
 fi
-printf "$ZSH_VERSION detected\n"
-# v- lets see if a file exists or not
-#    we'll create any nonexisting files and make them executable so we dont have to later (since i usually make executables with nano)
-#    we'll use a blacklist for certain types
-#    this will automatically skip switch items or numerical ones
+
+
+
 if [[ $* =~ not.found ]] || [[ $* =~ aliased.to ]] || [[ $* =~ '^\s*\S+\s*\(\)' ]]; then
-	echo "\n"
-	echo "error: command line looks like a failed or obscure output from the which command from either the shell or zsh(1), this wont end well (stopping here)"
-	echo "--- extraneous body follows! ---"
-	i=0
-	for n ; do
-		echo "[line $i]: $n"
-		let i++
-	done
-	echo "--- end extranious body text ---"
-	echo "\n"
-	exit 122
+    echo "checking targets..."
+    declare -i foundall=-1
+    # if any argument is nonexistent, a break is done, keeping foundall at 0, as it is reset each time
+    for x; do
+        foundall=0
+        [[ -f "$x" ]] || break
+        foundall=1
+    done
+    echo "finished checking"
+    if ((foundall)); then
+        echo "items passed (${(j:, :)@}) were all found, skipping out on error catcher"
+    else
+    	echo "\n"
+    	echo "error: command line LOOKS like a failed or obscure output from the which command from either the shell or zsh(1), this wont end well (stopping here)"
+    	echo "--- extraneous body follows! ---"
+    	i=0
+    	for n ; do
+    		echo "[line $i]: $n"
+    		let i++
+    	done
+    	echo "--- end extranious body text ---"
+    	echo "\n"
+    	if read -sqk1  "?continue anyway [y/[n]]?"; then
+    	    echo "user forcing continue -- script, errors could happen so watch for them..."
+    	else
+    	    echo "ending script (err=122)"
+    	  	exit 122
+    	fi
+   fi
 fi
 
 for x ( ${*%%-*} ) {
@@ -243,9 +402,30 @@ for x ( ${*%%-*} ) {
 		if ((nonexec_score)); then
 			printf "skipped %s (nonexec score of %d\n" $x $nonexec_score
 		else
-		    created+="$x"
-			printf "creating %s and setting executable: %s" $x $(touch $x && chmod a+x $x && printf ok || printf failed:$?)
-			printf "\n"
+		    basedir=$(dirname $x)
+	        declare create_it=1
+		    if ! [[ -d $basedir ]]; then
+		        print -Pn "%F{120}$basedir%F{170} does not exist%F{234},%F{170} create it%F{234}? (%F{40}no%F{8}=%F{40}skip file %F{2}$x%F{234}):%f "
+		        if read -kqs; then
+		            print -P "%F{10}YES%f"		            
+		            if mkdir --parents $basedir; then
+		                print -P "%F{2}creation successful, creating $x..."
+	                else
+	                    print -P "%F{1}creation failed, skipping $x..."
+	                    create_it=0
+                    fi
+	            else
+	                print -P "%F{160}NO%f"
+	                create_it=0
+                fi
+            fi
+            if ((create_it == 1)); then                    
+    		    created+="$x"
+    			printf "creating %s and setting executable: %s" $x $(touch $x && chmod a+x $x && printf ok || printf failed:$?)
+    			printf "\n"
+			else
+			    print -P "($x not created, nano will get this filename but no directories or files will be made)"
+			fi
 		fi
 	fi
 }
@@ -344,11 +524,7 @@ for x ( ${*%%-*} ) {
 # TODO: add detection for fbterm/frambuffers
 #
 
-# pre-translate (works for zsh only but does not check, so dont be dumb and
-# try to specify zsh-like responses from the command line!)
-# case one: <prog_name>: aliased to <executable_prog_name>
-#           it must be a name resolvable as an executable file
-#           if it isnt, its ignored
+#4
 if [[ $* =~ ^[^:]+:\\saliased\\sto\\s(.*) ]]; then
 	_nohit=1
 	print -fP "detect zsh-style alias string (used with which FILE, usually)..."
@@ -449,3 +625,71 @@ else
 	printf "error: \"$rc_file\" unavailable (proceeding anyway in case of a rofs!)\n"
 	$nano_target $@
 fi
+
+
+
+# cs21k (in progress, not compliant!)
+
+#1 
+#
+#        debug_pollargs $@
+#
+#         checkfirst_paths: look for file here list
+#         format: any zsh-expandable string (ie, ~ is same as /home/yourname or $HOME)
+#                 prefix with a '@' to include entire directory tree underneath*
+#
+#         * dangerous if misused (like '/' is a VERY bad idea and is blacklisted but others exist, cough*/usr*cough)
+#         discern if we need to look
+#
+#         IMPORTANT NOTE: rules are listed in order of when they were added, not
+#         the order in which they are tested!
+#
+#                           
+#         rules number          this is true        need_to_look value (logic to previous value, blank = replace)
+#
+#         1                     files all exist     0
+#         2                     user is not root    1
+#         3                     load averages > 2.4 0
+#         4                     memory < 50MB       0
+#         5                     user can read tmp   1 (NAND)
+#         6                     --help present      0 
+#         7                     argument 1 is "+"   0
+#         8                     has a priority path 0
+#         9                     path elements exist 0
+#         10                    blacklisted (all)   0 (XOR)
+#          
+#
+#       Logic
+#
+#          CEI=1+1=1 0+0=1 0+1=1 1+0=1      
+#          FLR=1+1=0 0+0=0 0+1=0 1+0=0
+#          AND=1+1=1 0+0=0 0+1=0 1+0=0       
+#           or=1+1=0 0+0=0 0+1=1 1+0=1
+#         NAND=1+1=0 0+0=1 0+1=1 1+0=1      
+#          XOR=1+1=0 0+0=1 0+1=1 1+0=0    
+#           
+#         **set to 1 if already 1, 0 otherwise
+#         *** TODO: some of this is still not implemented!
+#
+#2  
+#   about environment vars used in rules
+#
+#     AUTONANO_NOPERLINC            0/undefined=use perl paths from @INC  
+#                                   1=disable all perl paths
+#     AUTONANO_PERLINC_NORECURSE    0/undefined=when using paths for perl, recurse into subdirs prefix is added (see later for what that does)
+#                                   1=only use top-level paths from @INC
+#3  
+#   about rule 3 (load average check)
+#
+#         only do this if the load average is below 1.25 (typical loadfree environment)
+#         dont quote because that will mess up splitting
+#         loads higher than this, do not need or want delays in programming
+#
+#4
+#   about pre-translation
+#
+#         pre-translate (works for zsh only but does not check, so dont be dumb and
+#         try to specify zsh-like responses from the command line!)
+#         case one: <prog_name>: aliased to <executable_prog_name>
+#                   it must be a name resolvable as an executable file
+#                   if it isnt, its ignored

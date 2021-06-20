@@ -1,0 +1,83 @@
+#!/usr/bin/env perl
+
+
+
+use warnings;
+use strict;
+use v5.20.2;
+no warnings 'experimental';
+use feature 'signatures';
+
+
+use Term::ReadLine;
+use Path::Tiny;
+use Cwd;
+
+package Text::PromptParser;
+use Cwd;
+use Path::Tiny;
+system("clear");
+
+sub parse($item,$histnum=0,$cmdnum=0,$version="1.0",$versionlong="1.0 undescribed")
+{
+    my $pw = cwd();
+    my $rootchar = $ENV{USER} eq "root" ? '#' : '$';
+    my $pwb = path(cwd())->basename();
+    local $_ = $item;
+    my $dev = path("/proc/self/fd/0")->realpath();
+    my $bel = chr(7);
+    my $time = `date`;
+    my $date = `date`;
+    my $host = `hostname`;
+    my $domain = `domainname`;
+    my $fqdn = "${host}.${domain}";
+    chomp $date; chomp $dev;   
+    chomp $host; chomp $time; chomp $fqdn;
+# bash's explanation of backslash implementation
+# some items pertain directly to the readline editor
+# those items are not supported here because this is not an editor
+# and it would not make sense to support it here, except for the
+# long-date which isnt supported because i just dont feel like doing it
+              s:\\a:$bel:g; #     an ASCII bell character (07)
+              s:\\d:$date:g; #     the date in "Weekday Month Date" format (e.g., "Tue May                     26")
+              s:\\D:unsupported:g; # \D{format}
+                       # the format is passed to strftime(3) and the  result  is
+                       # inserted  into  the  prompt string; an empty format re‐
+                       # sults in a locale-specific  time  representation.   The
+                       # braces are required
+              s:\\h:$host:g; #     the hostname up to the first `.'
+              s:\\H:$fqdn:g; #     the hostname
+              s:\\j:unsupported:g; #     the number of jobs currently managed by the shell
+              s:\\l:$dev:g; #     the basename of the shell's terminal device name                           
+              s:\\s:$0:g; #     the  name of the shell, the basename of $0 (the portion following the final slash)
+              s:\\t:$time:g; #     the current time in 24-hour HH:MM:SS format
+              s:\\T:$time:g; #     the current time in 12-hour HH:MM:SS format
+              s:\\@:$time:g; #     the current time in 12-hour am/pm format
+              s:\\A:$time:g; #     the current time in 24-hour HH:MM format
+              s:\\u:$ENV{USER}:g; #     the username of the current user
+              s:\\v:$version:g; #     the version of bash (e.g., 2.00)
+              s:\\V:$versionlong:g; #     the release of  bash,  version  +  patch  level  (e.g.,  2.00.0)
+              s:\\w:$pw:g; #     the  current  working directory, with $HOME abbreviated  with a tilde (uses  the  value  of  the  PROMPT_DIRTRIM  variable)
+              s:\\W:$pwb:g; #     the  basename  of  the  current working directory, with $HOME abbreviated with a tilde
+              s:\\!:$histnum:g; #     the history number of this command
+              s:\\#:$cmdnum:g; #     the command number of this command
+              s:\\\$:$rootchar:g; #     if the effective UID is 0, a #, otherwise a $
+              s:\\\\:\\:g; #     a backslash
+#              s:\[:unsupported:g; #     begin a  sequence  of  non-printing  characters,  which                   could be used to embed a terminal control sequence into                     the prompt
+ #             s:\]:unsupported:g; #     end a sequence of non-printing characters
+
+    return $_;
+    
+}
+
+package main;
+
+my $reader = new Term::ReadLine(path($0)->basename());
+my $lastline = "";
+my $readerprompt = '\u@\h itemcopier> ';
+
+until ( $lastline && $lastline eq 'exit' ) {
+    $lastline = $reader->readline(Text::PromptParser::parse($readerprompt));
+    system("echo $lastline | xclip");
+
+}

@@ -1,0 +1,154 @@
+#!/bin/zsh
+#
+#    mclone
+#    uses gclone on a repository authored by mt-mods, doesn't always work for nonpublic mods though, use gclone for that
+#    mini
+#    eso/ubin-local
+#
+#    Copyright (C) 1995-2021 Gabriel T. Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all projects can be
+#    obtained by visiting the repository at:
+#
+#    <https://github.com/osirisgothra>
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANT-ABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#     Wed 12 May 2021 01:17:41 PM EDT
+#            osirisgothra@ initially created this file
+#            with the original name, mclone
+#
+#
+#
+#  This template and header was created using the template generator by Gabriel T. Sharp
+#  You can download the latest version at: <https://www.github.com/osirisgothra/mini.git/eso/ubin-local/template>
+#  (the URL is subject to changes on GitHub's behalf, please submit a pull request to fix or request a fix on any URL changes)
+#
+
+# Get Options from Command Line for mclone
+
+declare -ga opts
+declare -gi quiet_level=0
+declare -g version_text="$(tput setaf 124)mclone$(tput sgr0) Version 1.0 (C)2020 Gabriel T. Sharp, Licensed under GNU LGPL3 at https://gpl.gnu.org/gpl3.html"
+declare -g help_text="mclone
+uses gclone on a repository authored by mt-mods, doesn't always work for nonpublic mods though, use gclone for that
+
+SYNTAX
+
+    mclone [OPTIONS] REPOSITORY ...
+
+OPTIONS
+
+ Presets
+    NONE    When no preset is used, the basedir is 'mt-mods'
+
+    -1      Force use of 'minetest-mods' as the root
+    -2      Force use of 'minetest' as the root
+
+    More presets may be added (but only ones that are widely accepted)
+    Use gclone [ROOT]/[REPONAME] instead if you want full control over the
+    root value (owner of the repository).
+
+ General Options
+
+     --help -h   show this help text
+  --version -v   display version information and exit (also shows license info)
+  --verbose -V   decrease quiet level by one (will also undo the last -q, if any)
+    --quiet -q   increase quiet level by one (quiet level is always zero if left alone)
+
+ARGUMENTS
+
+    REPOSITORY  A readable string, it must not contain any un-printable* characters.
+                Should be a valid repository (as in: www.github/mt-mods/REPOSITORY.git)
+                *also, must adhere to github's repository name conventions
+PREREQUISITES
+
+    This program requires git(1) to be installed (tested version was: git version 2.25.1)
+    In addition, this program requires gclone, which is another script that should have been
+    in the same repository as mclone (this script). If you dont have it, please return and download
+    it again (with 'git clone www.github.com/osirisgothra/mini') and find it in the eso/ubin-local
+    directory.
+
+LICENSE
+
+    GNU LGPL3 is available in full at the GNU GPL website, or through the google voice command 'show me GNU LGPL VERSION 3'
+
+"
+
+# subroutines
+
+# se(int)       set exit code                           int=value between 0 and 255
+# lecho(str)    echo string ignoring quiet_level        str=string to pass to builtin echo
+# echo(str)     checks quiet_level, then calls lecho    str=string to pass to lecho
+# is(what)      checks if some status is active         what=string name of status, one of: quiet verbose normal notquiet)
+# isnt(what)    same as is() but inverted result        same as is(what) above^
+
+se()    { return $?; }
+lecho() { builtin echo "$@"; }
+echo()  { se 127; isnt quiet && lecho "$@"; }
+is()
+{
+
+    case $1 {
+        quiet)  ((quiet_level > 0));;
+      verbose)  ((quiet_level < 0));;
+       normal)  ((quiet_level == 0));;
+     notquiet)  ((quiet_level <= 0));;
+            *)  ((quiet_level == 1));;
+    }
+
+}; isnt() { ! is "$@"; }
+
+# global vars
+
+basedir="mt-mods"
+
+# options
+
+if opts=( `getopt -n $0 -o 12hvqV -l verbose,help,version,quiet -- "$@"` ) {
+    eval set -- "${opts[@]}"
+    while [[ $# -ge 0 ]] {
+        curopt=$1
+        nextopt=${2-none}
+        shift
+        # handle --options and -o ptions here
+        case $curopt {
+            -1) basedir="minetest-mods";;
+            -2) basedir="minetest";;
+            --help|-h)    echo "$help_text"; exit 127;;
+            --version|-v) echo "$version_text"; exit 127;;
+            --verbose|-V) let quiet_level--;;
+            --quiet|-q) let quiet_level++;;
+            --) is verbose && echo "done with options";  break;;
+            *)    is verbose && echo "handling option: $curopt (next:$nextopt)";;
+        }
+    }
+    # non-option argument pre-processing
+    for arg {
+        case $arg {
+            *)    is verbose && echo "argument $arg was handled but no preprocessing was needed";;
+        }
+    }
+} else {
+    is notquiet && echo "error, code is $?, exiting with fail"
+}
+
+for repo {
+    echo "gcloning $repo..."
+    gclone $basedir/$repo
+}

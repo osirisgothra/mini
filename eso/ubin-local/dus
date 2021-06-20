@@ -1,0 +1,30 @@
+#!/bin/sh
+if [ $# -gt -0 ]; then
+    if [ $1 = --help ]; then
+        /usr/bin/du --help
+        echo ""
+        echo "NOTE: 'dus' adds a 'sort -h' to all 'du' operations when executed in normal cases (read on for other cases)."
+        echo "      If you want more arguments for sort, use the DUS_SORT (non-array) environment variable."
+        echo "      Also, note that the '-h' in sort will not be passed should you make use of DUS_SORT"
+        echo "      You can also do this: 'env DUS_SORT=\"[sort_args]\" dus [du_args]' if you wish to execute"
+        echo "      both command lines in a single one-liner. The old method of using -- to separate sort and"
+        echo "      du options was removed because du and sort may have their own use for -- and in practice"
+        echo "      it is best to avoid compromising such things. If you want help for both sort and du to show"
+        echo "      up, pass --help-both instead of --help."
+    elif [ $1 = --help-both ]; then
+        (
+        echo "** du(1) help **"
+        /usr/bin/du --help
+        echo "** sort(1) help **"
+        /usr/bin/sort --help
+        ) | less -P "%P %p sort and du help"
+    else
+        if [ "$DUS_SORT" = "" ]; then
+            /usr/bin/du -hd1 "$@" | sort -h
+        else
+            /usr/bin/du -hd1 "$@" | sort $DUS_SORT
+        fi
+    fi
+else
+    /usr/bin/du -hd1 | sort -h
+fi

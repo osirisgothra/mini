@@ -1,0 +1,14 @@
+#!/bin/zsh
+
+declare -gi num=$(( $# + 1 ))
+
+echo "return {[\"recipe_counter\"] = $num, [\"recipe_items\"] = {"
+while [[ $# -gt 0 ]]; do
+    printf "{\"$1\", \"$1\", \"$1\", \"$1\", \"$1\", \"$1\", \"$1\", \"$1\", \"$1\"}"
+    shift
+    case $# in
+        0)  ;;
+        *)  printf ", ";;
+    esac
+done
+echo "}}"

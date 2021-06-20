@@ -1,6 +1,13 @@
 #!/bin/zsh
 #integer rmcnt=0
 output="$(tty)"
+if [[ $1 == --yes ]]; then
+    shift
+    mvcmd=( mv )
+else
+    echo "warning: dry mode, use --yes to do it for real"
+    mvcmd=( echo )
+fi
 setopt nullglob
 oldlogfiledir=( $(dirname $(mktemp -tu trackifyXXXX.log))/trackify*.log )
 for ofn in $oldlogfiledir; do
@@ -36,8 +43,11 @@ for x in *.mp3; do
 		fi
 		track=`id3 -l "$x"  | grep -Po '(?<=Track: )[0-9]+'`
 		y="$(printf "%02d" "$track") - $x"
-		mv --verbose "$x" "$y"
+		$mvcmd --verbose "$x" "$y"
 	else
 		echo "skipping $x because it has no valid id3 tag entry for Track"
 	fi
 done
+
+
+# one liner to populate fileX with id3 info: y=0;for x in *; do let y++; echo "declare -A file$y=(";id3 -R -l $x | perl -wne 'if (/.+/) { s/: /="/g;s/\s*\n/"\n/g; print "\t$_";  };'; echo "}"; done

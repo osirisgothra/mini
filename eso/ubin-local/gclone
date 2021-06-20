@@ -1,0 +1,162 @@
+#!/bin/zsh
+#
+#    gclone
+#    clone a github repository
+#    mini
+#    esoterics and binaries
+#
+#    Copyright (C) 1995-2021 Gabriel T. Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all projects can be
+#    obtained by visiting the repository at:
+#
+#    <https://github.com/osirisgothra>
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    CSCS2020 COMPLIANCE
+#
+#            The Author has verfied that the file adheres to the '2020 Columnized Strict Commenting Scheme' which is
+#            also known as the "2020/CSCS". This scheme requires that 1) all comments are in the form of footnotes
+#            with only a refnum in the far right column. This is in an effort to join the massive need for commenting
+#            your code reformation goin on all over the world, 2) footnotes are at the END of the file, beyond any
+#            executable code or other footnotes. Are easy to read and spot. 3) Do not count for more than 20% of the file's size.
+#            3-CODE Status: PASS PASS PASS (all 100%) A score of 80% or better is required to be 2020CSCS compliant.
+#
+#    HISTORY
+#
+#	 Sat 27 Mar 2021 04:29:41 PM EDT
+#            osirisgothra@ initially created this file
+#            with the original name, gclone
+#
+#
+#
+#  This template and header was created using the template generator by Gabriel T. Sharp
+#  You can download the latest version at: <https://www.github.com/osirisgothra/mini.git/eso/ubin-local/template>
+#  (the url is subject to changes on github's behalf, please submit a pull request to fix or request a fix on any url changes)
+#
+
+# shell verification, though this will only work on sh, bash, or relatives, ksh loads the entire source first so it will just error with the first bad statement it finds while loading 'b'
+# tcsh/csh do not have even close syntax so they wont work at all, catchalls are a vailable but i dont want to clutter things with the requirement is on the header so that should be enough, dont source me!
+failed=0
+if emulate zsh; then
+    if [[ $ZSH_VERSION == "" ]]; then
+        failed=1
+    fi
+    # prevent interactive mode in zsh/bash/sh
+    case $- in *i*) failed=1;; esac
+else
+    failed=1
+fi
+if [ $failed = 1 ]; then
+    echo "failure: this program requires a recent version of zsh (3 or better) and musnt be sourced!!!"
+    exit 2
+fi
+
+
+fail() {
+
+    [[ $1 == helpme ]] || print -P "\n%F{1}syntax error:%B needs%f %F{2}correct%f %F{1}# of arguments%b%f\n"
+    print -P "
+
+clone a git repository
+syntax: gclone AUTHOR REPOSITORY[.git]
+        gclone AUTHOR\REPOSITORY[.git]
+        gclone --help | -H | --? | etc
+
+
+AUTHOR      The name of the author for the given repository as shown in the url (if the url says 'https://github.com/sassy/codestuff.git', then 'sassy' is the author name you would use.
+
+REPOSITORY  The name of the repository (usually the project name), this is the second argument, and may include .git (which is added/removed automatically by gclone). In the above example 'codestuff' or 'codestuff.git' is the repository name you would use.
+
+LICENSE
+    This program is licensed under the GNU GPL3 license. You can view the entire license by visiting GNU's website at https://www.gnu.org
+
+    gclone: written by Gabriel T. Sharp (Sat 27 Mar 2021 04:40:57 PM EDT)
+
+IMPORTANT WARNINGS TO CONSIDER:
+
+ 1) this program does not discriminate dashes as arguments, any nonsupported flag WILL be interpreted as an argument, be careful what you choose!
+
+ 2) make sure you have enough hard disk space!
+
+ 3) be sure you do not clone from a directory that is cruitial to your OS or you, use a new directory to be safe (however there is no restriction, and no checking will be done).
+
+ 4) dont run this program as root or admin unless you know exactly what the outcome will be, its best to do a dry run (by setting GCLONE_DRY_MODE in the source to 1, or, by providing GCLONE_DRY_MODE as the first argument) before using this program!
+
+    "
+    exit 127
+}
+
+# SET TO 1 IF YOU WANT TO SEE WHAT WOULD BE DONE
+if [[ $GCLONE_DRY_MODE == "" ]]; then
+    GCLONE_DRY_MODE=0
+    if [[ $1 == GCLONE_DRY_MODE ]]; then
+        GCLONE_DRY_MODE=1
+        shift
+    fi
+    #3
+    export GCLONE_DRY_MODE
+else
+    echo "notice: GCLONE_DRY_MODE propagated from environment with a value of \"$GCLONE_DRY_MODE\""
+fi
+
+[[ $* =~ '-?[-\/]([hH](elp)?|\?)' ]] && fail helpme
+
+if (( $# % 2 == 0 && $# > 2 )); then
+    if read -qsk1 "R?You entered an even list of items, press [Y] if these are clone author/project pairs or [N] if not [ENTER=N]"; then
+#1
+        echo
+        for a b; do
+            echo "($a $b) executing..."
+            if $0 $a $b; then
+                echo "($a $b) returned ok, continuing to next target..."
+            else
+                echo "last item ($a $b) failed, aborting"
+                exit 1
+            fi
+        done
+        exit 0
+    else
+        echo
+        print "aborted, ending program"
+        exit 1
+    fi
+else
+    [[ $# -eq 0 ]] && fail helpme
+    [[ $# -gt 2 ]] && fail
+    if [[ $1 =~ '/' ]]; then
+        set -- ${(s:/:)1}
+    fi
+fi
+
+gurl="https://www.github.com/$1/${2%.git}"
+
+if ((GCLONE_DRY_MODE)); then
+    echo "git clone ${(QQ)gurl}"
+    #2
+    exit 1
+else
+    git clone "$gurl"
+fi
+
+#CSCS2020 Remarks
+#
+#1 delegation to program reentry
+#2 dry run is technically not a success, since nothing was done
+#3 dry run propagates to all instances after the fact, in multiple mode, and if it was explicitly set by the user
+
+# vim: ft=zsh:et:ts=4:sw=4:fdl=4:fdm=indent:fdo=all:fcl=all:nomore:hls:cc=90:ls=2:bs=2

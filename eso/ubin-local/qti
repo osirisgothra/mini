@@ -1,0 +1,41 @@
+#!/bin/zsh
+
+zmodload zsh/terminfo
+zmodload zsh/termcap
+
+uprint() {
+
+    #1
+    set -- "${@//[^\x00-\xff]/<UChar>}"
+    print -P "$@"
+
+}
+
+spec() {
+    case $# {
+        0)  cat;;
+        *)  grep "$@";;
+    }
+}
+
+print
+print "Terminfo Codes\n"
+
+for x (${(k)terminfo}) { uprint "$x = [${terminfo[$x]///ESC}]" } | spec "$@"
+
+print
+print "TermCap Codes\n"
+
+for x (${(k)termcap}) { uprint "$x = [${termcap[$x]///ESC}]" } | spec "$@"
+
+print
+
+
+
+# Comments (Cs21k)
+
+#1  Convert from Unicode (almost always not appropriately viewable when dealing with termcap and terminfo) TODO: convert to ordinals instead, if needed
+
+
+
+

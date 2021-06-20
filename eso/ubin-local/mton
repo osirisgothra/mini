@@ -1,0 +1,8 @@
+#!/bin/sh
+. ~/bin/common.sh
+( __ifrunning i3 mode default ) 1> /dev/null 2> /dev/null
+__isrunning minetest && {
+    echo "already running"
+    exit 127
+}
+exec /home/osirisgothra/bin/ta

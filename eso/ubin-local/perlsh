@@ -10,13 +10,14 @@ my $start_time = Time::HiRes::gettimeofday();
 
 package PerlSh;
 use v5.20.2;
+use utf8;
+use Encode;         
 use Path::Tiny;
 use Cwd;
 use strict;
 use Term::ReadLine;
 use Term::Put;
 use POSIX;
-use Term::ANSIColor 4.00 qw( :constants :constants256 colored colorstrip ); # TODO: Remove --- assumes too much unfortunately!, superceding with Term::Put which acurrately puts the right color sequences
 use Path::Tiny;
 use Data::Dumper;
 use IPC::Open3;
@@ -34,8 +35,8 @@ use subs qw( say );
 # Predeclared Variables (please add newest entries to beginning fno)
 
 use vars qw($noecho $PS1 $PS2 $HISTFILE $HISTSIZE $INPUTRC $STRICT $INNERRC $PS1COLOR $NO_ADORNERS $NO_ADORNERS_OR_CONTENT
-            $PS1MONO $NOCOLOR %VERSION $LINES $COLUMNS $HOSTNAME $LOGNAME $CWP
-            $LASTRV $USER $UID $UNAME $USERNAME $HOMEDIR $PROGPATH $PROGNAME $AUTOCOLOR @STARTUP_COMMANDS $lastcmd_startcmd);
+            $PS1MONO $NOCOLOR %VERSION $LINES $COLUMNS $HOSTNAME $LOGNAME $CWP $thispid
+            $LASTRV $USER $UID $UNAME $USERNAME $HOMEDIR $PROGPATH $PROGNAME $AUTOCOLOR @STARTUP_COMMANDS $lastcmd_startcmd $add_to_hist $usehist $forked $hasforked );
 
 # Features
 
@@ -60,7 +61,7 @@ my $debug_find = 0;
 my $debug_general = 0;
 my $debug_startup = 0;
 my $debug_sig = 0;
-my $tput = new Term::Put();
+my $term = new Term::Put();
 
 #
 
@@ -71,6 +72,7 @@ $PROGPATH=path($0);
 $AUTOCOLOR=0;       # <1|0>
 $NOCOLOR="both";    # <primary|secondary|both|none>
 %VERSION=( major => 2, minor => 4, revision => 1 );
+
 
 # Tip Of the Day Entries (TODEs)
 
@@ -101,6 +103,8 @@ my $banner = '
     NEW CODE LICENSED AS GNU GPL VERSION 3 <https://www.gnu.org/gpl3>
     PLEASE SEE ORIGINAL LICENSE FOR DETAILS ON USAGE RIGHTS
 ';
+$usehist = 1;
+
 say $banner;
 
 sub get_runtime()
@@ -118,12 +122,7 @@ sub get_totd() {
 }
 sub setprompt() {
 
-    # color prompts disabled (see tips for the why)
-    #$PS2 = '[38;5;200m[1mmore[2m?[21m[22m ';
-    #$PS1 = "[38;5;232m[[38;5;21mP[38;5;25me[38;5;80mr[38;5;110ml[38;5;195mS[38;5;255mh[38;5;232m]:[[38;5;60mT[38;5;232m][38;5;97m2[38;5;218m>[s[38;5;111m[u ";
-    # a demo of the new prompt system
-    #$PS1 = "^pkg ^wd ^hist ^sec> "
-    $PS1 = "perlsh>"; #old faithful
+    $PS1 = "perlsh>";
     $PS2 = ">>> ";
 }
 sub expandpromptstring($str)
@@ -145,10 +144,6 @@ sub expandpromptstring($str)
 
 
 }
-
-
-
-setprompt;
 sub zmdec($in)
 {
     if ($in == -1 || $in == 0) {
@@ -157,11 +152,12 @@ sub zmdec($in)
         return $in - 1;
     }
 }
-
-sub ansilen { s/^[\[[0-9;]+m//; return length($_); }
-sub nonprinting { my $count = shift; return ("[s" x ($count / 3)); }
-sub findexec($name) { return (findexecs($name))[0] // undef; }
-sub findexecs($name) {
+sub findexec($name) 
+{ 
+    return (findexecs($name))[0] // undef; 
+}
+sub findexecs($name) 
+{
     my @found = findfiles("(?<=\/)$name\$",$ENV{PATH},1);           # see section: CONTRIB perldoc (in pod view)
     if (@found) {
         return @found;
@@ -191,13 +187,10 @@ sub findfiles($mask, $path=$ENV{PATH}, $maxdepth=-1, $mindepth=-1)
 
 
 }
-
 sub perlhelp($context, $section="N")    # N=all
 {
-    #  get perldoc path, then (maybe) get man path if needed
     my $pd = findexec("perldoc");
     if ( -r $context ) {
-        # manpath does not need to fall out of scope, it only does undefined with a warning!
         my $manpath=findexec("man") // warn("couldnt find man!!!");
         system($manpath,$context) or warn("tried to manify $context but couldnt, sorry: $! $?\n");
         return;
@@ -213,7 +206,7 @@ sub perlhelp($context, $section="N")    # N=all
         $res="linux man(ual) page" when /man/;
         $res="regular plain old document (POD) file" when /""/;
         $res="unknown thingy";}
-        $_ = $oldus; return $res;   # restore scalar-uscore because given changes it (given the chance (sorry for the pun)!)
+        $_ = $oldus; return $res;   
     }
 
     given($_) {
@@ -261,6 +254,7 @@ sub perlhelp($context, $section="N")    # N=all
 # will not allow x in setcolumn(x) to be < 0 or > COLUMNS (use other one to bypass checking)
 sub setcolumn
 {
+    my $COLUMNS = $term->cols;
     my $loc = shift // 0;
     $loc = $loc > $COLUMNS ? $COLUMNS : ( $loc < 0 ? 0 : $loc );
     my $rv = `tput hpa $loc`;
@@ -270,7 +264,11 @@ sub setcolumn
 sub rawsetcolumn { return `tput hpa ` . shift // "0"; } # does not check x like in setcolumn(x), not called by setcolumn (preserves individuality)
 
 sub drawbox {
+
     return "" if $lastcmd_startcmd;                                                              # don't adorn or ornament during startup (its real ugly to do so)
+    my $COLUMNS = $term->cols;
+    my $LINES = $term->lines;
+
     my $db_old_uscore = $_;                                                                      # preserve $_
     my $db_side = shift // "full";                                                               # very flexible syntax, see below
     my $db_content = shift // "";
@@ -343,7 +341,7 @@ package PerlSh;
 
 sub hrule {
 
-    printf  colored("%s\n",'grey1'), "=" x ($ENV{"COLUMNS"} //     DFCOLS);
+   $term->printf("~8%s~7\n", "=" x $term->cols // DFCOLS);
 
 }
 sub vrule {
@@ -356,14 +354,14 @@ sub vrule {
     }
 }
 
-use vars qw($term $attribs);
+use vars qw($linereader $attribs $term);
 
-$term = new Term::ReadLine 'PerlSh';
-$term->ornaments("1,2,3,4");
-$attribs = $term->Attribs;
-$term->bind_key(ord "^", 'history-expand-line', 'emacs-meta');
-$term->bind_key(ord "\cv", 'display-readline-version', 'emacs-ctlx');
-$term->bind_key(ord "\cc", 'abort');
+$linereader = new Term::ReadLine 'PerlSh';
+$linereader->ornaments("1,2,3,4");
+$attribs = $linereader->Attribs;
+$linereader->bind_key(ord "^", 'history-expand-line', 'emacs-meta');
+$linereader->bind_key(ord "\cv", 'display-readline-version', 'emacs-ctlx');
+$linereader->bind_key(ord "\cc", 'abort');
 
 if (defined &main::afterinit) {
     package main;
@@ -372,20 +370,7 @@ if (defined &main::afterinit) {
 }
 
 &toplevel;
-
-
 my $lastcmd="";
-sub length_ansi
-{
-    my @results = ( );
-    push(@results,( length( colorstrip($_) ) )) for @_;
-    return 0 if @results == 0;
-    return @results if (@results > 1);
-    return $results[0] if (@results == 1);
-    return length($_) if length($_) > 0;
-    die("bad value/no value passed (need >= 1 or default params \$_ set");
-
-}
 
 sub findinpath {
     my $filename = shift;
@@ -407,17 +392,18 @@ sub failbackto
     return $val;
 }
 
-sub toplevel
+sub toplevel()          #9TC
 {
+    my $logfile = "/tmp/perlsh-bgload";
+
+    #####THREAD 1 #####################
+    setprompt;   
     $HOMEDIR = path($ENV{"HOME"} // cwd);
     printf("using system appointed home for user: %s\n", $HOMEDIR);
     die("cannot find a user-writable home directory ($HOMEDIR either isnt writable, or is an invalid value") unless -w $HOMEDIR;
-
-    my $COLUMNS = $tput->cols;
-    my $LINES = $tput->lines;
+    my $COLUMNS = $term->cols;
+    my $LINES = $term->lines;
     say "using ${COLUMNS}x${LINES} terminal";
-
-
     print("$PS1COLOR") if length($PS1COLOR) > 0;
     print("PS1 length zero, but color prompting disabled\n") unless ( length($PS1COLOR) | length($PS1) ) > 0;
     hrule;
@@ -425,276 +411,296 @@ sub toplevel
     my $totd = get_totd;
     printf "$totd\n";
     hrule;
-
-    $term->MinLine(undef);
-    $term->stifle_history($HISTSIZE);
-    if (-f $HISTFILE) { $term->ReadHistory($HISTFILE) or warn "perlsh: cannot read history file: $!\n"; }
+    $linereader->MinLine(undef);
+    $linereader->stifle_history($HISTSIZE);
+    if (-f $HISTFILE) { $linereader->ReadHistory($HISTFILE) or warn "perlsh: cannot read history file: $!\n"; }
     $attribs->{attempted_completion_function} = \&attempt_perl_completion;
     $attribs->{special_prefixes} = '$@%&';
     $attribs->{completion_display_matches_hook} = \&perl_symbol_display_match_list;
     sigaction SIGINT, new POSIX::SigAction sub {
-        $term->modifying;
-        $term->delete_text;
+        $linereader->modifying;
+        $linereader->delete_text;
         $attribs->{point} = $attribs->{end} = 0;
-        $term->redisplay;
+        $linereader->redisplay;
     } or die "[31;1mError setting SIGINT handler: $![0m\n";
     my ($strict, $command, @result);
     $strict = $STRICT ? '' : 'no strict;';
-    say("[0m") if $ENV{TERM};     ### TODO: add support from Term::Put when its completed
-    ### READ A COMMAND FROM USER OR STARTUPFILE
-    while (defined($command = &reader)) {
+    $term->put("sgr0");
 
-        # PREPROCESSORS
-        given ($command) {
-            # strip "my" or "our" from BOLs
-            when ( m/^(my|our)( .*)/ ) {
-                say("info: removed preceeding our/my from prefix - would not have expected effect in sandbox mode.");
-                $command = $2;
+    
+    
+    my $forkpid = fork();
+    unless ($forkpid) {
+    ####THREAD 2 ####################################################################
+        STDOUT->autoflush(1);
+        printf("[s[1;1H[0;33;1;41mdoing startup commands[K[0m[1;1H[u");
+        printf("[u [u");
+#        printf(prompt($PS1));        #10
+        path($logfile)->touch();
+        sleep(1);
+
+        select $logfile;
+        for my $startup_command (@STARTUP_COMMANDS) {
+            handle_command($startup_command,$strict,1);
+        }
+        select STDOUT;
+        printf("[s[1;1H[0;33;1;42mstartup commands loaded (type scout to see its output, if any)[K[0m\n[u");
+        sleep(3);
+        printf("[s[1;1H[0m[K[u");
+#        printf(prompt($PS1));
+        STDOUT->autoflush(0);
+        exit();
+    #### THREAD2 EXIT ###############################################################
+    }
+    
+    
+    
+    while (defined($command = &reader)) {
+        handle_command($command,$strict,$noecho);
+    }         
+    &quit;
+    #####THREAD1 RETURN#################
+
+}
+sub handle_command($command,$strict,$silent)    #9MT
+{
+    my $logfile = path("/tmp/perlsh-bgload");
+
+    given ($command) {
+        when ( m/^\s*(my|our)( .*)/ ) {
+            say("info: removed preceeding our/my from prefix - would not have expected effect in sandbox mode.");
+            $command = $2;
+        }
+        
+    }
+    given($command) {
+        when ( /^scout$/ ) {
+            say ("\n".$logfile->slurp()."\n");            
+        }
+        when ( m/^[\$\&\%][_A-Za-z][_A-Za-z0-9]*$/ )
+        {                
+            eval ("$strict package $CWP; my \$d=Data::Dumper::Dumper(\\$command); \$d =~ s/VAR1/$command/g;say(\$d); " );
+        }                        
+        when ( m/^(perlsh\.)(\S+)(\s.+)?$/ ) {
+            my $_pscmd = $2;
+            my @_psargs = grep { /\S+/ } split(/\s/,$3 // "");
+            given ($_pscmd) {
+                # perlsh.color [color]
+                when (/color/)
+                {
+                    if ( @_psargs == 1) {
+                        given ($_psargs[0]) {
+                            $NOCOLOR = $_psargs[0] when /^(both|none|primary|secondary)$/;
+                            say("color mode $_psargs[0] is invalid\n");
+                        }
+                    } elsif (@_psargs > 1) {
+                        say("way too many arguments, only accepts both,primary,secondary,none");
+                    }
+                    else
+                    {
+                        say("current color mode is: $NOCOLOR");
+                    }
+
+                }
+                say ("invalid perlsh subcommand, $_pscmd, ignored (with " . @_psargs . " arguments)"); 
             }
         }
-        # INTERPRETER
-        given($command) {
-            # perlsh.COMMANDs     (perlsh.XXX [arg ([arg [...])])
-            when ( m/^(perlsh\.)(\S+)(\s.+)?$/ ) {
-                my $_pscmd = $2;
-                my @_psargs = grep { /\S+/ } split(/\s/,$3 // "");
-                given ($_pscmd) {
-                    # perlsh.color [color]
-                    when (/color/)
-                    {
-                        if ( @_psargs == 1) {
-                            given ($_psargs[0]) {
-                                $NOCOLOR = $_psargs[0] when /^(both|none|primary|secondary)$/;
-                                say("color mode $_psargs[0] is invalid\n");
-                            }
-                        } elsif (@_psargs > 1) {
-                            say("way too many arguments, only accepts both,primary,secondary,none");
-                        }
-                        else
-                        {
-                            say("current color mode is: $NOCOLOR");
-                        }
-
-                    }
-                    say ("invalid perlsh subcommand, $_pscmd, ignored (with " . @_psargs . " arguments)");      # default
-                }
-            }
-            # !EXTERNALCOMMAND
-            when ( m/^(\!)(.*)$/g )
-            {              
-                sub statuscode { my $code = shift; given($code) { return "000_NOERROR" when 0;  return "127_USER_ERROR" when 127; return "001_FAILED" when 1; }; return sprintf("%03d",$code); }
-                say "command $2 returned status code: " . statuscode(system("$2")) ;
-            }
-            # edit & restart, cmd = restart, edit, source, src or combo (edsrc, restartsource)            
-            when ( m/\A(restart|ed(it)?(source|src))\z/ )
+        when ( m/^(\!)(.*)$/g )
+        {              
+            sub statuscode { my $code = shift; given($code) { return "000_NOERROR" when 0;  return "127_USER_ERROR" when 127; return "001_FAILED" when 1; }; return sprintf("%03d",$code); }
+            say "command $2 returned status code: " . statuscode(system("$2")) ;
+        }            
+        when ( m/\A(restart|ed(it)?(source|src))\z/ )
+        {
+            my $skiprun=0;
+            if ( m/\Aed/ ) 
             {
-                my $skiprun=0;
-                if ( m/\Aed/ ) 
+                if ($editor->exists() ) 
                 {
-                    if ($editor->exists() ) 
+                    if ( $PROGPATH->exists() ) 
                     {
-                        if ( $PROGPATH->exists() ) 
-                        {
-                            say("about to edit $PROGNAME path, $PROGPATH...");
-                            unless ( system($editor,$PROGPATH)) 
-                            {                               
-                                warn("launching $editor onto $PROGPATH gave unexpected return code: $? (last extended info=[$!])");
-                                $skiprun++;
-                            }
-                        } 
-                        else 
-                        {
-                            say("$PROGNAME($PROGPATH) cannot be read, make sure you can access it");
+                        say("about to edit $PROGNAME path, $PROGPATH...");
+                        unless ( system($editor,$PROGPATH)) 
+                        {                               
+                            warn("launching $editor onto $PROGPATH gave unexpected return code: $? (last extended info=[$!])");
                             $skiprun++;
                         }
                     } 
                     else 
                     {
-                        say("editor functions are not available due to missing default (in etc/alternatives) editor on this system");
+                        say("$PROGNAME($PROGPATH) cannot be read, make sure you can access it");
                         $skiprun++;
-                    }             
-                }
-                
-                # restart perlsh (reloads the code by exec-ing into a new instance (never to return unless an error launching perlsh happens)
-
-		        SKIPRUN:while($skiprun > 0) 
-        		{
-                    say("(restarting perlsh, you will lose all state data), is this ok? type 'y' or 'n' and press enter:");
-                    my $response = ( lc(readline()) );
-                    chomp($response);
-                    # reset here, just in case
-                    last SKIPRUN if $response =~ /n/;
-                    if ($response =~ /y/) {
-                        say("[0m[2J[1;1H[s[0mrestarting...");
-                        exec($0,"@ARGV") if $response =~ /y/;   # note, not coming back from this, jump to line 1 while purging any state (as in exec(2))
                     }
-                    say("INVALID CHOICE, PLEASE PICK EITHER Y or N!");
-                }
-            }
-            # GET HELP/MANUAL:  ?MODULE, ?$VAR, ?&FUNC ?~FAQ ??PERLMOD 
-            when ( m/^\?\S+/g )
-            {
-                my $pfx;
-                my $cmd;
-                my $rest = substr($command,1);
-                # internal help
-                $_ = $rest;
-                if ( /^(\?|\$|\&|\~|N)/ ) {
-                    $pfx = substr($rest,0,1);
-                    $cmd = substr($rest,1);
-                } else {
-                    $pfx = "F"; # firstfound
-                    $cmd = $rest;
-                }
-                say("calling perlhelp with cmd=[$cmd] pfx=[$pfx]");
-                perlhelp($cmd,$pfx);
-
-
-            }
-            # noecho - toggle the noecho mode on and off
-            when (m/^noecho$/g)
-            {
-                $noecho^=1;     # just toggle it
-                say("the NOECHO mode is now " . ($noecho ? "on" : "off"));
-            }
-            # EMPTY LINE, not an error, but not processed either
-            # ----------- so show some useful statistics, if not in noecho mode
-            when ( m/^$/g )
-            {
-                unless ($lastcmd_startcmd) {
-                    # user pressed ENTER: display some useful state information (WIP)
-                    my $PPID = getppid();
-                    say("- You're in the " . (length($CWP) > 0 ? $CWP : "root (topmost)") . " package, in pwd = " . cwd . "");
-                    say("  Our PID is $$ (child of $PPID)");
-                    say("  The Current User is " . $ENV{USER} . "(" . $ENV{UID} . "), Parent Shell is " . ($ENV{SHELL} // "unknown") . ".");
-                    say("  The Open FDs are: " . path("/proc/self/fd")->children() . "");
-                    #PLAN: add in more stuff like: command history counts, last few commands entered, allocated vars, etc
-                }
-            }
-            # ELSE: process as a perl statement
-            default
-            {
-                #### OUTPUT WINDOW (-ish)
-
-                $lastcmd = $command;
-                CORE::say(colored("evaluating '$lastcmd'","rgb022")) unless $lastcmd_startcmd;
-                drawbox("N","output begin here");
-                @result = eval ("$strict package $CWP; $command");                
-                unless ($lastcmd_startcmd)
+                } 
+                else 
                 {
-                    say("");
-                    drawbox("S","end output area");
-                    #CORE::printf(colored("\n^^---------------------------------^^\n","rgb044"));
-                    use strict;
-                    if ($@)
-                    {
-                        drawbox("I"," Error: $@\n__"); next;
-                    }
-                    else
-                    {
-                        my %result = @result;
-                        my $sresult = join(",",@result);
+                    say("editor functions are not available due to missing default (in etc/alternatives) editor on this system");
+                    $skiprun++;
+                }             
+            }                
+	        SKIPRUN:while($skiprun > 0) 
+    		{
+                say("(restarting perlsh, you will lose all state data), is this ok? type 'y' or 'n' and press enter:");
+                my $response = ( lc(readline()) );
+                chomp($response);
+                # reset here, just in case
+                last SKIPRUN if $response =~ /n/;
+                if ($response =~ /y/) {
+                    $term->csay("~2restarting~8...~7");
+                    exec($0,"@ARGV") if $response =~ /y/;   # note, not coming back from this, jump to line 1 while purging any state (as in exec(2))
+                }
+                say("INVALID CHOICE, PLEASE PICK EITHER Y or N!");
+            }
+        }
+        when ( m/^\?\S+/g )
+        {
+            my $pfx;
+            my $cmd;
+            my $rest = substr($command,1);
+            # internal help
+            $_ = $rest;
+            if ( /^(\?|\$|\&|\~|N)/ ) {
+                $pfx = substr($rest,0,1);
+                $cmd = substr($rest,1);
+            } else {
+                $pfx = "F"; # firstfound
+                $cmd = $rest;
+            }
+            say("calling perlhelp with cmd=[$cmd] pfx=[$pfx]");
+            perlhelp($cmd,$pfx);
 
-                        given ($command)
-                        {
-                            # formatting directive: stop (col 33 freeze)
 
-                                    #### HASH
-                                    when (/^\s*%[^;]+\s*/ and ((@result) % 2) == 0 )
+        }
+        when (m/^hist( (on|off|-?-h(elp)?))?$/g)
+        {
+    		(say("history disabled"),$usehist=0) when /off/;
+    		(say("history enabled"),$usehist=1) when /on/;
+    		say("history is " . w
+    		 $usehist ? "on":"off" ) when /^hist$/;
+    		say("syntax: hist [on|off]") when /hist (--)?h(elp)?$/g;
+    	}
+        when (m/^noecho$/g)
+        {
+            $noecho ^= 1;
+            say("the NOECHO mode is now " . ($noecho ? "on" : "off"));
+        }            
+        when ( m/^$/g )
+        {
+            unless ($silent) {                
+                my $PPID = getppid();
+                say("- You're in the " . (length($CWP) > 0 ? $CWP : "root (topmost)") . " package, in pwd = " . cwd . "");
+                say("  Our PID is $$ (child of $PPID)");
+                say("  The Current User is " . $ENV{USER} . "(" . $ENV{UID} . "), Parent Shell is " . ($ENV{SHELL} // "unknown") . ".");
+                say("  The Open FDs are: " . path("/proc/self/fd")->children() . "");
+                
+            }
+        }
+        default
+        {
+            $lastcmd = $command;
+            $term->csay("~22evaluating ~8'~1$lastcmd~8'~7") unless $silent;
+            drawbox("N","output begin here") unless $silent;
+            my @result = eval ("$strict package $CWP; $command");                
+            unless ($silent)
+            {
+                say("");
+                drawbox("S","end output area");                              
+                use strict;
+                if ($@)
+                {
+                    drawbox("I"," Error: $@\n__"); next;
+                }
+                else
+                {
+                    my %result = @result;
+                    my $sresult = join(",",@result);
+                    given ($command)
+                    {                       
+                                when (/^\s*%[^;]+\s*/ and ((@result) % 2) == 0 )
+                                {
+                                    my $_btot=0;    # grand total bytes
+                                    my $_ibtot=0;   # total item bytes
+                                    my $_vbtot=0;   # total value bytes
+                                    my $_ktot=0;    # key(s) handled
+                                    my $_etot=0;    # empty key(s)
+                                    sub elide
                                     {
-                                        my $_btot=0;    # grand total bytes
-                                        my $_ibtot=0;   # total item bytes
-                                        my $_vbtot=0;   # total value bytes
-                                        my $_ktot=0;    # key(s) handled
-                                        my $_etot=0;    # empty key(s)
-                                        sub elide
+                                        sub warnval
                                         {
-                                            sub warnval
-                                            {
-                                                warn("<undef given as number, defaulting to @_>"); return shift // 1;
-                                            }
-                                            my $str = shift // "<invalid data>";
-                                            my $siz = shift // warnval(8);
-                                            my $eln=length($str);
-                                            return $str if ($eln <= $siz);
-                                            my $esz=int($siz/2)-2;
-                                            my $rstr=substr($str,0,$esz) . "..." . substr($str,$eln-$esz);
-                                            return $rstr;
+                                            warn("<undef given as number, defaulting to @_>"); return shift // 1;
                                         }
-                                        print ("Hash Data of symbol " . RED . "$_" . RESET . "\n");
-                                        my $kpart = int(($COLUMNS * 0.25) - PAD_LR);
-                                        my $vpart = int(($COLUMNS * 0.75) - PAD_LR);
-                                        my $fmtstr="%-${kpart}s %-${vpart}s\n";
-                                        printf $fmtstr,"Key","KIND(Address) or Value";
-                                        my @sorted  = sort { $a cmp $b } keys %result;
-                                        for my $item (@sorted)
-                                        {
-                                            my $value = $result{$item};
-                                            my $vlen = length($value);
-                                            my $ilen = length($item);
-                                            $_btot+=$vlen + $ilen;
-                                            $_vbtot+=$vlen;
-                                            $_ktot+=1;  $_ibtot += $ilen;
-                                            $_etot+=1 unless $vlen;
-                                            printf $fmtstr, elide($item,$kpart), elide($result{$item},$vpart);
-                                        }
-                                        printf("\n%d pair(s), %d key byte(s)\n%d data bytes, %d empty key(s)\n%d total bytes in structure.\n", $_ktot,$_ibtot,$_vbtot,$_etot,$_btot);
+                                        my $str = shift // "<invalid data>";
+                                        my $siz = shift // warnval(8);
+                                        my $eln=length($str);
+                                        return $str if ($eln <= $siz);
+                                        my $esz=int($siz/2)-2;
+                                        my $rstr=substr($str,0,$esz) . "..." . substr($str,$eln-$esz);
+                                        return $rstr;
                                     }
+                                    $term->csay("~7Hash Data of symbol ~1$_~7");
+                                    my $kpart = int(($COLUMNS * 0.25) - PAD_LR);
+                                    my $vpart = int(($COLUMNS * 0.75) - PAD_LR);
+                                    my $fmtstr="%-${kpart}s %-${vpart}s\n";
+                                    printf $fmtstr,"Key","KIND(Address) or Value";
+                                    my @sorted  = sort { $a cmp $b } keys %result;
+                                    for my $item (@sorted)
+                                    {
+                                        my $value = $result{$item};
+                                        my $vlen = length($value);
+                                        my $ilen = length($item);
+                                        $_btot+=$vlen + $ilen;
+                                        $_vbtot+=$vlen;
+                                        $_ktot+=1;  $_ibtot += $ilen;
+                                        $_etot+=1 unless $vlen;
+                                        printf $fmtstr, elide($item,$kpart), elide($result{$item},$vpart);
+                                    }
+                                    printf("\n%d pair(s), %d key byte(s)\n%d data bytes, %d empty key(s)\n%d total bytes in structure.\n", $_ktot,$_ibtot,$_vbtot,$_etot,$_btot);
+                                }
+                                default
+                                {
+                                    given($command)
+                                    {
+                                    $term->csay("\nlist data =>\n" . Dumper(@result)) when /^(@|keys\(%)/;
+                                    $term->csay("\nhash data =>\n" . Dumper(%result)) when /^%/;                                        
+                                    $term->csay("\nscalar data\n value => \"@result\"") when /^\$/;
+
+                                    when (/^\s*package\s+([\w:]+)/)
+                                    {
+                                        $CWP = $1;
+                                        $term->csay("\n~122package change~8:~128 $CWP~7\n");
+                                    }                                        
+                                    when (/^synopsis ([A-Za-z:_]*)$/)
+                                    {
+                                        say("");
+                                        system($command);
+                                    }                                        
                                     default
                                     {
-                                        given($command)
-                                        {
-                                        ### GENERIC LIST                                            printer(@result) when /(=|;)/;
-                                        print colored("\nlist data =>\n" . Dumper(@result), "rgb043") when /^(@|keys\(%)/;
-
-                                        ### HASH [FALLBACK]
-                                        print colored("\nhash data =>\n" . Dumper(%result), "rgb044") when /^%/;
-
-                                        ### SCALAR
-                                        print colored("\nscalar data\n value => \"@result\"", "rgb045") when /^\$/;
-
-                                        ### PACKAGE
-                                        when (/^\s*package\s+([\w:]+)/)
-                                        {
-                                            $CWP = $1;
-                                            print ( colored("\npackage change: $CWP\n", "rgb054"));
-                                        }
-                                        ### SYNOPSIS
-                                        when (/^synopsis ([A-Za-z:_]*)$/)
-                                        {
-                                            say("");
-                                            system($command);
-                                        }
-                                        ### XENOPHOBIC
-                                        default
-                                        {
-                                            say("\ngeneric data\n");
-                                            printer (@result);
-                                        }
-                                    } # default
-                                 print("\n");
-                            } # given(command)
-                        } # else (if ($@) )
-                    } # unless $lastcmd_startcmd
-                } # default (given(command)
-            } #default (given(command))
-        }
+                                        say("\ngeneric or unknown datatype\n");
+                                        printer (@result);
+                                    }
+                                } # default
+                             print("\n");
+                        } # given(command)
+                    } # else (if ($@) )
+                } # unless $silent
+            } # default (given(command)
+        } #default (given(command))
     }
-    &quit;
-
 }
+
 
 sub sigint
 {
-    $term->modifying;
-    $term->delete_text;
+    $linereader->modifying;
+    $linereader->delete_text;
     $attribs->{point} = $attribs->{end} = 0;
-    $term->redisplay;
+    $linereader->redisplay;
 }
 
 sub quit
 {
-    $term->WriteHistory($HISTFILE) or warn "perlsh: cannot write history file: $!\n";
+    $linereader->WriteHistory($HISTFILE) or warn "perlsh: cannot write history file: $!\n";
     exit (0);
 }
 
@@ -702,25 +708,14 @@ sub reader
 {
     my ($line, $command);
     $command = '';
-    select()->flush();
+    select()->flush();    
 
     while (1)
-    {
-        $term->ornaments("setaf,24,setaf,26");
-        # startup commands get executed just like
-        # regular typed-in commands, its a convience mechanism
-        # so must be handled exactly (exactly) the same, not
-        # emulated in some other routine as it was before.
-        # the flag is needed only to suppress the usuall decorative
-        # stuff from showing per command. (You can also do this by
-        # using the noecho command)
-        if (@STARTUP_COMMANDS) {
-            $line = shift(@STARTUP_COMMANDS);
-            $lastcmd_startcmd=1;
-        } else {            
-            $line = $term->readline($command ? $PS2 : prompt($PS1));
-            $lastcmd_startcmd=$noecho;
-        }
+    {        
+        
+        $linereader->ornaments("setaf,24,setaf,26");
+        $line = $linereader->readline($command ? $PS2 : prompt($PS1));
+	    $add_to_hist=$usehist;
         
         return undef unless (defined $line);
         if ($line =~ /\\$/)
@@ -731,7 +726,7 @@ sub reader
         else
         {
             $command = $command ? $command . " $line" : $line;
-            $term->addhistory($command) if (length($command) > 0);
+            $linereader->addhistory($command) if (length($command) > 0) and $add_to_hist == 1;
             return $command;
         }
     }
@@ -742,7 +737,7 @@ use constant { USE_KEYS => 1, USE_VALUES => 0, LONGEST_OF => 0, SHORTEST_OF => 1
 sub estelem($target,$bkey=USE_KEYS, $comp=SHORTEST_OF)
 {
    my %target = %$target;
-   my $est = ($comp==SHORTEST_OF ? MAX_STR_LEN : MIN_STR_LEN);    # LONGEST_OF? MAX_STR_LEN  SHORTEST_OF/AVERAGE_OF: MIN_STR_LEN
+   my $est = ($comp==SHORTEST_OF ? MAX_STR_LEN : MIN_STR_LEN); #3a       
    my $thislen = ($bkey == USE_KEYS ? length($_) : length(%target{$_}));
    for (keys(%target)) {
         if ($comp == SHORTEST_OF) {
@@ -752,11 +747,8 @@ sub estelem($target,$bkey=USE_KEYS, $comp=SHORTEST_OF)
         } elsif ($comp == AVERAGE_OF) {
             $est+=$thislen;
         }
-    }
-    # return average when comp is in AVERAGE_OF mode
-    # return count when comp is in SHORTEST or LONGEST mode
-    # when in USE_KEYS mode, selects keys instead of when using USE_VALS mode
-    return $est / ($comp == 2 ? scalar(keys(%target)) : 1);
+    } 
+    return $est / ($comp == 2 ? scalar(keys(%target)) : 1); #3b
 }
 sub longestelem($target,$bkey=USE_KEYS) {  return  estelem($target,$bkey,LONGEST_OF); }
 sub shortestelem($target,$bkey=USE_KEYS) {  return  estelem($target,$bkey,SHORTEST_OF); }
@@ -767,12 +759,8 @@ sub shortestkey($target) { return shortestelem($target,USE_KEYS); }
 sub shortestval($target) { return shortestelem($target,USE_VALUES); }
 sub averagekey($target) { return averageelem($target,USE_KEYS); }
 sub averageval($target) { return averageelem($target,USE_VALUES); }
-
-
-
 sub printer
 {
-
     my $colpad = 2;
     my (@res) = @_;
     my ($i, $k, $v);
@@ -784,7 +772,7 @@ sub printer
     my ($il, $vl) = (0,$maxvl);
     if ( $lastcmd =~ /^%/ )
     {
-        print colored("\"$lastcmd\" evaluated to a hash object (guessed from input)\n",'cyan');
+        $term->csay("~8\"~2$lastcmd~8\"~24 evaluated to a hash object ~8(~2guessed from input~8)~7\n");
         my %hres = @res;
         $il=0;
         my $kn="-key-";
@@ -795,13 +783,12 @@ sub printer
         $il=$maxil unless $il < $maxil;
         $il=int($il);
         $vl=int($vl);
-        my $fmtstr = "%${il}.${il}s %-${vl}.${vl}s\n";
-        print($fmtstr);
-        printf(colored($fmtstr,'blue'),$kn,$vn);
+        my $fmtstr = "~1%${il}.${il}s ~22%-${vl}.${vl}s~7\n";
+        $term->printf($fmtstr,$kn,$vn);
         foreach $k (keys(%hres))
         {
             $v = $hres{$k};
-               printf(colored($fmtstr,"rgb225"),$k,$v);
+            $term->printf($fmtstr,$k,$v);
         }
 
     }
@@ -860,8 +847,9 @@ sub printer
 
 }
 
-sub prompt {
-    local($_) = @_;
+sub prompt(@values) #9MT
+{
+    local($_) = @values;
     return &$_ if (ref($_) eq 'CODE');
     s/\\h/$HOSTNAME/g;
     s/\\u/$LOGNAME/g;
@@ -877,8 +865,8 @@ sub perl_symbol_display_match_list ($matches, $num_matches, $max_length)
 {
 #    my($matches, $num_matches, $max_length) = @_;
     map { $_ =~ s/^((\$#|[\@\$%&])?).*::(.+)/$3/; }(@{$matches});
-    $term->display_match_list($matches);
-    $term->forced_update_display;
+    $linereader->display_match_list($matches);
+    $linereader->forced_update_display;
 }
 
 sub attempt_perl_completion ($text, $line, $start, $end) {
@@ -887,16 +875,16 @@ sub attempt_perl_completion ($text, $line, $start, $end) {
     if (substr($line, 0, $start) =~ m/\$([\w:]+)\s*(->)?\s*{\s*['"]?$/) {
 
     $attribs->{completion_append_character} = '}';
-    return $term->completion_matches($text,
+    return $linereader->completion_matches($text,
                      \&perl_hash_key_completion_function);
     } elsif (substr($line, 0, $start) =~ m/\$([\w:]+)\s*->\s*['"]?$/) {
 
     $attribs->{completion_append_character} = ' ';
-    return $term->completion_matches($text,
+    return $linereader->completion_matches($text,
                      \&perl_method_completion_function);
     } else {
     $attribs->{completion_append_character} = '';
-    return  $term->completion_matches($text,
+    return  $linereader->completion_matches($text,
                       \&perl_symbol_completion_function);
     }
 }
@@ -1263,56 +1251,128 @@ the case but that could change in the future.
 
         These lines were changed to increase compatibility and bolster resilliance.
 
-REMOVED CODE AND COMMENTS
 
+CSCS2k COMMENTS
 
-1) STARTUP COMMANDS
-# startup now moved to act just like typed in commands
-# entered in, in fact uses the same loop and is read in
-# the same way, instead of being emulated, which causes the
-# no longer needed code here to be used. The reason its simpler
-# is because of delegation. Delegation causes the work shifting
-# to the main loop, and the reader 'shifts' a startup command off
-# each time it reruns, until it is empty which eliminated the need
-# for a separate loop along with a flag to indicate it was done..
-# all were not even needed for the new method
-# the only possible risk is security and sanitation which isnt done anymore
-# except when it applies to the command line. 
+#1   STARTUP COMMANDS
 
-# DISREGARD ALL DATA BETWEEN HERE AND...
-# THIS BLOCK IS TO BE REMOVED WHEN NEW SYSTEM IS WORKING 100%
-#    ### STARTUP COMMANDS TO BE INTERPRETED AT (suprise) STARTUP
-#    ### these are executed as if user typed them, not the same as the environment rcfile!
-#    ### warning: if you place 'exit' in the startup commands it WILL terminate the program!
-#
-#    my $has_startcmds = 0;
-#    my $startcmds = "";
-#    while ( @STARTUP_COMMANDS ) {
-#        #say("entering loop: startup-commands=@STARTUP_COMMANDS");
-#        $_ = pop(@STARTUP_COMMANDS);
-#        #say("item found: $_");
-#        $startcmds.=$_;
-#        $startcmds.=";" if @STARTUP_COMMANDS;  # add ';' only if more commands are to be added
-#        #say("start commands updated: $startcmds");
-#
-#        $has_startcmds = 1;
-#    }
-#    if ($has_startcmds) {
-#        #say("has_startcmds=$has_startcmds: \"$startcmds\"");
-#        $lastcmd_startcmd = 1;
-#        return $startcmds if $has_startcmds;
-#    }
-#    else
-#    {
-#        $lastcmd_startcmd = 0;
-#    }
-#    ### END STARTUP COMMAND CHECK
-# ...HERE
+     startup now moved to act just like typed in commands
+     entered in, in fact uses the same loop and is read in
+     the same way, instead of being emulated, which causes the
+     no longer needed code here to be used. The reason its simpler
+     is because of delegation. Delegation causes the work shifting
+     to the main loop, and the reader 'shifts' a startup command off
+     each time it reruns, until it is empty which eliminated the need
+     for a separate loop along with a flag to indicate it was done..
+     all were not even needed for the new method
+     the only possible risk is security and sanitation which isnt done anymore
+     except when it applies to the command line. 
 
-END CODE COMMENTS SECTION
+    # THIS BLOCK IS TO BE REMOVED WHEN NEW SYSTEM IS WORKING 100%
+    #    ### STARTUP COMMANDS TO BE INTERPRETED AT (suprise) STARTUP
+    #    ### these are executed as if user typed them, not the same as the environment rcfile!
+    #    ### warning: if you place 'exit' in the startup commands it WILL terminate the program!
+    #
+    #    my $has_startcmds = 0;
+    #    my $startcmds = "";
+    #    while ( @STARTUP_COMMANDS ) {
+    #        #say("entering loop: startup-commands=@STARTUP_COMMANDS");
+    #        $_ = pop(@STARTUP_COMMANDS);
+    #        #say("item found: $_");
+    #        $startcmds.=$_;
+    #        $startcmds.=";" if @STARTUP_COMMANDS;  # add ';' only if more commands are to be added
+    #        #say("start commands updated: $startcmds");
+    #
+    #        $has_startcmds = 1;
+    #    }
+    #    if ($has_startcmds) {
+    #        #say("has_startcmds=$has_startcmds: \"$startcmds\"");
+    #        $lastcmd_startcmd = 1;
+    #        return $startcmds if $has_startcmds;
+    #    }
+    #    else
+    #    {
+    #        $lastcmd_startcmd = 0;
+    #    }
+    #    ### END STARTUP COMMAND CHECK
+    # END REMOVEME
 
+#3
+    #3b) return average when comp is in AVERAGE_OF mode
+         return count when comp is in SHORTEST or LONGEST mode
+         when in USE_KEYS mode, selects keys instead of when using USE_VALS mode
+    #3a) LONGEST_OF? MAX_STR_LEN  SHORTEST_OF/AVERAGE_OF: MIN_STR_LEN
 
+#2     commands (primary) execution:
+            EMPTY LINE - not an error, but not processed either, shows statistics
+            noecho - toggle the noecho mode on and off
+            ?[string] - GET HELP/MANUAL:  ?MODULE, ?$VAR, ?&FUNC ?~FAQ ??PERLMOD 
+            none-of-above - execute as perl code in current module ($CWP)
+            !EXTERNALCOMMAND - run command externally and come back
+            restart - or matches (restart|ed(it)?(source|src))\z) - edit & restart, cmd = restart, edit, source, src or combo (edsrc, restartsource)            
+                   (restart SKIPRUN:...):                 # restart perlsh (reloads the code by exec-ing into a new instance (never to return unless an error launching perlsh happens)
+            (empty line) - statistics: (todo: add in more stuff like: command history counts, last few commands entered, allocated vars, etc)
 
+            output values for ^ in this order:
+
+            GENERIC LIST                                         
+            HASH [FALLBACK]
+            SCALAR
+            PACKAGE
+            SYNOPSIS
+            XENOPHOBIC
+
+            may be replaced by dumper output (wip)
+
+#9 Multithreading
+
+    Not used much in this program but is needed for one specific task. That is, the startup commands
+    which are obviously, executed when perlsh first starts. These tend to take a few seconds depending
+    on what you have in your configuration and may be really inconvienient to wait for when you want
+    to do a quick check with perlsh. For this reason, perlsh puts the loading of startup commands into
+    a background thread, additionally, waits a second before even executing them in case you are just
+    executing perlsh in a 'quickie' situation. Messages, at this point are very beta and may be removed
+    entirely due to annoyances when typing a quickie. At this time, the prompt is redrawn when a message
+    comes through however, screen flashing might be a better way to go, or using ANSI to just draw a status
+    text at the bottom of the screen (or the top). This feature is still being developed so expect it to
+    change, alot.
+
+    On the drawing board is the idea for background calls for long-running commands, like for shells when you
+    do a File::Find or something. Its concept-only but may be added later. Such commands would end with a '&!'
+    so expect syntax handling for that to show up just prior to its implementation.
+
+    #9MT    Multi-Threadable Subroutines
+
+    Any sub(routine) marked with 9MT needs to make sure it is thread safe. Mainly, a note for programmers at this
+    point. Developers should know this and be aware to keep all data and calls thread safe. Also avoid letting these
+    routines create threads themselves as this would greatly increase overhead.
+
+    #9TC    Multi-Theaded: Thread Creator   
+
+    Subroutines marked with this, are creators of additional threads and should be handled extra carefully. One wrong
+    call to one of these and you could end up deadlocking the system. Also, it should go without saying that these subroutines
+    should also be thread safe, inheriting all the attributes a 9MT marked subroutine would have.
+
+    All threads should be clearly marked, starting at thread 1 (the caller thread). The first fork would be thread 2, then
+    3 and so on, make sure they are all clearly marked and have a clear exit path. Threads that have no exit path are forbidden
+    and should never be used due to their being proned to the creation of ZOMBIE PROCESSES.
+
+#10 MT Logging
+
+    while in other thread, output will go to $logfile
+    this is not completed as of yet -- more stuff has to be done
+    to get everything in handle_command to redirect to logfile
+    for now, it is classed experimentally incomplete
+
+    If this were my own code (100%) I would have finished this,
+    but someone else's base code ended up being a bad idea. I am
+    rewriting my own perl shell soon, just havent had time to do it.
+
+    the two printf are commented out since jump-prompting is now
+    used, but may be abandoned later or removed if jumping was
+    a good idea (?) and works out in the future.
+    
+           
 REFERENCES
 
         perlsh(1)  original version as mentioned above

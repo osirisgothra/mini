@@ -1,0 +1,202 @@
+#!/usr/bin/perl
+#
+#    pmls
+#    list perl packages on the system
+#    <https://www.github.com/osirisgothra/mini/eso/ubin-local/pmls>
+#    small or single file projects
+#
+#    Copyright (C) 1995-2021 Gabriel T. Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all projects can be
+#    obtained by visiting the repository listed above.
+#
+#    LICENSE
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#   CSCS COMPLIANCE
+#
+#            The Author has verfied that the file adheres to the '2020 Columnized Strict Commenting Scheme' which is
+#            also known as the "2020/CSCS". This scheme requires that 1) all comments are in the form of footnotes
+#            with only a refnum in the far right column. This is in an effort to join the massive need for commenting
+#            your code reformation going on all over the world, 2) footnotes are at the END of the file, beyond any
+#            executable code or other footnotes. Are easy to read and spot. 3) Do not count for more than 20% of the file's size.
+#            3-CODE Status: PASS PASS PASS (100%, 100%, 80%) A score of 80% or better is required to be 2020CSCS compliant.
+#
+#    HISTORY
+#
+#	 Fri 26 Mar 2021 11:45:21 AM EDT
+#            osirisgothra@ initially created this file
+#            with the original name, pmls
+#
+#
+#
+#  This template and header was created using the template generator by Gabriel T. Sharp
+#  You can download the latest version at: <https://www.github.com/osirisgothra/mini.git/eso/ubin-local/template>
+#  (the url is subject to changes on github's behalf, please submit a pull request to fix or request a fix on any url changes)
+#
+
+
+
+((1==1))||exit;                                     #4
+
+
+use warnings;
+use strict;
+use v5.20.2;                                        #3
+use Path::Tiny;                                     # path() 
+use File::Find;                                     # find()
+use Cwd;                                            # cwd()
+use Getopt::Long::Descriptive;
+
+
+my $program=path($0)->basename();   
+my ($opt, $usage) = describe_options(
+    "$program %o MATCHSTRING ...",
+    [ 'oneperfile|o','match only a single package name to each file (this increases accuracy and removes extraneous names altogether)' ],
+    [ 'file|l=s', "use only this file, this is used usually for debugging or testing" ],
+    [ 'match|m=s', "match expressions, multiple matches delimited by periods (ie; mymatch1.mymatch2), and are regular expressions in perl syntax (see perlreref(3pm))" ],
+    [ 'showfile|f', "show filename:packagename" ],
+    [ 'showfailures|F',"display failed files with no matches" ],
+    [],
+    [ 'verbose|v',  "print extra stuff"            ],
+    [ 'help',       "print usage message and exit", { shortcircuit => 1 } ],
+);
+
+print($usage->text), exit if $opt->help;
+
+my @package_blacklist = qw( main CORE B constant warnings strict MY OUR my our print say read write push pop shift unshift cwd  use sub if elsif else for while last continue break given when default pragma version VERSION BEGIN END );          #8
+
+
+my $totalfound=0;
+sub wanted {     
+    if (/.pm$/) {                                   #2        
+        my $cwd = cwd();
+        my $file = path($_);
+        if ($#ARGV >= 0)
+        {            
+            my $fileok = 0;
+            for (@ARGV) {
+                if ($file =~ /$_/) {
+                    $fileok++;
+                }
+            }
+            return unless $fileok;
+        }        
+        
+        my @strmatches = $opt->match ? split(m/\./,$opt->match) : ();
+        my $lineno = 0;
+        my $foundpackage = 0;
+        my $waitforpodcut = 0;  #6
+        say("now checking file $file in $cwd for packages...") if $opt->verbose;
+        PMREADER:for my $line ( $file->lines() ) {            
+            local $_ = $line;                       #1            
+            $lineno=$lineno+1;           
+            last PMREADER if /^\s*__END__/;         #7
+            if ($waitforpodcut == 0) 
+            { 
+                if ($line =~ /^=(pod|head[1-4]|over|item|back|begin|end|for|encoding)/) {                    
+                    $waitforpodcut=1;
+                    say("entered podcut mode on $lineno : $line") if $opt->verbose;
+                }
+                elsif ($line =~ /^\h*package (\S+)/) 
+                {
+                    my $match = $1;                
+                    $match =~ s/;//g;
+                    #5
+                    if ( ( $match =~ /[A-Za-z]+/ ) && 
+                        !( $match =~ /#!\?\+\,\=/ )
+                       )
+                    {
+                        my $bimatches=0;
+                        for my $bitem (@package_blacklist) {
+                            if ($match eq $bitem) {
+                                $bimatches++;
+                            }
+                        }
+                        if ( $bimatches ) {
+                            print("fail: $match is in blacklist") if $opt->showfailures;
+                        }
+                        else {      
+                            my $ismatch=0;
+                            if (@strmatches) {
+                                for my $sitem (@strmatches) {
+                                    $ismatch = 1 if ($match =~ /$sitem/);
+                                }                                
+                            } else {
+                                $ismatch=1;
+                            }
+                            if ($ismatch) {                                              
+                                print(path($cwd)->child($file) . "($lineno, $waitforpodcut):$match\n") if $opt->showfile;
+                                print("$match\n") unless $opt->showfile;                        
+                                $foundpackage=1;
+                                $totalfound++;
+                                last PMREADER if $opt->oneperfile;
+                            }
+                        }
+                    }
+                }
+            }
+            else   
+            {
+                if( /^=cut/ )                #8
+                {
+                    $waitforpodcut=0;
+                    say("ended podcut mode on $lineno: $line") if $opt->verbose;
+                }
+            }
+        }
+        if ( $foundpackage == 0 ) {
+            print("FINDPACKAGE FAILED in: $cwd + $file (no package entries)\n") if $opt->showfailures;
+        }
+    }
+
+}
+if ($opt->file) {
+    say("looking only at: ".$opt->file);
+    $_ = $opt->file;
+    wanted($opt->file); 
+}
+else
+{
+    find({ wanted => \&wanted, follow => 1 }, @INC);
+}
+
+warn("No matches found with current configuration.") unless $totalfound;
+exit($totalfound ? 0 : 127);
+
+
+
+#CSCS2k21
+#  compliance warnings: code/comment ratio is high, try to keep comments short (header is offender)
+#1 case in point: a closure here, keep an eye on that when making changes
+#2 specify other extensions here, if you want them
+#3 specify subs used from each module only, keep it breif!
+#4 not running from a shell check (type 2)
+#5 filtering out to compensate for this commonly used pkg-hiding 'trick':
+#       0 #!/usr/bin/env perl
+#       1 use warnings;
+#       2 use strict;
+#       3 package       #  trick PAUSE, we will!
+#       4  someCraftyPackageThatWantsToBeHidden; 
+#  regardless of the intention, i would like input on how i should go and
+#  to handle this, I am open to it, at this time pretend to be PAUSE/CPAN.  
+#6 pod text handling, pod text is not perl code so it must be stripped:
+#  pod appears with =pod or =headN, and ends with =cut, or after __END__(#7)
+#7 Looking at #6, many authors append documentation after an __END__ keyword
+#  which then tells the compiler only podtext follows and to stop. We do too.
+#8 may later automate the adding of keywords and language elements, but for now this will do.
+#9 packages that should not be shown, they are built-in language features

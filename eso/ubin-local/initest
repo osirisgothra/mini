@@ -1,0 +1,30 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+use v5.20.2;
+use Path::Tiny;
+use Cwd;
+use Data::Dumper qw(Dumper);
+use Getopt::Long::Descriptive;
+use feature "signatures";
+no warnings "experimental";
+
+sub bailout($msg, $code=1) {
+    say("$msg"), exit($code);
+}
+
+my ($opt, $result) = describe_options( "$0 %o",
+    [ "read|r", "readini (default)" ],
+    [ "write|w", "writeini" ],
+    [ "help|h", "help" ],
+);
+$opt->help ? bailout($result):0;
+
+
+use Config::INI;
+
+my $cfile = new Config::INI("/tmp/testfile");
+my $conf = "";
+
+my $ok = $cfile->load();

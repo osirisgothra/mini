@@ -1,0 +1,55 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+use v5.20.2;
+use vars qw: $do_on :;
+use Carp;
+use Path::Tiny;
+use Cwd;
+use Getopt::Long::Descriptive;
+use Term::Put;
+
+my $term = new Term::Put();
+$term->add_replacement("jack",71);   #1
+$term->add_replacement("pulse",84);   #1
+$term->add_replacement("start",96);   #1
+$term->add_replacement("stop",64);   #1
+sub say {
+    my $oldu=$_;
+    my @items;
+    push (@items, $term->colorize($_)) for @_;
+    CORE::say for @_;
+    $_ = $oldu;
+}    
+my $banner = $term->colorize(
+    "~122jackon/off v1.0\nJack (Network and Hardware Audio Control Kit) and\nPulse (Pulseaudio, a Streaming Audio API for ALSA, OSS, etc)\nSwitches on/off the JACK DBUS interface, and the Pulseaudio Service\n\nacting on jack dbus, and pulse services in systemd, please wait a moment..."
+    );
+my ($opt, $usage) = describe_options(
+    $0 . ' %o [[ON]|OFF]',
+    [ 'verbose|v',  "print extra stuff"            ],
+    [ 'help',       "print usage message and exit", { shortcircuit => 1 } ],
+);
+($do_on = $_ eq "ON" ? 1 : ( $_ eq "OFF" ? 0 : (path($0)->basename() eq "jackon" ? 1 : 0) )) for ("",@ARGV);
+for (@ARGV) { die("argument not understood: $_\ntry --help to see what you can do") unless /^(ON|OFF)$/; }
+say $banner;
+if ($do_on == 1) {
+    say("enabling jack (pulse will get started automatically by systemd when jack starts)");
+    system("jack_control","start");
+} else {
+    say("disabling jack (and pulse)");
+    system("jack_control","stop");
+    sleep(2);
+    system("jack_control","exit");
+    say("waiting for no jackdbus");
+    sleep(2);
+    say("ending pulseaudio");
+    system("pactl","exit");
+    say("done");
+}
+print($usage->text), exit if $opt->help;
+
+
+# CSCS
+
+#1  used by term->colorize() to autocolor any occurences of the word 'jack' in the text that passes through local 'say' (main::say)

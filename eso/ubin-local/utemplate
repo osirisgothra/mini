@@ -1,0 +1,293 @@
+#!/usr/bin/perl
+#
+# FILE
+#    utemplate
+#    my lastest greatest template program, or not
+#
+# PROJECT
+#    mini
+#	 eso-ubinlocal
+#
+# AUTHOR / COPYRIGHT
+#
+#    Copyright (C) 2021, 
+#
+#    Written by  osirisgothra@larnica.(none)
+#    Latest versions of this and all of 's projects can be
+#    obtained from:
+#
+#     <<projbranch>>
+#
+#    Documentation Available At:
+#
+#     <http://www.github.com/osirisgothra/mini.git>
+#
+# LICENSE
+#
+#    mini/utemplate  is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  NOTES
+#
+#     * TODO: move 'use' statements to top if you want to keep them**
+#    ** this feature will be added to the next version of perltemplate (hopefully)
+#   *** warnings are disabled for experimental and once because they are pretty
+#       annoying here, you might want to re-enable them for your own program
+#       to do this during testing and development.
+#
+#  HISTORY
+#
+#	Wed Mar 10 13:09:37 2021
+#         osirisgothra@larnica.(none) created this file using the template generator 'perltemplate'
+#         and named it utemplate for the project '<projname'.
+#
+#
+# (created with perltemplate by Gabriel T. Sharp <osirisgothra@hotmail.com>)
+#
+
+use warnings;
+use v5.18;
+use strict;
+no warnings "experimental";			# 	allow given/when/default and smartmatching without their warnings***
+no warnings "once";					# 	allow variables to be used just once without warning***
+
+
+
+use Getopt::Long::Descriptive; # opt|shortchar[kind] (kind is =s[tr],=i[nt], or none)
+
+my ($opt, $usage) = describe_options(
+    '$0 %o <some-arg> file',
+    [ 'no-dialog', "dont use dialog to show log",  ],
+    [ 'no-follow',   "do not follow the log, just show it",   { default  => 79 } ],
+    [],
+    [ 'verbose|v',  "print extra stuff"            ],
+    [ 'help',       "print usage message and exit" ],
+);
+
+say($usage->text), exit if $opt->help;
+say("getopt: arguments processed: $#ARGV");
+
+use Path::Tiny;
+use Curses::UI;
+use Cwd;
+use Carp;
+use IO::Proc;
+use Term::Put;
+use Config::INI;   
+use IPC::Open3  qw( open3 );
+use feature "signatures";
+
+
+#sub run($program,@pargs) {    my $pid = open3( \*STDIN, \*STDOUT, \*STDERR, $program, @pargs ); }
+
+# Variables
+
+my ($win, $mnu, $sbr, $debug, $file, $cui, @menu, @status, $statusbar_showing);
+
+
+
+# Menu Subroutines
+
+
+sub exit_dialog()
+{
+    my $return = $cui->dialog	(	-message   => "Do you really want to quit?",
+	    							-title     => "Are you sure?",
+		    						-buttons   => ['yes', 'no'], );
+    exit(0) if $return;
+}
+sub open_dialog
+{
+    $file = $cui->filebrowser(	-path => "/tmp", -show_hidden => 1, );
+
+    # Filebrowser will return undef if no file was selected.
+    
+    if (defined $file) 
+    {   
+        unless (open F, "<$file") 
+        {	
+            # do something with file
+            close F; 
+        } 
+        else 
+        { 
+            $cui->error(qq(Error opening "$file":\n$!)); 
+        }
+    }
+}    
+sub about_dialog
+{
+    while(1) {
+    my $yes = $cui->dialog( 	-message => "Template Program v1.0", -buttons => [
+        {   -label    => '< About The Author >',
+            -value    => 191,
+            -onpress  => undef,
+            -shortcut => 'o', }
+    ,
+    "ok"], -values  => [1,0], -title   => "About", );
+    given($yes) {
+        when (191)
+        {
+            $cui->dialog( 	-message => "The Author of this program seems like a nice enough person!", -buttons => ["ok"], -values  => [1,0], -title   => "About Author", )
+        }
+        default
+        {
+            return;
+        }
+    }
+    }
+}
+
+sub help_contents_act
+{
+    $cui->dialog('
+    Help - Contents
+
+    ABOUT.................................1
+    USAGE.................................2
+    GLOSSARY OF TERMS...................3,4
+
+    Page 1 - ABOUT
+
+    This program and its license is GNU-GPL3, please see GNU websites for details on license.
+
+    Page 2 - USAGE                   
+
+    Just Pick a Template and Hit Enter to Generate It (with any embedded options). Place your templates in ~/.config/utemplates!
+
+    Page 3 - GLOSSARY OF TERMS
+
+    ABCDEF - None
+
+    G]
+
+    GNU  The keeper of all things free in software and service.
+    GPL  General Public License (see: GNU)
+
+    HIJK - None
+
+    Page 4 - GLOSSARY OF TERMS
+
+    L]
+
+    LICENSE   a set of rules that dictate how intellectual or physical property can be used by others, but not limited to just that.
+
+    MNOPQRST - None
+
+    U]
+
+    UTEMPLATE    a dynamic template project, i hope
+
+    VWXYZ - None
+
+
+    ');
+}
+
+
+sub statusbar_act
+{
+    $statusbar_showing ^= 1;   # toggle it
+    
+}
+sub toolbar_act
+{
+    $cui->error("It's toolbar has yet to be completed!");
+
+}
+sub progress_act
+{
+    $cui->progress( -max => 10, -message => "Counting 2 seconds...", );
+    for my $second (0..2) 
+    {	
+        $cui->setprogress($second); 
+        sleep 1; 
+    }
+    $cui->noprogress;
+}
+
+
+
+# Regular Subroutines
+
+sub main($argc,$argv,$envp)
+{
+    $debug = 0;  #1=yes 0=no
+    $cui = Curses::UI->new( -color_support => 1, -clear_on_exit => 1, -debug => $debug, ); # this is where we gloss over setting up all the widgets and data structures + start the event loop
+
+    
+
+    @menu = (
+
+                { -label => 'Template',
+                  -submenu => [{        -label => 'Open Template'     ,     -value => \&open_dialog  },
+                               {        -label => 'Exit      ^Q',     -value => \&exit_dialog  }],
+                },
+                { -label => 'Settings',
+                  -submenu => [{        -label => 'Toggle Statusbar ^S',     -value => \&statusbar_act  },
+                               {        -label => 'Toggle Toolbar   ^T',     -value => \&toolbar_act }],
+                },
+                { -label => 'Help',
+                  -submenu => [{        -label => 'Contents   F1',     -value => \&help_contents_act  },
+                               {        -label => 'About'        ,     -value => \&about_dialog  }],
+                },
+
+                );
+                
+
+    $win = $cui->add( 'window','Window', -centered => 1 );                    
+    $mnu = $cui->add( 'menu','Menubar', -menu => \@menu, -fg => "blue",);
+    my $stat = $cui->add( 'window', 'Window', -centered => 0, -bg => blue );
+    
+    
+    $cui->mainloop;
+}    
+$statusbar_showing = 1;
+unshift(@ARGV,$0);                                  #2
+my $ARGC=$#ARGV;
+main($ARGC, \@ARGV , \%ENV);
+
+
+# CSCS2020 Notations/Footnotes
+#
+#1 re: Curses::UI: $cui is the Main Program Object, it must be global so accessor/menu/etc subs can see it even though subs are defined inside of the same routine, subs wont be able to read any function-local data, this is a closure that keeps loops from compromise. an illustration of the closure:
+#
+#  GLOBAL STACK     FUNC STACK
+#  +---------------+---------+ -> creates function B() but its access is still limited to global and above unless a ref was passed too
+#  |     FUNC A    +    A    |
+#  |     FUNC A    +    | var|
+#  +---------------+---------+
+#  +---------------+---------+
+#  |     FUNC B    +    B    |-> tries to access cui, but if its in A how would it?
+#  +---------------+---------+
+#  GLOBAL STACK     FUNC STACK
+#    +---------------+
+# |->|     var       |
+# |  +---------------+
+# |    ^
+# |    |
+# |    | accessible!
+# |    |
+# | +---------------+---------+ -> creates function 'FUNC B'
+# | |     FUNC A    +    A____|
+# | |               +    |////| <- readable by A only
+# | +---------------+---------+
+# | +---------------+---------+
+# -|     FUNC B    +    B     |-> tries to access var, and can because its global
+#  +---------------+----------+
+#2 re: main
+#
+#   the three lines to run main including itself are used to be this way so program and environment are passed along with the command line
+#   the main reason for this (no pun!) is for drop-in testing readiness, mainly when it is on CPAN because CPAN requires exhaustive 
+#   testing with modules, classes, and programs that ARE one of the aforementioned.

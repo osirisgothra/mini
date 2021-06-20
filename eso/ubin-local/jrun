@@ -14,22 +14,16 @@
 #PERL FEATURES: signatures (5.20+)
 #      OPTIONS: Preferrable to use the menu, but, you can specify the program name on the command line
 # REQUIREMENTS: Path::Tiny (usually distributed with perl)
-#         BUGS: Static, does not self configure at this time as it is hardcoded, see notes below.
-#        NOTES: Uses Paradisim2k2 style file commenting (a very simplistic comment style that uses # as part of its notation and is numbered in the file standalone:
-#               #1 if a config is added, this will need to be dynamic instead of static
-#               #2 move to or add a configuration file (.jrunrc) if it becomes a need (at this time it is NOT needed
-#               #3 added support for i3
-#               #4 added support for enlightenment (bodhi linux), xfce4 (xubuntu), gnome (linux mint, debian)
-#               #5 added DISPLAY checking to allow for multiple screens and newer wms (previously only supported old, single screen format (which is :NUM, like :0), new is :DISPLAY.SCREEN (ie, :0.0 for first display handle and first screen, dual monitor systems typically have :0.0 and :0.1 allocated)
-#               #6 added support for non-i3 environments (not as adaptive but at least it works outside i3 now)
-#               final note: this is a very, very esoteric script, its proabably not going to be what anyone else wants so before executing it make sure it does what you want --- dont expect too much out of a simple little program like this one
+#         BUGS: Static, does not self configure at this time as it is hardcoded (See Cs21k) #0
+#        NOTES: - Cs21k Compliant commentting, see Cs21k at the end of the file                 
+#               - This is a very, very esoteric script, its proabably not going to be what anyone else wants so before executing it make sure it does what you want --- dont expect too much out of a simple little program like this one
 #       AUTHOR: Gabriel Thomas Sharp (gt), osirisgothra@hotmail.com
 #      COMPANY: Paradisim NCNP (Non-Corporate, Non-Profit)
-# FILE VERSION: 1.0
-# PROG VERSION: same
+# PROG VERSION: 1.0 (using identical file version and program version per static project rules)
 #     PORTABLE: LEVEL 1 (Unix styled operating systems only)
-#				      - relies on xterm		- assumes user is using X-compatible window system that utilizes DISPLAY
-#					  - uses globs			- relies on the presence of /proc filesystem
+#				      - relies on xterm		- assumes user is using X-compatible window system that utilizes DISPLAY, display/desktop manager, preferrs I3 or compatible (planning to add dwm and other high-level dm support too)
+#					  - uses globs			- relies on the presence of /proc filesystem, /bin, and the usual programs found inside of it
+#               you /can/ use with "beginner" dwms like xfce and ubuntu/gnome, but those dont really need a program like this as they have a desktop and icons, etc (this is for a different type of workspace and workflow system)
 #	PORT-LEVEL: can be ported to other unix-like operating systems that have a window manager under wayland, unity, X, etc and keep their processes in /proc
 #      CREATED:  10/06/2020 10:12:03 AM
 #     REVISION:  No Revisions Made
@@ -47,36 +41,22 @@ use JSON;					# this is a core module that autoselects JSON::XS, JSON::PP, JSON:
 use Term::ReadKey;
 use POSIX;
 use Carp;
-
-# notify user that Term::Put is a private non-cpan module (at the time of this writing)
+use vars qw ( @precmds @exitcmds $i3width $i3height @argv $argc $i3workspace $i3menuworkspace $i3exitworkspace $hasi3 $debugging );
 
 confess("Term::Put required, this is a private module from github/osirisgothra/perl") unless eval "require Term::Put";
-
-
-
-# note POSIX::exit == CORE::exit, no shims needed!
-
-
-# keep this line after BEGIN/END and 'use' directives
-
-# rerun in xterm
-#system("xterm","-e","$0") unless `tty` =~ /not.a/;
-
 `sudo modprobe snd_emu10k1; sudo alsactl init`;
 
-# initialize terminal
+# variables
+
 my $term = new Term::Put(); # pass nothing and let Term::Put deduce the terminal itself (via $TERM or other queries)
 
-# shell mockup
+# subs
 
 sub false { return (0 or (shift // 0)); }
 sub true { return (1 and (shift // 1)); }
 sub echo { return CORE::say(@_ > 0 ? @_ : ""); }
 sub secho($sdelay,$smsg) {	echo($smsg); sleep(abs($sdelay) // 0);	} # undef will be promoted to '0'
-
-
-# signal map
-
+sub findi3() { (path($_)->slurp() =~ /i3\n/ == 1 ? return 1 : 0 ) for glob "/proc/[0-9]*/comm"; return 0; }		# this is unportable <- but i3 doesnt run on any other os anyway, so its cool
 sub signal_map($signal)
 {
 	given($signal)
@@ -92,24 +72,6 @@ sub signal_map($signal)
 	&display_menu_text() if defined(&display_menu_text);
 
 }
-
-
-
-$SIG{$_} = \&signal_map for qw( INT TSTP QUIT CONT STOP );
-my @precmds = ( "killall -SIGSTOP java 2> /dev/null 1> /dev/null" );
-my @exitcmds = ( "killall -SIGCONT java 2> /dev/null 1> /dev/null" );
-my $i3width = "579";
-my $i3height = "120";
-my @argv = @ARGV;
-my $argc = scalar(@ARGV);
-my $i3workspace = "95 GUITAR";
-my $i3menuworkspace = "94 GUITAR-MENU";
-my $i3exitworkspace = $i3menuworkspace;		# in case true initial WorkSpaceis not found (see get_i3_workspaces)
-sub findi3() { (path($_)->slurp() =~ /i3\n/ == 1 ? return 1 : 0 ) for glob "/proc/[0-9]*/comm"; return 0; }		# this is unportable <- but i3 doesnt run on any other os anyway, so its cool
-my $hasi3 = findi3() ? 1 : 0;
-die("Requires X style window manager (NOT for windows or macos, and must be ported to distant cousins of linux") unless $ENV{DISPLAY} =~ /\A:[0-9]+(\.[0-9]+)?\z/; #5
-my $debugging = 0;
-
 sub run_with_statusmsg($statmsg, $cmd)
 {
 	echo("$statmsg") unless ( $statmsg =~ /^debug-/ && $debugging == 0 );
@@ -119,21 +81,19 @@ sub run_with_statusmsg($statmsg, $cmd)
 sub run_jackenabledapp($targetitem)
 {
 	printf("\nstarting the run of $targetitem... (this window will become jack monitoring status window)\n");
-    run_with_statusmsg "starting jack/dbus...\n", "/usr/bin/jack_control start";
-		#run_with_statusmsg "switching to own desktop...\n", "/usr/bin/i3-msg workspace $i3workspace";
+    run_with_statusmsg("starting jack/dbus...\n", "/usr/bin/jack_control start");
 	set_i3_workspace($i3workspace,0);
-    run_with_statusmsg "running $targetitem...\n", "$targetitem";
-    run_with_statusmsg "stopping jack/dbus...\n", "/usr/bin/jack_control exit";
+    run_with_statusmsg("running $targetitem...\n", "$targetitem");
+    run_with_statusmsg("stopping jack/dbus...\n", "/usr/bin/jack_control exit");
 	set_i3_workspace($i3menuworkspace,0);
-		#run_with_statusmsg "restoring original WorkSpace..\n", "/usr/bin/i3-msg workspace back_and_forth";
 }
 sub clear_screen()
 {
-     	echo("\n[1;1H[2J");	# TODO #1: hard code this temporary solution
+     	echo("\n[1;1H[2J");	
 
 }
 sub display_menu_text()
-{    #1
+{    
 	clear_screen();
     my @menutext = (
                     "%12┏━━━━━━━━━━━━━⇛ ⋀⋀∆∶∏ ⋀⋀∈∏⋃ ⇚━━━━━━━━━━━━━━━┓",
@@ -144,10 +104,8 @@ sub display_menu_text()
                 );
     say($term->colorize($_)) for @menutext;                
 }
-sub execute_menu_item($item) {
-
-  
-
+sub execute_menu_item($item) 
+{
     $_ = $item;   
 
             run_jackenabledapp("/usr/bin/rakarrack") if /^r(rakarrack)?/;
@@ -156,13 +114,13 @@ sub execute_menu_item($item) {
 			if (/--help/) { 
 			    print("usage: jrun [rakarrack|guitarix|renoise] or [r|g|e]\n");
 			}
-			
-    exit if $argv[0];            # one shot command used
+		
+    if ($argv[0]) {
+        `jackoff`;
+        exit;
+    }
     return;
 }
-
-
-
 sub get_i3_workspaces()
 {
     unless ( `pgrep i3` )
@@ -173,9 +131,7 @@ sub get_i3_workspaces()
 	my @workspaces = @{ JSON::decode_json( `i3-msg -t get_workspaces` ) };
 	for my $w (@workspaces) {
 		my $wsname = $$w{name};
-	#	echo(" WorkSpace$$w{name} found ");
 		if ( $$w{focused} ) {
-	#		echo("$wsname is focused, saving it as the return-to WorkSpace");
 			$i3exitworkspace = $wsname;
 		}
 	}
@@ -202,40 +158,45 @@ sub set_window_geometry()
 }
 sub read_single_key()
 {
- #     ReadMode('cbreak');                                                                                                                                                                                                                                                     
-                                                                                                                                                                                                                                                                             
       while (1) {                                                                                                                                                                                                                                                             
 		 my $char = Term::ReadKey::ReadKey(0);                                                                                                                                                                                                                                                 
          last unless defined $char;                                                                                                                                                                                                                                          
          return $char;
-         #printf(" Decimal: %d\tHex: %x\n", ord($char), ord($char));                                                                                                                                                                                                          
       }                                                                                                                                                                                                                                                                       
                                                                                                                                                                                                                                                                               
 }
-# handle break modes very start/very end or signal table (next sect)
 
-BEGIN { ReadMode('cbreak'); 
+# variables
 
+$debugging = 0;
+@precmds = ( "killall -SIGSTOP java 2> /dev/null 1> /dev/null" );
+@exitcmds = ( "killall -SIGCONT java 2> /dev/null 1> /dev/null" );
+$i3width = "579";
+$i3height = "120";
+@argv = @ARGV;
+$argc = scalar(@ARGV);
+$i3workspace = "95 GUITAR";
+$i3menuworkspace = "94 GUITAR-MENU";
+$i3exitworkspace = $i3menuworkspace;		#1
+$hasi3 = findi3() ? 1 : 0;
+
+# compiler
+
+BEGIN { 
+    ReadMode('cbreak'); 
 }
-		system($_) for @precmds;
-
-END   { ReadMode('normal'); 
+END   { 
+    ReadMode('normal'); 
 }
 
-############################################################################
-############# MAIN PROGRAM #################################################
-############################################################################
+# program
 
-get_i3_workspaces();				# determines i3exitworkspace
-#echo("exit WorkSpace is $i3exitworkspace");	# debug point
-
-
+die("Requires X style window manager (NOT for windows or macos, and must be ported to distant cousins of linux") unless $ENV{DISPLAY} =~ /\A:[0-9]+(\.[0-9]+)?\z/; #5
+$SIG{$_} = \&signal_map for qw( INT TSTP QUIT CONT STOP );
+system($_) for @precmds;
+get_i3_workspaces();
 set_i3_workspace($i3menuworkspace,1);
 set_window_geometry();
-#### short circuit command args
-
-####
-
 given ($argc) {
     when (/0/) {
         my $endit=0;
@@ -265,11 +226,18 @@ given ($argc) {
         set_i3_workspace($i3exitworkspace,0);
         exit(127);
     }
-}
+} #given($argc)
 set_i3_workspace($i3exitworkspace,0);
 system($_) for @exitcmds;
-
 exit(0);
 
-# keep vim directives to very end
+#Cs21k
+
+#0 if a config is added, this will need to be dynamic instead of static (mark is in header in case you cant find it)
+#2 move to or add a configuration file (.jrunrc) if it becomes a need (at this time it is NOT needed
+#3 added support for i3
+#4 added support for enlightenment (bodhi linux), xfce4 (xubuntu), gnome (linux mint, debian)
+#5 added DISPLAY checking to allow for multiple screens and newer wms (previously only supported old, single screen format (which is :NUM, like :0), new is :DISPLAY.SCREEN (ie, :0.0 for first display handle and first screen, dual monitor systems typically have :0.0 and :0.1 allocated)
+#6 added support for non-i3 environments (not as adaptive but at least it works outside i3 now)
+#7 in case true initial WorkSpaceis not found (see get_i3_workspaces)
 # vim:ft=sh:ts=4:sw=4:noet:cc=160:fen:fdm=indent:fcl=all:vbs=0:nospell:tw=120:nowrap:mls=5

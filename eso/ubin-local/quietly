@@ -1,3 +1,7 @@
-#!/bin/zsh
-echo "forking $(basename $0) with $# arguments ($@)"
-exec qfork /usr/bin/$(basename $0) "$@" || echo "failed to fork lowriter"
+#!/bin/sh
+# this is a childlike script, which only blips in and out, and thanks to exec(2), does supply krita with a PID
+# just a shim to run whatever krita i like the best a.t.m. (you can delete this script, its not really that important)
+right_now_i_like="/usr/local/bin/krita-4.4.1"
+#
+
+exec $right_now_i_like "$@"

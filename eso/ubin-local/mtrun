@@ -1,0 +1,347 @@
+#!/usr/bin/perl
+#
+#    mtrun
+#    run minetest from CLI with a few features for re-logging automatically
+#    mini
+#    single-file and small projects
+#
+#    Copyright (C) 1995-2021 Gabriel T. Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all projects can be
+#    obtained by visiting the repository at:
+#
+#    <https://github.com/osirisgothra>
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    CSCS
+#
+#    The Author has verfied that the file adheres to the '2020 Columnized Strict Commenting Scheme' which is
+#    also known as the "2020/CSCS". This scheme requires that 1) all comments are in the form of footnotes
+#    with only a refnum in the far right column. This is in an effort to join the massive need for commenting
+#    your code reformation goin on all over the world, 2) footnotes are at the END of the file, beyond any
+#    executable code or other footnotes. Are easy to read and spot. 3) Do not count for more than 20% of the file's size.
+#    3-CODE Status: PASS PASS PASS (all 100%) A score of 80% or better is required to be 2020CSCS compliant.
+#
+#    HISTORY
+#
+#	 Sat 03 Apr 2021 03:37:24 PM EDT
+#            osirisgothra@larnica initially created this file
+#            with the original name, mtrun
+#
+#    Sun 23 May 2021 10:32:32 AM EDT
+#            osirisgothra@larnica revised and solidified the code:
+#            - tested and fine tuned background mode (passed)
+#            - tested and fine tuned oneshot mode (passed)
+#            - tested and fine tuned verbose mode (passed)
+#            - optimized various small parts of the code to increase performance (fail--just kidding, passed)
+#
+#  This template and header was created using the template generator by Gabriel T. Sharp
+#  You can download the latest version at: <https://www.github.com/osirisgothra/mini.git/eso/ubin-local/template>
+#  (the url is subject to changes on github's behalf, please submit a pull request to fix or request a fix on any url changes)
+#
+
+use warnings;
+use strict;
+use v5.20.2;
+no warnings 'experimental';
+use feature 'signatures';
+use Path::Tiny;
+use Carp;
+use Cwd;
+use POSIX qw(floor ceil);
+use Term::Put;                                                                                                                                                                     #0
+use Term::ReadLine;
+use IO::Proc;                                                      
+use Data::Dumper qw(Dumper);                                                                                                                                                       #1
+use Getopt::Long::Descriptive;
+
+
+my $self_process_count = scalar(IO::Proc::list("mtrun"));
+
+my $debug=0;
+my $term = new Term::Put(   );                                                                                                                                                     #9
+my @flags = qw[ --go ];
+my $user = $ENV{"USER"};
+my $cred = path($ENV{HOME})->child(".mtcred");
+my $pass = $cred->is_file() ? $cred : "/dev/null"; #10
+
+my %servers = ( "ta" =>         [ "37.46.208.34", "30000" ],    #14
+                "bls" => [ "mt.packets4hire.com", "30005" ],
+              );              
+my ($opt, $usage) = describe_options(
+                                        path($0)->basename() . ' %o HOST',
+                                        [ 'restart',"force restart of mtrun if running" ],
+                                        [ 'kill', "kill mtrun if its running" ],
+                                        [ 'makepasswordfile|M', "create the encrypted password file and set the password" ],
+                                        [ 'oneshot|1', "enable one-shot mode (defaults to continuous)" ],
+                                        [ 'debug|d',   "enable debug mode (loud)" ],
+                                        [ 'nocheck|n', "no instance checking" ],
+                                        [ 'bg|b', "enable background mode" ],
+                                        [],
+                                        [ 'verbose|v',  "print extra stuff"            ],
+                                        [ 'help',       "print usage message and exit", { shortcircuit => 1 } ],
+                                    );
+
+
+die("cannot use both --kill and --restart, must pick one, or none (see --help)\n") if $opt->restart && $opt->kill;
+
+my %SIGNALS = ( 
+    INT =>  sub {  qx( killall -KILL minetest )  },
+    QUIT =>  sub {  qx( killall -KILL minetest )  },
+    KILL =>  sub {  qx( killall -KILL minetest )  },
+);
+
+
+
+if ( $opt->bg ) {
+    exit if fork();
+    unless ($opt->verbose) {
+        close STDIN;
+        close STDOUT;
+        close STDERR;
+    }
+}
+
+for (keys(%servers)) { say("found a hardcoded server named '$_' with address '". $servers{$_}->[0] . ":" . $servers{$_}->[1] . "'"); }              #12, #12a
+for (keys(%SIGNALS)) {
+    $SIG{$_} = $SIGNALS{$_};
+}
+
+
+
+sub getservers($filename)
+{
+    my @items;
+    if ($filename->exists()) {
+        my @lines = $filename->lines();
+        my $readmode="find";
+        chomp(@lines);
+        if (@lines) {            
+            my $p;
+            for ($p=0;$p <= @lines; $p+=6) {               
+                my ($serv,$addr,$port,$desc) = (
+                    $lines[$p+1] // "",
+                    $lines[$p+2] // "",
+                    $lines[$p+3] // "",
+                    $lines[$p+4] // "",
+                );
+                last unless $addr;
+                
+                $serv = ("server" . ($p/6)) unless $serv;
+                $serv =~ s/([A-Za-z])(\s+)([A-Za-z])/$1$2/gm;
+                $serv =~ s/[^A-Za-z0-9 ]//g;
+                $serv =~ s/(^\s*)(\S+)(\s*)(.*)/$2/g;
+                
+                $port = 30000 unless $port;
+                $desc = "A minetest server called $serv, at the address $addr, using port number $port, accepting remote access." unless $desc;
+                say("found a server '$serv' ($desc) to serverlist");
+                $servers{$serv} = [ $addr, $port ];
+            }                                        
+        }
+    }  
+}
+sub create_encrypted_passfile()
+{
+    say("creating password file is not yet implemented (and passwords are not encrypted yet, so be careful)");
+    require Term::ReadLine; #11
+    my $term = new Term::ReadLine("password");
+    while(1) {
+        my $newpass = $term->readline("Enter new password (warning, it is shown):");
+        chomp($newpass);
+        continue unless length($newpass) > 0;
+        if ( $newpass =~ /^\S{4,}$/ ) {
+            say("brilliant, writing new password file, one moment please...");
+            $cred->remove() if ($cred->is_file());
+            $cred->touch();
+            $cred->spew($newpass);
+            $cred->chmod(0700);
+            say("finished!");
+            return 0;            
+        } else {
+            say("passwords must be at least 4 characters long, and not contain any spaces or nonprinting characters");
+        }
+        say("please try again");
+    }
+    return 1; #11b
+   
+    
+}
+sub mtrun($adr,$por,$nam,$pas)
+{  
+    my $orgrs=$/;
+    $/=chr(32);
+    my @flags_proc = @flags;
+    @flags = ( );
+    for (@flags_proc) {
+        while ( chomp($_) ) {};
+        push(@flags,$_);
+    }
+    $/=$orgrs;
+    @flags = map { /\h/ ? '"'. $_ . '"' : $_ } @flags;
+    undef @flags_proc;
+    my $target = "/usr/bin/minetest";
+    push(@flags,(   "--address", $adr,    "--name", $nam,
+                    "--password-file", $pas,   "--port",$por ));
+    unshift(@flags,$target);                                                                                                                                                       #2
+    if ($debug == 0 && ! $opt->debug ) 
+    {   close STDOUT;
+        close STDERR;              
+    }
+    while(1) { 
+        if ( $opt->debug ) {
+            say( "@flags" );
+        } else {
+            qx/@flags/;   
+        }
+        last if $debug;
+        last if $opt->oneshot;        
+     }
+}
+sub main($argc,$argv,$envp)                                                                                                                                                         #2
+{
+    exit(create_encrypted_passfile()) if $opt->makepasswordfile;                                
+    print($usage->text), exit if $opt->help;
+    if ( $self_process_count > 1) {
+        if ( $opt->kill ) {
+            say("killing minetest and all mtrun instances");            
+            `killall minetest mtrun`;
+            say("warning: possibly failed (still here, and shouldn't be, exiting gracefully...)"); 
+            exit;            
+           
+        }
+        elsif ( $opt->restart ) {
+            say("restarting minetest by killing it (the existing mtrun instance will restart it)");
+            `killall -KILL minetest`;
+            exit;
+        }
+        else
+        {
+            say("mtrun is already running, use --restart to override this");
+            exit;
+        }
+    }
+    else
+    {
+        warn("--kill used when minetest is not running, ignoring it\n") if $opt->kill;
+        warn("--restart used when there are no other mtrun processes running, ignoring it\n") if $opt->restart;
+    }
+    if ( IO::Proc::exists("minetest") && $debug == 0) {
+        unless ($opt->nocheck) {
+            my $mt = IO::Proc::fromname("minetest");                        
+            my $qterm = Term::ReadLine->new('yn');
+            my $prompt = $term->colorize("~10minetest ~2is running~7, restart mtrun anyway?");
+            my $response = $qterm->readline($prompt);
+            chomp($response);
+            if ( $response && $response =~ /^[Yy](es|ES)?$/ ) {
+                #my $mtrun_prog = IO::Proc::fromname("mtrun");  # NB #99
+                say("Killing processes, please wait a couple seconds...");
+                `killall -KILL mtrun`;
+                `killall -KILL minetest`;
+                sleep(2);
+                die("failed to kill minetest") if IO::Proc::exists("minetest"); # NB 99-a                
+                say("Proceeding with startup...");                                               
+            
+            } else {
+               exit 1;
+           }
+        }
+    }
+    getservers(path($ENV{HOME})->child(".minetest")->child("client")->child("serverlist")->child("favoriteservers.txt"));
+    chomp($pass);
+    unless ($pass) {
+        warn("no password file (hidden .mtcred in home directory missing/empty), login may not succeed\n");
+        $pass=" ";
+    }
+    
+    if ($cred->is_file()) {
+            die("cannot proceed, ". $cred . " is insecure, make sure ONLY you have access to it\n")
+                    if (((${$cred->lstat()}[2]) & 077));
+    }
+    die("cannot proceed, credentials cannot be in a link, must be a hard file\n") if -l $cred;
+    while(1) {                                                                                          #13
+        my $serv = shift(@{$argv}) // "";                                                               #
+        return 0 if $serv eq "";                                                                        #a
+        die("cannot locate predefined server entry: $serv\n") unless $servers{$serv};                   #b
+        my @args = @{$servers{$serv}};
+        push(@args,$user);
+        push(@args,$pass);
+        if ( $opt->debug ) {
+                            say("args:");
+            my $pos=0;      say( $pos++ . ": ", $_ ) for @args;
+        }
+        mtrun(@args);
+    }
+}   
+exit(main(scalar(@ARGV),\@ARGV,\%ENV) ); #2b
+
+__END__;
+
+
+
+=head  
+CSSC2k21 Comments Follow (use inside source file)
+
+# CSSC2k21
+#
+# Tue 13 Apr 2021 11:55:54 AM EDT: new rule: keep future comments small
+#
+    #0  needs github/osirisgothra/perl for these and --v libraries
+    #1  kept for custodial use during development, comment it out when not in use (release devs only)
+    #2  sub main::main($$$)
+        #2a using the C-style main out of habit, last line before __END__ is where it is called
+        #   also, only argc is a non-ref value
+        #2b 
+        #   when calling with @ARGC, use scalar() because when it isnt used
+        #   subcall will disolve the list into parameters.
+    #3  password protection is a big deal, not kept in this file, must be in a user-only-readable file, which cannot be read by group members or other users, and must be in the home directory and not a symbolic link (hard links count must be 1)
+    #4
+    #5
+    #6
+    #7  now running in background from start, the program runs normally, the thread is forked, but the process returns with the new pid only when -b is used    
+    #8  IO::Proc is my baby, it pretty much aims to encapsulate /proc/* (its still in dev)
+    #9  Term::Put ensures that terminals (for now linux only) are drawn correctly regardless of emulator or otherwise. If tput supports it, termcap is right, then this module will work 100% correct    
+    #10 Security update: credentials are no longer allowed over command line due to security risks on multiuser systems, only the password file
+    #   name is sent instead, and is not accepted if it is not properly secured (see above) Also, $pass no longer holds the password, just the 
+    #   name of the password file (~/.mtcred) if it validated ok, if it is invalid somehow, it is changed to "/dev/null")    
+    #   TODO attached^: This WILL change, the password file will soon be encrypted (as soon as i figure out the best secure way to do that, and, make a feature
+    #   to create this encrypted password file). For now password files have to be created by hand (and always named "~/.mtcred", where ~ is your home dir).
+    #11  Term::Readline is only loaded when this subroutine is used (with -M)
+    #11a Warning: this is all not encrypted, though we do our best to make it valid and not readable by any other user but the EUID
+    #    Warning: this WILL change, as noted in #10
+    #12 Yet another warning: if you hard code-in server/address/port lists, MAKE SURE your entries are: key => [ "address","port" ]
+    #   if you do it some other way bad things will happen, the code expects its programmer knows what they are doing, and does not error-check its own data.
+    #   best to just use the external listings from your minetest install (which will be detected, for linux users anways (windows users will have to add
+    #   in appropriate environment variables to fool the program, mainly the HOME directory will need altering, you can search the web on how to do this).
+    #  #12a moved this line to after the option handling and background-non-verbose-mode because there should not be any output when user wants background+not verbose (so that stdout/in/err get closed first, user sees nothing unless --verbose is used)
+    #   note that this total-silence mode only applies to background -b 
+    #   mode, usual messages will show if background mode is not in operation
+    #   (for now, this makes the most sense)
+    #13 servers are the only plain arguments left #a this is ending proper without any bad arguments   #b but this one is not
+    #   For those who are puzzled by this while(1) loop: since there is a --oneshot option the loop would never return unless it was
+    #   used? This is intentional, and there is no problem from the code being written this way. Someone has to kill the program to end the endless
+    #   loop when -1's unused, also intentional. It's more code to do a check that'll not matter since the repeat would never have been executed either way.
+    #   In the end makes the code simpler NOT to include 2 more anti-loop if-then-else statements (one for main, and another for mtrun). A warning might be added later if needed but I doubt it.
+    #14 hard coded servers, the ones i use (duh!) i keep them just as a sort of failsafe if minetest's server log is missing (like a fresh install or something)
+
+
+    # NBS: (important todos)
+
+    #99 Must replace when IO::Proc is updated to include script searching as well, for now we have to rely on killall
+    #   99a - a failsafe, for now, which will prevent double-runs, will NOT be needed once IO::Proc is updated for scripts and for mortus and victus cycle handlers 
+    
+=cut
+

@@ -1,0 +1,147 @@
+#!/bin/perl
+#
+#    mnt
+#    simple mount program
+#    mini/eso
+#    small projects and stand-alone programs or documents, esoteric or dependant
+#
+#    Copyright (C) 1995-2021 Gabriel T. Sharp
+#
+#    Written by Gabriel T. Sharp <21shariria@gmail.com>
+#    Latest versions of this and all projects can be
+#    obtained by visiting the repository at:
+#
+#    <https://github.com/osirisgothra>
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#    HISTORY
+#
+#	 Fri 05 Mar 2021 09:31:13 PM EST
+#            osirisgothra@ initially created this file
+#            with the original name, mnt
+#   Sun 07 Mar 2021 10:15:01 PM EST
+#            osirisgothra@larnica added 'umnt' detect, made 'udisksctl' default and added generic (-g) mode to use 'mount' and 'unmount'
+#            while simplified label and device detect routine. This script is now considered in 'release' status. Distribution is
+#            now been ok'd by the author (this 'revision' is #1).
+#
+#            OUT-OF-BOX COMPLIANT!
+#
+#            The Author has verfied that the file adheres to the '2020 Columnized Strict Commenting Scheme' which is
+#            also known as the "2020/CSCS". This scheme requires that 1) all comments are in the form of footnotes
+#            with only a refnum in the far right column. This is in an effort to join the massive need for commenting
+#            your code reformation goin on all over the world, 2) footnotes are at the END of the file, beyond any
+#            executable code or other footnotes. Are easy to read and spot. 3) Do not count for more than 20% of the file's size.
+#            3-CODE Status: PASS PASS PASS (all 100%) A score of 80% or better is required to be 2020CSCS compliant.
+#
+#
+#
+#  This template and header was created using the template generator by Gabriel T. Sharp
+#  You can download the latest version at: <https://www.github.com/osirisgothra/mini.git/eso/ubin-local/template>
+#  (the url is subject to changes on github's behalf, please submit a pull request to fix or request a fix on any url changes)
+#
+
+
+use warnings;
+use strict;
+use v5.20.2;
+use Path::Tiny;
+use Cwd;
+use Carp;
+use vars qw($LABEL $NAME);
+use Getopt::Long::Descriptive;
+use Data::Dumper;
+
+
+   
+my ($o,$u) = describe_options(
+        "mnt %o [label]",
+        [ 'nosudo|n',   "dont use sudo (applies to generic mode only)" ],
+        [ 'generic|g',   "do not use udisks2, instead use plain mount(8)" ],
+        [ 'unmount|u',  "unmount instead of remount" ],
+        [ 'labels|l', "show valid labels" ],
+        [ 'help',       "print usage info and exit", { shortcircuit => 1 } ],
+      );
+( print($u->text), exit ) if $o->help;
+
+use constant { SHOW_LABELS => 2, NORMAL_RUN => 0, MISSING_SKIP => 1 };
+my $progname=path($0)->basename();
+my $bin=Path::Tiny::rootdir()->child("bin");
+my $sudo=$bin->child("sudo");
+my @mcmd=( );
+$o->{unmount} = 1 if $progname eq "umnt";
+if ( $o->generic ) 
+{
+    @mcmd=$o->unmount ? ( $bin->child("umount") ) : ( $bin->child("mount") );
+}
+else
+{
+    @mcmd=$o->unmount ? ( $bin->child("udisksctl"), "unmount","-b" ) :
+                        ( $bin->child("udisksctl"), "mount","-b"   );
+    $o->{nosudo} = 1;                        
+}
+my @items=grep { s/(LABEL|NAME)=/;\$$1=/g } `lsblk -o label,name --pairs`; 
+my %maps=( );
+croak("need at least one non-option argument!") unless $o->labels || @ARGV;
+for (@items) { 
+    eval "$_"; 
+    $maps{$LABEL} = $NAME if length($LABEL) > 0;    
+}
+my $state=0;
+
+if ( $o->labels )
+{
+    $state=SHOW_LABELS;
+}
+else
+{    
+    for (@ARGV)
+    {
+        print("looking up $_ label...");
+        if ( my $dev = $maps{$_} )
+        {        
+            my @cmds = ($< == 0 || $o->nosudo) ? ( @mcmd ) : ( $sudo, @mcmd );
+            print("ok\nsending \"@mcmd\" request...");
+            system(@cmds,"/dev/$dev" );
+            if ($? == 0) {
+                print("ok\n");
+                $state=NORMAL_RUN;
+            } else {
+                print("failed\n");
+                $state=NORMAL_RUN;   #1
+            }
+        }
+        else
+        {
+            print("not found (skipping)");
+            $state=MISSING_SKIP;
+        }
+        
+    }
+}
+unless ($state == NORMAL_RUN) {
+    if ($state != SHOW_LABELS ) {
+        print("\n\nNote: some operations failed, make sure you use one of these labels: ");
+    } else {
+        print("\n\nValid labels:\n\n");
+    }
+    print("$_ ") for keys(%maps);
+}
+say("\n");
+
+# CSCS comments
+
+    #1  it existed, so dont offer the list of labels unless user starts entering in labels that dont exist!
+    #FN this program has some broken out statements that are condensable, dont!, they are that way on purpose to retain clarity of flow from start->end

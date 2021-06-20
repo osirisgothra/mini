@@ -4,14 +4,14 @@
 # declare -gi quiet=1
 # declare -gi count=-1
 # declare -gA ver=(	maj	1	min	1	rev	"pre-release" )
-# declare -gA msg=(	invalid	"warning: invalid item (errid=%s errn=%d)\n"	
+# declare -gA msg=(	invalid	"warning: invalid item (errid=%s errn=%d)\n"
 # 					process	"processing %s in mode %s\n"
 # 					check	"checking %s against...\n"
 # 					swmode  "mode changed to %s\n"
 # 					help	"syntax: status_command [-hqin [ARGUMENT]]\n-h	this help\n-q	be not quiet\n-iN	interval [M time in milliseconds\n\nARGUMENT\n	test	tests the command line interface (dev only)\n\nPlease see license for details. Programmed by Gabriel Sharp <osirisgothra@hotmail.com>\n\n"
 # 					version	"$0 v$ver[maj].$ver[min] revision $ver[rev]\n"
 # 					test	"test passed for %s (%d)\n"
-# 					badarg	"unknown argument %s, returned a code of %d\n"				
+# 					badarg	"unknown argument %s, returned a code of %d\n"
 # 					changed	"%s changed to %s"
 # 					exit	"exiting with code %s"
 # 					toomerr "too many errors or warnings while setting option settings"
@@ -21,7 +21,7 @@
 # 					tst		126				)
 
 # mess() {			# ALERT: This is a recursive (self calling, thread safe) function
-# 			
+#
 # 		sync
 # 		echo "was: $@"
 # 		if [[ $1 == exit ]]; then
@@ -32,25 +32,25 @@
 # 			[[ $quiet == 0 ]] && printf $msg[exit] [${err[$exitcode]}]
 # 			exit "${err[$exitcode]}"
 # 		else
-# 			[[ $quiet == 0 ]] && printf $msg[$1] "$@"; 
-# 		fi 	
+# 			[[ $quiet == 0 ]] && printf $msg[$1] "$@";
+# 		fi
 # }
 # if eval "set -- `getopt -o hqi::n:: -- "$@"`"; then
 # 	echo $?
 # else
 # 	mess exit $err[abort] help
 # fi
-# 	
-# 					
+#
+#
 # for ((i=1;i<=$#;i++)); do
 # 	x=${@[$i]}
 # 	r=$?
 # 	mess process $x $mode
 # 	case $mode in
-# 		switch)	
+# 		switch)
 # 				case $x in
-# 					--)	
-# 						mode=arg; 
+# 					--)
+# 						mode=arg;
 # 						mess swmode $mode
 # 						;;
 # 					-h)	mess exit $err[abort] help
@@ -65,9 +65,9 @@
 # 						mess changed iterations $count
 # 						let i++
 # 						;;
-# 					*) 
+# 					*)
 # 						quiet=0
-# 						mess invalid $r $x					
+# 						mess invalid $r $x
 # 						;;
 # 				esac
 # 				;;
@@ -78,22 +78,22 @@
 # 							mess test $x $r
 # 							;;
 # 					*)		quiet=0
-# 							mess exit abort badarg $x $r							
+# 							mess exit abort badarg $x $r
 # 							;;
 # 				esac
 # 				;;
-# 	esac					
+# 	esac
 # done
-# exit	
+# exit
 # [[ $# -ge 2 ]] && [[ $1 == -i ]] && interval=${2--1} && shift 2
 # declare -gf diskfree memfree swapfree cpu
 # diskfree=0.0 memfree=0.0 swapfree=0.0 cpu=0.0
 # repeat {
 while true; do
-	if [[ -r ~/.status_command_child_ignore ]] || ! [[ -r ~/bin/status_command_child ]]; then
-		echo	"$( (loadavg; date) | tr '\n' ' ' )"
-	else
-		[[ -r ~/bin/status_command_child ]] && source ~/bin/status_command_child
-	fi
-	sleep 1
+if [[ -r ~/.status_command_child_ignore ]] || ! [[ -r ~/bin/status_command_child ]]; then
+echo	"$( (loadavg; date) | tr '\n' ' ' )"
+else
+[[ -r ~/bin/status_command_child ]] && source ~/bin/status_command_child
+fi
+sleep 1
 done

@@ -1,0 +1,46 @@
+#!/bin/zsh
+setopt interactivecomments
+eval `makeid3vars`                                              #0
+set +x                                                          #1
+echo "processing $filecount files" > /dev/stderr                #2
+for ((x=1;x<$filecount;x++)); do
+
+    y="file$x"
+    title() { echo "${${(P)y}[Title]}" }
+    file() { echo "${${(P)y}[Filename]}" }
+    artist() { echo "${${(P)y}[Artist]}" }
+    year() { echo "${${(P)y}[Year]}" }
+    genre() { echo "${${(P)y}[Genre]}" }
+    track() { echo "${${(P)y}[Track]}" }
+    comment() { echo "${${(P)y}[Comment]}" }
+    printf -v newname "%02d - %s.mp3" "$(track)" "$(title)"
+    echo "mv \"$(file)\" \"$newname\""                         #3
+
+done
+
+# CSCS2020
+
+#   ASSUME: we assume you are versed in linux and linux shells, are using linux,
+#           and know what id3, mp3, mv, and zsh are
+#   REQUIRES:   you must have 'id3', 'zsh' installed
+#               you will also need my makeid3vars script from github
+#
+#   USAGE: go do a directory that contains the name-challenged files, and type
+#       user@host# id3 -l *_
+#   press enter, and id3 will show you what the details are for those files
+#   if all the details are present and accounted for (and is ok to you, be sure!)
+#   then you can go ahead and try:
+#       user@host# reid3_
+#   press enter, and you will get output for what reid3 is going to do
+#   assuming it looks good to you, and you know what your doing, and you are ok with
+#   the changes, you can commit these changes by (if you are in bash, zsh or ksh)
+#   typing:
+#       user@host# eval `reid3`
+#   and press ENTER
+#   any error will of course abort the whole thing depending on your shell settings
+#   be sure to double check before doing this!
+
+#0  see mini.git/eso/ubin-local/makeid3vars for details
+#1  change to -x when debugging
+#2  must go to stderr or /dev/null, to prevent interfering with user eval 'reid3' commands
+#3  only echoed for eval usage (for example, the same way resize(1) is used)

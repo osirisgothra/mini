@@ -1,0 +1,185 @@
+#!/usr/bin/env perl
+use warnings;
+use strict;
+use Scalar::Util qw( looks_like_number );
+use Cwd;
+use v5.20.2;
+use feature 'signatures';
+no warnings 'experimental';
+use Getopt::Long::Descriptive;
+
+my ($o,$desc) = describe_options( 
+                $0 =~ s:.*/::g . "[1D$0 %o PATHs",
+                [ "help|h", "get help now" ],
+                [ "colcount|c=i", "specify how many characters wide each column should be (default 32)", { default => 32 } ],
+[                "use column count of -1 to force one item per row (single column entire width)"                ]
+                );
+say($desc), exit if $o->help;
+die("cannot determine terminal (TERM)") unless $ENV{TERM};
+die("home directory invalid") unless -r -w -d $ENV{HOME};
+warn("temp directory may be faulted") unless -r -w -d "/tmp";
+
+
+
+@ARGV = @ARGV < 1 ? cwd() : @ARGV;
+my $cc=-1;
+
+sub nawidth($str)
+{
+    die("string missing") unless $str;
+    my $ax = qr/\e\[([0-9]+;?)+m/x;
+    my $as = qr/\e\[s/x;
+    my $ae = qr/\e\[u/x;
+
+    $_ = $str;
+    s/$ax//g;
+    s/$as.*$ae//g;
+    return $_;
+}
+sub escapeless($str)
+{
+    $_ = $str;
+    s//(esc)/g;
+    return $_;
+}
+sub inrange($size,$min,$max) {   return $size >= $min && $size <= $max; }
+sub humanize($size) 
+{
+    my $rv;
+    given($size)    {
+        $rv = $size . "b" when inrange($size,0,1023);
+        $rv = $size/1024 . "k" when inrange($size,1024,1024**2);
+        $rv = $size/1024**2 . "M" when inrange($size,1024**2, 1024**3);
+        $rv = $size/1024**3 . "G" when inrange($size,1024**3, 1024**4);
+        $rv = $size/1024**4 . "T" when inrange($size,1024**4, 1024**5);
+        $rv = $size/1024**5 . "P";
+        
+    }
+    if ( $rv ) {
+        $rv =~ s/([0-9]\.[0-9][0-9])([0-9]+)/$1/g;
+        return $rv;
+        
+    } else {
+        return "(empty string)";
+    }
+}
+sub size_to_color_index($size)
+{
+            my $c = 17;
+                given($size) {
+                    $c = 22 when $_ == 0;
+                    $c = 23 when $_ < 64 ;
+                    $c = 18 when $_ < 256;
+                    $c = 53 when $_ < 1024;
+                    $c = 90 when $_ < 65535;
+                    $c = 131 when $_ < 1024**2;             # 64K-1M
+                    $c = 168 when $_ < ((1024**2) * 50);    # 1M-50M
+                    $c = 166 when $_ < ((1024**2) * 250);   # 50M-250M
+                    $c = 227 when $_ >= ((1024**2) * 250);  # 250M-1G
+                    $c = 196 when $_ >= (1024**3);          # 1G-INF
+
+                }
+        return $c;
+}
+sub print_legend($linesbefore,$linesafter)
+{
+    say while $linesbefore-- >= 0;
+    my %sr = (  "aEmpty" => 0,
+                "b< 64b" => 63,
+                "c< 256b" => 255,
+                "d< 1k" => 1023,
+                "e< 64k" => 65534,
+                "f< 1MB" => 1024**2,
+                "g< 50MB" => ((1024**2)*50)-1,
+                "h< 250MB" => ((1024**2) *250)-1,
+                "i>=250MB" => ((1024**2) *250)+1,
+                "j>1GB" => ((1024**3)+1),
+            );
+    for (sort(keys(%sr))) {
+        my $c = size_to_color_index($sr{$_});
+        printf("[38;5;${c}m%10s[0m ",substr($_,1));
+    }
+    say while $linesafter-- >= 0 ;
+}
+sub sf($z) { 
+    die("number is required by sf") unless looks_like_number($z);
+    print "[38;5;" . $z . "m"; ""; 
+}
+sub sb($z) { print "[48;5;" . $z . "m"; ""; }
+sub ssb($z) { "[48;5;" . $z . "m"; }
+sub rs() { print "[0m"; }
+sub isdots($str) { 
+    return 1 if ($str eq "." || $str eq ".."); return 0; }
+my $footer = "Total %s bytes in %d reg files, %d links, %d reg directories, and %d dirlinks %s";
+my $dfoot = "(%d character devices, %d block devices)";
+my ($tchar,$tblk,$tsize,$tfile,$tdir,$tlnk,$tdirlnk) = (0,0,0,0,0,0,0);
+$_="";
+
+print_legend(1,1);
+
+for (@ARGV) {
+    if (-d) {
+        my $firstitem=1;   
+        chdir($_);
+        my $width = $ENV{COLUMNS} // `tput cols` // 80;
+        $o->{colcount} = $width if $o->colcount < 0;
+        my $cols = $width > $o->colcount ? $width / $o->colcount : 1;
+        my $colw=($width/$cols)-2;
+        my $spacer = "|" unless $cc <= 0;
+        $spacer = "" if $cc <= 0;
+        printf("[1D$spacer[38;5;22m[48;5;120m[2m[%" .( $colw - 2 )."s][0m ",$_);
+        $cc++ if $cc >= -1;
+        $cc=1 if $cc <= 0;
+        printf("\n") if $cc % $cols == 0;
+        my $hdir;
+        opendir($hdir,cwd());
+        my @n = sort { $a =~ /([^.]*)$/; my $c=$1;  $b =~ /([^.]*)$/;my $d=$1;  $c cmp $d } readdir($hdir);
+        closedir($hdir);
+        my $dots=4;
+        for (@n) {
+            say if $firstitem-- > 0;
+            
+            $cc++;
+            my $out = "";
+            sb(232) if -d;
+            $_ = "(ro)".$_ unless ( -w );            
+            my @x = stat($_);
+            
+            unless ( -l ) {
+                if ( -d ) {
+                    unless (isdots($_))
+                    {
+                        $tdir++;
+                        sf(92);
+                    }
+                } else {
+                    $tfile++;
+                    my $s = $x[7] // 0;
+                    my $c = size_to_color_index($s);
+                    sf($c);
+                }                
+                $tsize+=$x[7] // 0;
+            } else {
+                sf(28);
+            }
+                        
+            if (length($_) <= $colw) {
+                $out = sprintf("%-${colw}s" . ssb(0) . " ",$_);
+            } else {
+                $out = substr($_,0,($colw-($dots))/2) .
+                       ($dots ? ( "." x ($dots) ) : "") .
+                       substr($_,0-($colw-($dots))/2,($colw-($dots))/2) .
+                       ssb(0) .
+                       " ";
+            }            
+            print("$out");
+            printf("\n") if $cc % $cols == 0;
+            rs;
+        }
+    } else {
+        printf("dont know what to do with $_\n");
+    }
+
+}
+printf("\n\n$footer\n\n",humanize($tsize), $tfile, $tlnk, $tdir, $tdirlnk, ( $tblk > 0 || $tchar > 0 ) ? sprintf($dfoot,$tchar,$tblk) : "");
+exit;
