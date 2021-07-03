@@ -33,7 +33,78 @@
 #            osirisgothra@ initially created this file
 #            with the original name, snip
 #
+#  FOOTNOTES FROM AUTHOR   
 #
+#999AB
+#
+# - Extra Information -
+#
+# Program Evolution
+#
+#     This program was originally going to be in perl, HOWEEVER, it seems zsh was very well suited for this task and could accomplish it in
+#     a much better, faster, and easier-to-work-with (for me and you, the user), template creation and use, not to mention the inline substitution
+#     that would not be available were it in perl (without lots of subs to replace).
+#
+# About Templates
+#
+#     If you know zsh or bash (or even sh/dash/etc!) you probably already know how to write a template, you just didnt know you did!
+#     The template files are in your (the user) "Templates" or "templates" directory (ie, ~/Templates/my-template-name). 
+#
+#     If the template is non-text, it will be skipped over (obviously, since we are a text snippet program!). I use mime and magic to
+#     accomplish this task, so it should be pretty portable, windows users may have to get and install 'zsh' and 'file' and do some
+#     converting, sorry to say I dont test windows or macos stuff, but given the short-short length of this program, converting would be
+#     pretty easy.
+#
+# Template File Formatting
+#
+#     Templates should be in ascii format (most encodings are ok).
+#
+#     With templates, you can just use $1 thru $9 to refer to command line arguments, or $ENVIRONMENT_VARIABLES work too. Also, the plethora
+#     of zsh-expansions and flags are also at your disposal (command-expansion, replacements, arrays, hashes, lookups, etc,etc,etc!!!)
+#
+# Getting Started, and Finished (Quickly!)
+#
+#     It should be obvious at this point why I would pick zsh for this task, it is very easy to work with.
+#
+#     To get started use 'snip -l' to see a list of templates you have in your directories, I also support the '~/.config/snips' directory
+#     but it is specific to THIS program, so you should probably not use it if you want to use your templates elsewhere too.
+#
+#  How do I use this program? 
+#
+#   I created this program so I could add boilerplate stuff to template dirs, like a file called my-typical-perl-app, and I love nano and
+#   vim, so when starting a new program I fire up:
+#
+#       vim:
+#           1) start vim
+#           2) in command mode (press :) you can type:
+#
+#               :r !snip my-typical-perl-app argument1 argument2 etc
+#
+#           3) done!, everything will be inserted and formatted however I like (usually arguments 1,2,3 and 4 are project name/desc repo name/desc followed by author name, etc)
+#
+#       nano:
+#           1) start nano (I assume you use the typical settings)
+#           2) press <Insert> to trigger the insert-new-file prompt
+#           3) press <Alt+F> to enable insert-file-here mode (if not active from last use, so it may be the default if you configured it that way)
+#           4) press <Ctrl+X> to enable execute-command mode (this will never be the default in nano)
+#           5) type:
+#       
+#               snip my-typical-perl-app argument1 argument2 etc
+#
+#              and press <Enter>
+#
+#           6) done!, everything will be inserted and formatted however I like (just like step 3 in the vim steps above)
+#       
+#   other editors
+#
+#       If they cant handle this, you might need to redirect to a file, then open or paste to it.
+#       You can use the -x option to just force snip to copy to the CLIPBOARD (requires xclip, usually only in linux you can do this).
+#
+#  Use --help for more help on command line options (End of Extra Info)
+#
+#999AF
+#  
+#  TEMPLATE DELEGATION!
 #
 #  This template and header was created using the template generator by Gabriel T. Sharp
 #  You can download the latest version at: <https://www.github.com/osirisgothra/mini.git/eso/ubin-local/template>
@@ -42,25 +113,60 @@
 
 case $# in 0)   set -- --help;; esac
 
+declare -g debugging=0
 
+
+##### SNIPPETS
+##### SNIPPETS      SNIPPETS BEGIN HERE
 ##### SNIPPETS
 
 declare -gA snips=(
+      "builtin-example" "this is a built-in example, you should install presets into your ~/Templates or ~/templates directory"      
+)      
+#      "getopt" "use Getopt::Long::Descriptive;
+#
+#  my (\$opt, \$usage) = describe_options(
+#    '${1-my-program} %o ${2-argument(s)}',
+#    [ 'server|s=s', \"the server to connect to\", { required => 1  } ],
+#    [ 'port|p=i',   \"the port to connect to\",   { default  => 79 } ],
+#    [],
+#    [ 'verbose|v',  \"print extra stuff\"            ],
+#    [ 'help',       \"print usage message and exit\", { shortcircuit => 1 } ],
+#  );
+#  # ${3-print help text and exit:}
+#  print(\$usage->text), exit if \$opt->help;
+#"
+#
+#    "perl"  "$(</src/sandbox/cze.pl)"
+#)
+for pth in ~/.config/snips ~/Templates ~/templates; do
+    if [[ -d $pth ]] && [[ -r $pth ]]; then
+        ((debugging)) && echo "checking $pth for files"
+        for fil in $pth/*; do
+            if [[ -r $fil ]]; then
+                ftype=`file --mime-encoding --brief "$fil"`
+                if [[ $ftype == 'us-ascii' ]]; then
+                    ((debugging)) && echo "adding template $fil as ${fil:t:r}"
+                    snips[${fil:t:r}]="$(<$fil)"
+                    
+                elif [[ $ftype == 'binary' ]]; then
+                    ((debugging)) && echo "skipped $fil because it is a binary file"
+                else
+                    ((debugging)) && echo "skipped $fil because encoding $ftype is not configued in the whitelist"
+                fi
+            else
+                ((debugging)) && echo "warning: $fil is unreadable, skipped"
+            fi
+        done
+    fi
+done
+            
 
-      "getopt" "use Getopt::Long::Descriptive;
 
-  my (\$opt, \$usage) = describe_options(
-    'my-program %o <some-arg>',
-    [ 'server|s=s', \"the server to connect to\", { required => 1  } ],
-    [ 'port|p=i',   \"the port to connect to\",   { default  => 79 } ],
-    [],
-    [ 'verbose|v',  \"print extra stuff\"            ],
-    [ 'help',       \"print usage message and exit\", { shortcircuit => 1 } ],
-  );
-
-  print(\$usage->text), exit if \$opt->help;
-"
-)
+################ END OF SNIPPETS
+################ END OF SNIPPETS
+################ END OF SNIPPETS        SNIPPETS END HERE
+################ END OF SNIPPETS
 ################ END OF SNIPPETS
 
 # Get Options from Command Line for snip
@@ -73,17 +179,21 @@ snipit
 
 SYNTAX
 
-	snip [OPTIONS] SNIPPET [...]
+	snip [OPTIONS] SNIPPET [SNIPPET-ARGUMENTs ...] [[+] [SNIPPET2] [SNIPPET2-ARGUMENTs ...]] [[+] [...]]
 
 OPTIONS
-    --list -l   show all snippets available
-	--help -h	show this help text
- --version -v   display version information and exit (also shows license info)
-   --quiet -q   increase quiet level by one (quiet level is always zero if left alone)
+    --list -l          show all snippets available
+    --clip -x          copy to clipboard instead of showing (via xclip)
+    --file NAME 
+        -f NAME        output to file NAME    
+    --htu  -u          detailed usage info        
+	--help -h          show this help text
+ --version -v          display version information and exit (also shows license info)
+   --quiet -q          increase quiet level by one (quiet level is always zero if left alone)
 
 ARGUMENTS
 
-    SNIPPET         a predefined snippet
+    SNIPPET            a predefined snippet
 
 LICENSE
 
@@ -118,15 +228,40 @@ is() {
             *)  ((quiet_level == 1));;
     esac
 }
+verbose_echo() { is verbose && builtin print -P "%F{41}${@}%f" }
+normal_echo() { is normal && builtin print -P "%F{38}${@}%f" }
+notquiet_echo() { is notquiet && builtin print -P "%F{185}${@}%f" }
+quiet_echo() { is quiet && builtin print -P "%F{202}${@}%f" }
+veryquiet_echo() { is veryquiet && builtin print -P "%F{236}${@}%f" }
+    
 
-if opts=( `getopt -n $0 -o hvqVl -l list,verbose,help,version,quiet -- "$@"` ); then
+if opts=( `getopt -n $0 -o hvqVlUf::x -l list,file::,clip,htu,verbose,help,version,quiet -- "$@"` ); then
 	eval set -- "${opts[@]}"
 	while [[ $# -ge 0 ]]; do
 		curopt=$1
 		nextopt=${2-none}
 		shift
-		# handle --options and -o ptions here
 		case $curopt in
+		    --htu|-U)   echo "showing extra info...";
+		                echo "$(<$0)" | while read r; do
+		                    #3
+		                    if [[ $r =~ '[9]99A[B]' ]]; then
+		                        DOPRINT=1
+	                        elif [[ $r =~ '[9]99A[F]' ]]; then
+	                            DOPRINT=0
+                            else
+                                if ((DOPRINT==1)) {
+                                    r="${r##\#}"
+                                    words=( ${(s:[:punct:]:)r} )
+                                    for w in $words; do
+                                        echo "WORD:$w"
+                                    done
+                                }
+                            fi
+                        done
+		                ;;
+		    --clip|-x)  echo "clipboard copy mode ON"; SNIP_USEXCLIP=1;;
+		    --file|-f)  SNIP_FILEOUT=$nextopt; shift;;
 		    --list|-l)  echo
 		                echo "Available Snippets"; hrule
 		                echo
@@ -150,7 +285,6 @@ if opts=( `getopt -n $0 -o hvqVl -l list,verbose,help,version,quiet -- "$@"` ); 
 		esac
 	done
 	for arg; do
-		# verify/handle non-option arguments
 		case $arg in
 			*)	is verbose && echo "handling argument: $arg";;
 		esac
@@ -161,19 +295,38 @@ else
 fi
 
 #1
-integer badfound=0
-for item; do    
-    if [[ ${(k)snips[$item]} != "$item" ]]; then           
-        echo "fatal: the \"${item}\" snippet does not exist"
-        let badfound++
-    fi
-done
-((badfound)) && exit 127
-#2
-for item; do
-    echo "${snips[$item]}"
-done    
 
+#2
+set -- "$@" "+" 
+newsnippet=1
+for item; do
+    if [[ $newsnippet == 1 ]]; then
+        declare -ga snipargs=( )
+        snipname=$item
+        newsnippet=0
+    else
+        if [[ $item == "+" ]]; then            
+            newsnippet=1
+            foundit=0
+            for snippet in ${(k)snips}; do
+                if [[ $snipname == $snippet ]]; then               
+                    echo "showing           snippet=$snipname"
+                    echo "     snipargs($#snipargs)=$snipargs"
+                    #echo
+                    set -- $snipargs
+                    echo "${(e)snips[$snipname]}"
+                    foundit=1
+                fi                
+            done
+            if ((foundit != 1)); then
+                echo "skipped $snipname, it doesnt exist as a valid snippet!"
+            fi
+        else
+            snipargs+=$item
+        fi
+    fi
+done    
+echo "finished snippet processing"
 
 
 #cs21k

@@ -1,0 +1,72 @@
+/*
+    ${1-Shell Program}
+    ${2-A Brand New ${1-Shell Program}}
+    ${3-mini/eso}
+    ${4-esoteric projects}
+
+    Written by ${5-$USERNAME}, created on $(date +%c)
+
+    License: ${6-GNU GPL 3}    
+
+    Unless you live under a rock, you can easily find the license online at www.gnu.org
+
+    This file was created using 'snip' (aka 'snippy' or 'snip-it') a vesitile seamless integration
+    tool portable in most OSes to use your current templates folders. Just see 'snip' in the mini
+    repository on www.github.com/osirisgothra/mini/eso/ubin-local/snip for details.
+
+    You can get my mini projects just by doing a 'git clone https://github.com/osirisgothra/mini.git'
+
+    (C)2021 Gabriel T Sharp
+*/
+
+#include <iostream>
+#include <unistd.h>
+#include <stdio.h>
+#include <string.h>
+using namespace std;
+
+#define MAIN_LOOP(loop_label) do { loop_label
+#define EXIT_LOOP(retc) retval=retc; break
+#define END_MAIN_LOOP } while(true);
+#define DYNSWITCH(dummy) if (strcmp(input,"") == 0) { printf("%s\n",dummy); }
+#define CASE(cond) else if (strcmp(input,cond)==0)
+#define END_DYNSWITCH
+#define CASE_ELSE else
+#define END_DYNSWITCH_AUTOELSE else { printf("bad command or filename"); }
+
+int main() {
+        int retval=0;
+        int max_buf=1024;
+        char* input = new char[max_buf-1];
+
+        MAIN_LOOP(command_interpreter):
+        {
+                cout << "st> ";
+                cin >> input;
+                cout << "interpretng command...\n";
+                DYNSWITCH(input)
+                        CASE("quit")
+                        {
+                                printf("quitting\n");
+                                EXIT_LOOP(0);
+                        }
+                        CASE("nop")
+                        {
+                                printf("nothing done successfully!\n");
+                        }
+                        CASE_ELSE
+                        {
+                                int pid=fork();
+                                if (pid != 0)
+                                {
+                                        printf("forked %d\n",pid);
+                                        return 2;
+                                }
+                                printf("unknown command: %s\n",input);
+                        }
+                END_DYNSWITCH
+        }
+        END_MAIN_LOOP
+
+        return 0;
+}

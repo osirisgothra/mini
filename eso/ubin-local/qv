@@ -1,7 +1,9 @@
 #!/usr/bin/perl
 #
-#   qv - a quick & dirty image viewer
-#   requires the perl Gtk2 bindings
+#   qv - a gtk2 data viewer
+#   requires: perl Gtk2 bindings
+#             G::L::D, Path::Tiny
+#             Config::INI (my version, version 1.0.0-r20d0b9*+)
 #   written by Gabriel T. Sharp
 #   <osirisgothra@hotmail.com>
 #   GNU GPL 3.0
@@ -13,6 +15,7 @@ use strict;
 use Path::Tiny qw(path);
 use Gtk2 -init;
 use Getopt::Long::Descriptive;
+use Config::INI;
 #use File::MimeInfo;                 #4
 use feature 'signatures';
 no warnings 'experimental';
@@ -21,6 +24,21 @@ my $argc = $#ARGV;                  #10
 my @argv = @ARGV;
 my $cache_done = 0;
 my %cache;
+
+sub get_largest(@files) {
+    say("finding largest in @files :");
+    say for @files;
+    my @largest = ( `file @files` );
+    my ($mx,$my) = (0,0); 
+    for (@largest) {
+        m/^(.*)(\b\d+)( x )(\d+)(.*)$/;
+       my ($cx,$cy) = ($2,$4);
+       $mx = $cx if $cx > $mx;
+       $my = $cy if $cy > $my;
+    }
+    return ($mx, $my);     
+}
+my ($imgx, $imgy) = get_largest(@ARGV);
 
 sub cache_mimes {
 
@@ -45,7 +63,7 @@ sub mimetype($filename)
        
 }
 my ($opt, $usage) = describe_options(
-'qv %o <image1 ...>\nqv %o <text1 ...>',
+'qv %o <text/data1 ...>\nqv %o <media/raw1 ...>',
 [],
 [ 'man|m', "manpage mode" ],
 [ 'verbose|v',  "print extra stuff"            ],
@@ -80,7 +98,7 @@ $w->signal_connect('delete_event' => sub($widget,$event) { Gtk2->main_quit; });
 $w->set_border_width(3);
 $w->set_position('center_always');
 
-my $v=new Gtk2::VBox();
+my $v=new Gtk2::HBox();
 my $s=new Gtk2::ScrolledWindow();
 my $i=undef;
 my $n=undef;
@@ -99,8 +117,7 @@ for $n (@ARGV)
                 when (/image/) {
                     my $l = new Gtk2::Label();
                     my $h = new Gtk2::VBox();                   
-                   
-                    $h->set_size_request(64,64);                    
+                    say("requesting $imgx x $imgy");                    
                     $l->set_use_markup(1); #7
                     $l->set_markup
                     ("<a href=\"file://".$n->realpath()."\">" . $n->basename() . "</a>");   #6                                      
@@ -169,3 +186,20 @@ Gtk2->main();
 #11 failed to cache file during cache_mimes, return the fallback of text/plain (its just the data in the raw)
 #12 always happens after cache, best place to put this message per the rules 
 #13 dumper not needed before here, saves some time when using stuff like --help, or to prevent loading extra moduels when in batch mode
+#14 used (at beginning of program) the get_largest(imagelist) to get the biggest
+#   image sizes. note that the X and Y are independant, so, if you had a list
+#   of images like this:
+#       file1.png   16x128          2048        .02MP
+#       file2.png   1440x80         115200      .12MP
+#       file3.png   17x19           323         .00003MP
+#       file4.png   1280x128        163840      .16MP
+#   the resulting imgx/y would be:
+#       1440 x 128
+#   even though the actual largest
+#   image (in absolute pixel count)
+#   is actually:
+#       1280x128
+#   but as you can see, 1440x128 can contain ANY of these images
+#   since the upper limits are all met.
+
+

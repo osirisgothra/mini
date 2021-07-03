@@ -1,7 +1,28 @@
-#!/bin/sh
+#!/bin/zsh
 # this is a childlike script, which only blips in and out, and thanks to exec(2), does supply krita with a PID
 # just a shim to run whatever krita i like the best a.t.m. (you can delete this script, its not really that important)
-right_now_i_like="/usr/local/bin/krita-4.4.1"
-#
+# uncomment the one you want
+# 4.4.1 - newer but has bugs especially with tablet
+# preferred_version="4.4.1"
+# 4.3 - more stable, however it is a compiled devel  release!clear
+declare -gA delay=( info    2       warn    1       error   3   normal  5 )
+wait() { for n { sleep $delay[$n] } }
+info() { print -P "%F{10}${*}%f"; sleep $delay[info]; }
+warn() { print -P "%F{11}${*}%f"; sleep $delay[warn]; }
+fail() { print -P "%F{9}%B${*}%f%b"; sleep $delay[error]; exit $((127 + ${3-0})); }
+preferred_version="4.3"
+preferred_path="/usr/local/bin/krita-$preferred_version"
+pp="$preferred_path"
+for item (/etc /tmp /dev /proc $HOME /usr /usr/bin /usr/local/bin /sbin /usr/sbin /var /sys /boot /poof /fart) {
+[[ -d /etc ]] || fail "unexpected system layout, $item is expected to exist!" 5 }
+[[ -w /tmp ]] || fail "cannot write to /tmp - this makes the system in an unstable state" 6
+[[ -r /proc/self/fd/0 ]] || fail "unexpected system layout - requires linux" 7
+[[ -w $HOME ]] || fail "cannot write to user home $HOME - please fix this issue and try again" 8
+[[ -r $pp ]] || fail "cannot read $pp" 9
+[[ -w $pp ]] || warn "$pp is not read-only, you should probably write protect it so it cant be compromised"
+[[ -x $pp ]] || fail "$pp not executable" 10
+[[ -s $pp ]] || fail "$pp is an empty file, probably was corrupted and truncated, check your disk for errors asap!" 11
 
-exec $right_now_i_like "$@"
+exec $preferred_path "$@"
+
+echo "failed to launch: $preferred_path (exec failed, path not found or permission/disk space issue?)"

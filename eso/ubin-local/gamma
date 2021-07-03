@@ -1,69 +1,224 @@
-#!/bin/bash
+#!/usr/bin/perl
+#
+# FILE
+#    gamma
+#    a program to control gamma and stuff
+#
+# PROJECT
+#    mini/esoteric projects
+#	 project test perl program
+#
+# AUTHOR / COPYRIGHT
+#
+#    Copyright (C) 2021, Gabriel T. Sharp
+#
+#    Latest versions of this and all of 's projects can be
+#    obtained from:
+#
+#    https://www.github.com/osirisgothra
+#
+# LICENSE
+#
+#    gamma  is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  HISTORY
+#
+#	Sat 03 Jul 2021 06:47:37 PM EDT
+#         osirisgothra@larnica created this file using the template generator 'snips'
+#         and named it /home/osirisgothra/bin/snip for the project 'yet to be named'.
+#
+#
+# (created with snips tool by Gabriel T. Sharp <osirisgothra@hotmail.com>)
+#
 
-declare -gi XGAMMA_ADDING=0
-declare -g XGAMMA_INC=${G_INC-0.05}
+use warnings;
+use v5.20.2;
+use strict;
+use feature 'signatures';
+use Cwd;
+no warnings "experimental";			# 	
+no warnings "once";					#
+use Path::Tiny;                     # #1
+use Getopt::Long::Descriptive;      #
+use Data::Dumper;
+use Term::Put;
+use IO::Proc;
+use Config::INI;
+
+sub pname         { return path($0)->basename(); }
+sub pndot($where) { return (split(/\./,pname()))[$where];   }           # 2
+sub pnsuf         { return pname() =~ /\./ ? pndot(-1) : ""; }          # 3#!/usr/bin/perl
+#
+# FILE
+#    ${1-$0}
+#    ${2-A brand new $0 Program}
+#
+# PROJECT
+#    ${3-mini/esoteric projects}
+#	 ${4-project test perl program}
+#
+# AUTHOR / COPYRIGHT
+#
+#    Copyright (C) 2021, ${5-Gabriel T. Sharp}
+#
+#    Latest versions of this and all of 's projects can be
+#    obtained from:
+#
+#    ${6-https://www.github.com/osirisgothra}
+#
+# LICENSE
+#
+#    ${1-$0}  is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+#  HISTORY
+#
+#	$(date +%c)
+#         ${7-$USERNAME}@$(hostname) created this file using the template generator 'snips'
+#         and named it $0 for the project '${4-yet to be named}'.
+#
+#
+# (created with snips tool by Gabriel T. Sharp <osirisgothra@hotmail.com>)
+#
+
+use warnings;
+use v5.20.2;
+use strict;
+use feature 'signatures';
+use Cwd;
+no warnings "experimental";			# 	
+no warnings "once";					#
+use Path::Tiny;                     # #1
+use Getopt::Long::Descriptive;      #
+use Data::Dumper;
+use Term::Put;
+use IO::Proc;
+use Config::INI;
+
+sub pname         { return path(\$0)->basename(); }
+sub pndot(\$where) { return (split(/\./,pname()))[\$where];   }           # 2
+sub pnsuf         { return pname() =~ /\./ ? pndot(-1) : ""; }            # 3
+sub pnpfx         { return pndot(0);  }
 
 
-# --add flag; allow it to be --add, -add, -a, or --a
-if [[ $1 =~ ^--?a(dd)? ]]; then
-	XGAMMA_ADDING=1
-	shift
-fi
+package InlinePkg;
 
-# -a GRGB=( "r" "g" "b" )
-eval $(echo -ne "GRGB=( "; xgamma |& tr -Cd '[0-9. ]' | tr -s ' ' | tr ' ' ',' | grep -P '[0-9.]+,?' -o | tr ',\n' ' ' | tr -s ' '; echo -ne ")\n")
+sub new(\$classname, \$string, \$fgc, \$bgc, \$preservemethod)
+{
+    my \$self = {};
+    bless(\$self, \$classname);
+    return \$self;
+}
 
-if [[ $# -eq 0 ]] || [[ $1 == 'oneshot' ]]; then
-	while true; do
-		[[ $XGAMMA_ADDING -eq 1 ]] && echo "warning: --add does not influence randomgen, ignoring..."
-		if [[ $1 != oneshot ]]; then
-			echo "keep pressing enter until you see a gamma you like and"
-			echo "then press [Y]..."
-		fi
-		MAJOR=$[ ${RANDOM:1:1} / 3 ]
-		MINOR=$[ ${RANDOM:1:2} ]
-		CMDLINE=( /usr/bin/xgamma -gamma "${MAJOR}.${MINOR}" )
-		echo "${CMDLINE[@]}"
-		eval "${CMDLINE[@]}"
-		if [[ $1 != oneshot ]]; then
-			read -sn1
-			if [[ $REPLY == Y ]]; then
-				exit 0
-			fi
-		else
-			exit 0
-		fi
-	done
-else
-	if [[ "$*" =~ ^(-?[0-9.\ ]+)+$ ]]; then
-		echo "digit(s) only, sending as gamma value...$*"
-		case $# in
-			3)
-				if [[ $XGAMMA_ADDING -eq 1 ]]; then
-					declare -a NEWVALS=( $(calc -e -- "${1}+${GRGB[0]};${2}+${GRGB[1]};${3}+${GRGB[2]}" | tr -d ' \t' | tr '\n' ' ') )
-				else
-					declare -a NEWVALS=( $1 $2 $3 )
-				fi
-				echo "old->new"
-				echo "${GRGB[@]} -> ${NEWVALS[@]} ( +/- $@ )"
-				xgamma -rgamma "${NEWVALS[0]}" -ggamma "${NEWVALS[1]}" -bgamma "${NEWVALS[2]}"
-				;;
-			*)
-				[[ $# -ne 1 ]] && echo "warning: $# values given, only first will be used!"
-				echo "items: $@"
-				echo "GRGB: ${GRGB[@]}"
-				if [[ $XGAMMA_ADDING -eq 1 ]]; then
-					xgamma -gamma $( calc -e -- "${1}+(( ${GRGB[0]} + ${GRGB[1]} + ${GRGB[2]} ) / 3)")
-				else
-					xgamma -gamma ${1}
-				fi
-				;;
-		esac
-	else
-		echo "nondigit parameters detected, delegating to xgamma..."
-		xgamma "$@"
-	fi
-	exit $?
-fi
-echo "abnormal termination"
-exit 127
+package main;
+sub vdump(\$var, \$varname="value")
+{
+    \$Data::Dumper::Terse = 1;
+    \$Data::Dumper::Varname = \$varname;
+    print "var \$varname = ";
+    say Dumper(\$var);
+}
+
+my \$proc = new IO::Proc(\$\$);
+my \$term = new Term::Put( \$ENV{"TERM"} );
+my \$rc = new Config::INI( path(\$ENV{"HOME"})->child(".config")->child(pnpfx())->child(pnsuf() . pnpfx() . "rc") );
+
+
+my (\$opt, \$usage) = describe_options(
+    path(\$0)->basename() . ' %o <some-arg> file',    
+    [],
+    [ 'verbose|v',  "print extra stuff"            ],
+    [ 'help',       "print usage message and exit" ],
+);
+say(\$usage->text), exit if \$opt->help;
+say("getopt: arguments processed: \$#ARGV");
+
+
+my \$i = new InlinePkg("string",0,0,1);
+vdump(\$term,"term");
+vdump(\$proc,"proc");
+vdump(\$i,   "inlinepkg");
+vdump(\$rc,  "rc");
+
+
+# cs21k
+# 
+
+#1  simple path support (cross platform)
+#2  these all rely on one another to work correctly and delegate as needed
+
+sub pnpfx         { return pndot(0);  }
+
+
+package InlinePkg;
+
+sub new($classname, $string, $fgc, $bgc, $preservemethod)
+{
+    my $self = {};
+    bless($self, $classname);
+    return $self;
+}
+
+package main;
+sub vdump($var, $varname="value")
+{
+    $Data::Dumper::Terse = 1;
+    $Data::Dumper::Varname = $varname;
+    print "var $varname = ";
+    say Dumper($var);
+}
+
+my $proc = new IO::Proc($$);
+my $term = new Term::Put( $ENV{"TERM"} );
+my $rc = new Config::INI( path($ENV{"HOME"})->child(".config")->child(pnpfx())->child(pnsuf() . pnpfx() . "rc") );
+
+
+my ($opt, $usage) = describe_options(
+    path($0)->basename() . ' %o <some-arg> file',    
+    [],
+    [ 'verbose|v',  "print extra stuff"            ],
+    [ 'help',       "print usage message and exit" ],
+);
+say($usage->text), exit if $opt->help;
+say("getopt: arguments processed: $#ARGV");
+
+
+my $i = new InlinePkg("string",0,0,1);
+vdump($term,"term");
+vdump($proc,"proc");
+vdump($i,   "inlinepkg");
+vdump($rc,  "rc");
+say("pnpfx: " . pnpfx());
+say("pnpsuf: " . pnsuf());
+
+
+# cs21k
+# 
+
+#1  simple path support (cross platform)
+#2  these all rely on one another to work correctly and delegate as needed
+#3  suffix only returned when there is one, otherwise nothing
+#   (for the stingy: suffix could be the string, and prefix nothing, or vice versa but adheres to ISO file-naming standards)

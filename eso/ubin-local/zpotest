@@ -1,0 +1,17 @@
+#!/bin/zsh
+zmodload zsh/zutil
+echo "transferring $# arguments to zparseopts..."
+for x; do echo -n "${q+, }#${q=1}=$x"; let q++; done
+unset q
+echo "...";
+echo zparseopts "$@"
+declare -ga args=( $@ )
+zparseopts -D -F -A vals "$@"
+echo "values in vals:"
+for x in ${(k)vals}; do echo -n "${q+, }#${q=1}=$x"; let q++; done
+echo "evals of vars"
+for y in $args; do
+    eval declare -p -- ${${y%%:=*}//-/} |& sed -r 's/^/	/g'
+done
+
+
